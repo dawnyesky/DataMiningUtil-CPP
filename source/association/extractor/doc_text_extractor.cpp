@@ -1,0 +1,316 @@
+/*
+ * doc_text_extractor.cpp
+ *
+ *  Created on: 2011-12-8
+ *      Author: Yan Shankai
+ */
+
+#include <dirent.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include "libyskdmu/util/charset_util.h"
+#include "libyskdmu/index/hash_index.h"
+#include "libyskdmu/util/search_util.h"
+#include "libyskdmu/association/fp_growth.h"
+#include "libyskdmu/association/extractor/doc_text_extractor.h"
+
+DocTextExtractor::DocTextExtractor() {
+
+}
+
+DocTextExtractor::DocTextExtractor(vector<DocTextRecordInfo>* record_infos,
+		vector<vector<DocItem> >* items, vector<DocItemDetail>* item_details,
+		HashIndex* item_index) {
+	m_record_infos = record_infos;
+	m_items = items;
+	m_item_details = item_details;
+	m_item_index = item_index;
+	this->init();
+}
+
+DocTextExtractor::~DocTextExtractor() {
+
+}
+
+//做成守护进程，遇到新文件就调用extract_records()
+void DocTextExtractor::read_data(bool with_hi) {
+#ifndef __MINGW32__
+	if (!ICTCLAS_Init(ICTCLAS_INIT_DIR)) {
+		log->error("ICTCLAS Init Failed.\n");
+		return;
+	}
+	ICTCLAS_SetPOSmap(ICT_POS_MAP_SECOND);
+
+	dirent *entry = NULL;
+	DIR *pDir = opendir(INPUT_DIR);
+	char fpath[strlen(INPUT_DIR) + 256];
+	m_index.clear();
+	m_counter.clear();
+	while (NULL != (entry = readdir(pDir))) {
+		if (entry->d_type == 8) {
+			//普通文件
+			strcpy(fpath, INPUT_DIR);
+			if (with_hi) {
+				hi_extract_record(strcat(fpath, entry->d_name));
+			} else {
+				extract_record(strcat(fpath, entry->d_name));
+			}
+		} else {
+			//目录
+		}
+	}
+	closedir(pDir);
+
+	ICTCLAS_Exit();
+#else
+	log->error("ICTCLAS Is Not Support In This Platform.\n");
+#endif
+}
+
+bool DocTextExtractor::extract_record(void* data_addr) {
+#ifndef __MINGW32__
+	/************************ 读取整个txt文件到内存 ************************/
+	char* file_path = (char*) data_addr;
+	int file_descriptor;
+	long file_size;
+	file_descriptor = open(file_path, O_RDONLY); //以只读方式打开源文件
+	if (file_descriptor == -1) {
+		if (log->isWarnEnabled()) {
+			log->warn("打开文件%s出错！\n", file_path);
+		}
+		return false;
+	}
+
+	//抽取record_info
+	if (m_record_infos != NULL) {
+		DocTextRecordInfo record_info = DocTextRecordInfo(file_path);
+		m_record_infos->push_back(record_info);
+	}
+
+	//抽取data
+	file_size = lseek(file_descriptor, 0, SEEK_END); //计算文件大小
+	lseek(file_descriptor, 0, SEEK_SET); //把文件指针重新移到开始位置
+	char text[file_size]; //最后一个字节是EOF
+	read(file_descriptor, text, file_size - 1);
+	memset(text + file_size - 1, 0, 1);
+
+	/************************** 分词，获取关键字 **************************/
+	int result_count = 0;
+	static const size_t buf_size = 100; //缓冲区大小
+	char word[buf_size]; //分词结果缓冲区
+	char temp[buf_size];
+	vector<DocItem> v_items;
+	LPICTCLAS_RESULT parsed_words = ICTCLAS_ParagraphProcessA(text,
+			strlen(text), result_count, CODETYPE, true);
+	for (int i = 0; i < result_count; i++) {
+		//词性过滤，只要名词、动词、形容词，构造关键词序列
+		bool filter_bool = (parsed_words[i].szPOS[0] == 'n' //名词
+		&& (parsed_words[i].szPOS[1] == 'r' //人名
+		|| parsed_words[i].szPOS[1] == 's')) //地名
+		|| parsed_words[i].szPOS[0] == 'v' //动词
+		|| parsed_words[i].szPOS[0] == 'a'; //形容词
+		if (filter_bool && parsed_words[i].iWordID > 0) {
+			//对过滤后的关键字进行编码转换
+			if (CODETYPE == CODE_TYPE_GB) {
+				memcpy(temp, text + parsed_words[i].iStartPos,
+						parsed_words[i].iLength);
+				memset(temp + parsed_words[i].iLength, 0, 1);
+				if (-1
+						== convert_charset("utf-8", "gb2312", word, buf_size,
+								temp, strlen(temp))) {
+					fprintf(stderr, "word %s charset convert failed!\n", word);
+				}
+			} else {
+				memcpy(word, text + parsed_words[i].iStartPos,
+						parsed_words[i].iLength);
+				memset(word + parsed_words[i].iLength, 0, 1);
+			}
+
+			unsigned int key_info = 0;
+			//抽取item_detail
+			string word_str = string(word);
+			if (m_index.find(word_str) == m_index.end()) {
+				m_item_details->push_back(
+						DocItemDetail(word, parsed_words[i].szPOS));
+				key_info = m_item_details->size() - 1;
+				m_index.insert(
+						std::map<string, unsigned int>::value_type(word_str,
+								key_info));
+				m_counter.insert(
+						std::map<string, unsigned int>::value_type(word_str,
+								1));
+			} else {
+				key_info = m_index.at(word_str);
+				m_counter.at(word_str)++;}
+
+				//抽取item
+			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,
+					parsed_words[i].iLength);
+			pair<unsigned int, bool> bs_result = b_search<DocItem>(v_items,
+					item);
+			if (bs_result.second) {
+				v_items[bs_result.first].increase();
+				v_items[bs_result.first].update(parsed_words[i].iStartPos);
+			} else {
+				v_items.insert(v_items.begin() + bs_result.first, item);
+			}
+		}
+	}
+	if (v_items.size() > 0) {
+		// Apriori系列算法的回调函数
+		if (m_apriori_ihandler != NULL) {
+			vector<unsigned int> record;
+			for (unsigned int j = 0; j < v_items.size(); j++) {
+				record.push_back(v_items[j].m_index);
+			}
+			(this->m_apriori_ihandler)(this->m_apriori, record);
+		}
+		// DHP算法的回调函数
+		if (m_dhp_ihandler != NULL) {
+			vector<unsigned int> record;
+			for (unsigned int j = 0; j < v_items.size(); j++) {
+				record.push_back(v_items[j].m_index);
+			}
+			(this->m_dhp_ihandler)(this->m_dhp, record);
+		}
+		// FP-Growth系列算法的回调函数
+		if (m_fp_growth_ihandler != NULL) {
+			unsigned int record_array[v_items.size()];
+			for (unsigned int j = 0; j < v_items.size(); j++) {
+				record_array[j] = v_items[j].m_index;
+			}
+			unsigned int count_array[this->m_fp_growth->get_sorted_index().size()];
+			for (unsigned int k = 0;
+					k < this->m_fp_growth->get_sorted_index().size(); k++) {
+				count_array[this->m_fp_growth->get_sorted_index()[k]] =
+						this->m_fp_growth->get_sorted_index().size() - k;
+			}
+			unsigned int counts[v_items.size()];
+			for (unsigned int l = 0; l < v_items.size(); l++) {
+				counts[l] = count_array[record_array[l]];
+			}
+			// 让记录索引按照一次频繁项的计数值降序排列
+			quicksort<unsigned int>(counts, v_items.size(), true, false,
+					record_array);
+			vector<unsigned int> record;
+			for (unsigned int m = 0; m < v_items.size(); m++) {
+				record.push_back(record_array[v_items.size() - 1 - m]);
+			}
+			(this->m_fp_growth_ihandler)(this->m_fp_growth, record);
+		}
+
+		if (m_items != NULL) {
+			m_items->push_back(v_items);
+		}
+	}
+
+	ICTCLAS_ResultFree(parsed_words);
+	close(file_descriptor);
+	return true;
+#else
+	log->error("ICTCLAS Is Not Support In This Platform.\n");
+	return false;
+#endif
+}
+
+bool DocTextExtractor::hi_extract_record(void* data_addr) {
+#ifndef __MINGW32__
+	/************************ 读取整个txt文件到内存 ************************/
+	char* file_path = (char*) data_addr;
+	int file_descriptor;
+	long file_size;
+	file_descriptor = open(file_path, O_RDONLY); //以只读方式打开源文件
+	if (file_descriptor == -1) {
+		if (log->isWarnEnabled()) {
+			log->warn("打开文件%s出错！\n", file_path);
+		}
+		return false;
+	}
+
+	//抽取record_info
+	DocTextRecordInfo record_info = DocTextRecordInfo(file_path);
+	m_record_infos->push_back(record_info);
+
+	//抽取data
+	file_size = lseek(file_descriptor, 0, SEEK_END); //计算文件大小
+	lseek(file_descriptor, 0, SEEK_SET); //把文件指针重新移到开始位置
+	char text[file_size]; //最后一个字节是EOF
+	read(file_descriptor, text, file_size - 1);
+	memset(text + file_size - 1, 0, 1);
+
+	/************************** 分词，获取关键字 **************************/
+	int result_count = 0;
+	static const size_t buf_size = 100; //缓冲区大小
+	char word[buf_size]; //分词结果缓冲区
+	char temp[buf_size];
+	vector<DocItem> v_items;
+	LPICTCLAS_RESULT parsed_words = ICTCLAS_ParagraphProcessA(text,
+			strlen(text), result_count, CODETYPE, true);
+	for (int i = 0; i < result_count; i++) {
+		//词性过滤，只要名词、动词、形容词，构造关键词序列
+		bool filter_bool = (parsed_words[i].szPOS[0] == 'n' //名词
+		&& (parsed_words[i].szPOS[1] == 'r' //人名
+		|| parsed_words[i].szPOS[1] == 's')) //地名
+		|| parsed_words[i].szPOS[0] == 'v' //动词
+		|| parsed_words[i].szPOS[0] == 'a'; //形容词
+		if (filter_bool && parsed_words[i].iWordID > 0) {
+			//对过滤后的关键字进行编码转换
+			if (CODETYPE == CODE_TYPE_GB) {
+				memcpy(temp, text + parsed_words[i].iStartPos,
+						parsed_words[i].iLength);
+				memset(temp + parsed_words[i].iLength, 0, 1);
+				if (-1
+						== convert_charset("utf-8", "gb2312", word, buf_size,
+								temp, strlen(temp))) {
+					fprintf(stderr, "word %s charset convert failed!\n", word);
+				}
+			} else {
+				memcpy(word, text + parsed_words[i].iStartPos,
+						parsed_words[i].iLength);
+				memset(word + parsed_words[i].iLength, 0, 1);
+			}
+
+			unsigned int key_info;
+			bool have_index = true;
+			size_t length = strlen(word);
+			//抽取item_detail
+			if (!m_item_index->get_key_info(key_info, word, length)) {
+				m_item_details->push_back(
+						DocItemDetail(word, parsed_words[i].szPOS));
+				key_info = m_item_details->size() - 1;
+				have_index = false;
+			}
+
+			//抽取item
+			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,
+					parsed_words[i].iLength);
+			pair<unsigned int, bool> bs_result = b_search<DocItem>(v_items,
+					item);
+			if (bs_result.second) {
+				v_items[bs_result.first].increase();
+				v_items[bs_result.first].update(parsed_words[i].iStartPos);
+			} else {
+				v_items.insert(v_items.begin() + bs_result.first, item);
+				have_index = false;
+			}
+
+			//添加索引
+			if (!have_index) {
+				m_item_index->insert(word, length, key_info,
+						m_record_infos->size() - 1);
+			}
+		}
+	}
+	if (m_items != NULL) {
+		m_items->push_back(v_items);
+	}
+
+	ICTCLAS_ResultFree(parsed_words);
+	close(file_descriptor);
+	return true;
+#else
+	log->error("ICTCLAS Is Not Support In This Platform.\n");
+	return false;
+#endif
+}

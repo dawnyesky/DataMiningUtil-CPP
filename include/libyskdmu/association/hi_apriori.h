@@ -1,0 +1,211 @@
+/*
+ * hi_apriori.h
+ *
+ *  Created on: 2011-12-22
+ *      Author: Yan Shankai
+ */
+
+#ifndef HI_APRIORI_H_
+#define HI_APRIORI_H_
+
+#include "libyskdmu/index/hash_index.h"
+#include "libyskdmu/association/entity/itemset.h"
+#include "libyskdmu/association/apriori.h"
+
+using namespace std;
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+class HiAPriori: public Apriori<ItemType, ItemDetail, RecordInfoType> {
+public:
+	HiAPriori();
+	HiAPriori(unsigned int hi_table_size);
+	virtual ~HiAPriori();
+
+	/*
+	 * description: HI-Apriori 频繁项集生成算法
+	 *      return: 生成频繁项集是否成功
+	 */
+	bool hi_apriori();
+	/*
+	 * description: 频繁项集生成函数 	F(k-1)xF(1)Method
+	 *  parameters: frq_itemset：	频繁项集容器
+	 *  			  prv_frq：		(k-1)项频繁项集
+	 *  			  frq_1：			1项频繁项集
+	 *      return: 生成频繁项集是否成功
+	 */
+	bool hi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq,
+			KItemsets& frq_1);
+	/*
+	 * description: HI-Apriori算法频繁项集过滤器
+	 *  parameters: k_itemset：	需要检查的k项频繁项集
+	 *      return: 是否是频繁项集
+	 */
+	bool hi_filter(vector<unsigned int>* k_itemset, unsigned int* support);
+	void set_extractor(
+			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor);
+	virtual unsigned int get_support_count(const vector<unsigned int>& itemset);
+
+public:
+	HashIndex m_item_index; //以m_item_details的索引作为KeyInfo
+};
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+HiAPriori<ItemType, ItemDetail, RecordInfoType>::HiAPriori() {
+
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+HiAPriori<ItemType, ItemDetail, RecordInfoType>::HiAPriori(
+		unsigned int hi_table_size) :
+		m_item_index(hi_table_size) {
+
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+HiAPriori<ItemType, ItemDetail, RecordInfoType>::~HiAPriori() {
+
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
+	// 读取数据集
+	this->m_extractor->read_data(true);
+
+	if (this->m_record_infos.size() == 0 || this->m_minsup <= 0
+			|| this->m_minconf <= 0) {
+		return false;
+	}
+
+	unsigned int minsup_count = double2int(
+			this->m_record_infos.size() * this->m_minsup);
+	if (0 == minsup_count)
+		minsup_count = 1;
+	vector<unsigned int> itemset;
+	KItemsets *frq_itemsets;
+	char **keys = new char*[1];
+
+	/* F1 generation */
+	frq_itemsets = new KItemsets(1);
+	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
+		unsigned int *result;
+		keys[0] = this->m_item_details[i].m_identifier;
+		result = m_item_index.get_intersect_records((const char **) keys, 1);
+		if (result[0] >= minsup_count) {
+			itemset.clear();
+			itemset.push_back(i);
+			frq_itemsets->push(itemset, result[0]);
+			this->logItemset("Frequent", 1, itemset, result[0]);
+		}
+		delete[] result;
+	}
+	if (frq_itemsets->get_itemsets().size() == 0) { //frequent 1-itemsets is not found
+		return false;
+	}
+	this->m_frequent_itemsets->push_back(*frq_itemsets);
+	delete[] keys;
+	delete frq_itemsets;
+
+	/* F2~n generation */
+	for (unsigned int i = 0;
+			this->m_frequent_itemsets->size() == i + 1
+					&& i + 1 < this->m_max_itemset_size; i++) {
+		frq_itemsets = new KItemsets(i + 2);
+		if (!hi_frq_gen(*frq_itemsets, this->m_frequent_itemsets->at(i),
+				this->m_frequent_itemsets->at(0))) {
+			return false;
+		}
+		if (frq_itemsets->get_itemsets().size() > 0) {
+			this->m_frequent_itemsets->push_back(*frq_itemsets);
+		}
+		delete frq_itemsets;
+	}
+	return true;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
+		KItemsets& frq_itemset, KItemsets& prv_frq, KItemsets& frq_1) {
+	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets =
+			prv_frq.get_itemsets();
+	const map<vector<unsigned int>, unsigned int>& frq_1_itemsets =
+			frq_1.get_itemsets();
+	vector<unsigned int>* k_itemset = NULL;
+
+	/* 潜在频繁项集生成 */
+	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter =
+			prv_frq_itemsets.begin(); prv_frq_iter != prv_frq_itemsets.end();
+			prv_frq_iter++) {
+		for (map<vector<unsigned int>, unsigned int>::const_iterator frq_1_iter =
+				frq_1_itemsets.begin(); frq_1_iter != frq_1_itemsets.end();
+				frq_1_iter++) {
+
+			/************************** 项目集连接与过滤 **************************/
+			//求并集
+			k_itemset = KItemsets::union_set(prv_frq_iter->first,
+					frq_1_iter->first);
+
+			//过滤并保存潜在频繁项集
+			unsigned int support;
+			if (this->filter(frq_itemset, prv_frq, k_itemset)
+					&& hi_filter(k_itemset, &support)) {
+				frq_itemset.push(*k_itemset, support);
+				this->logItemset("Frequent", k_itemset->size(), *k_itemset,
+						support);
+			}
+			delete k_itemset;
+		}
+	}
+
+	return true;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
+		vector<unsigned int>* k_itemset, unsigned int* support) {
+	char **keys = new char*[k_itemset->size()];
+	unsigned int minsup_count = double2int(
+			this->m_record_infos.size() * this->m_minsup);
+	if (0 == minsup_count)
+		minsup_count = 1;
+	unsigned int *result;
+	for (unsigned int j = 0; j < k_itemset->size(); j++) {
+		keys[j] = this->m_item_details[k_itemset->at(j)].m_identifier;
+	}
+	result = m_item_index.get_intersect_records((const char **) keys,
+			k_itemset->size());
+	*support = result[0];
+	delete[] keys;
+	delete[] result;
+
+	return minsup_count >= *support;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+void HiAPriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
+		Extractor<ItemType, ItemDetail, RecordInfoType>* extractor) {
+	this->m_extractor = extractor;
+	this->m_extractor->set_record_infos(&this->m_record_infos);
+//	this->m_extractor->set_items(&this->m_items);
+	this->m_extractor->set_item_details(&this->m_item_details);
+	this->m_extractor->set_item_index(&this->m_item_index);
+	this->m_extractor->m_apriori = this;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+unsigned int HiAPriori<ItemType, ItemDetail, RecordInfoType>::get_support_count(
+		const vector<unsigned int>& itemset) {
+	char **keys = new char*[itemset.size()];
+	unsigned int *result;
+	for (unsigned int i = 0; i < itemset.size(); i++) {
+		keys[i] = this->m_item_details[itemset[i]].m_identifier;
+	}
+	result = m_item_index.get_intersect_records((const char **) keys,
+			itemset.size());
+	unsigned int support_count = result[0];
+	delete[] keys;
+	delete[] result;
+	return support_count;
+
+}
+
+#endif /* HI_APRIORI_H_ */
