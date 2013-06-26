@@ -38,6 +38,7 @@ void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.01,
 	start_t = time(NULL);
 	bool print_item_detial = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<ItemDetail> > assoc_rules;
@@ -49,6 +50,7 @@ void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.01,
 	apriori.set_frequent_itemsets(&frequent_itemsets);
 	apriori.set_assoc_rules(&assoc_rules);
 	apriori.set_extractor(&trade_x);
+	apriori.enable_log(print_frequent_itemsets);
 
 	bool succeed = true;
 	succeed &= apriori.apriori();
@@ -127,6 +129,7 @@ void test_apriori_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	start_t = time(NULL);
 	bool print_item_detial = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<DocItemDetail> > assoc_rules;
@@ -138,6 +141,7 @@ void test_apriori_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	apriori.set_frequent_itemsets(&frequent_itemsets);
 	apriori.set_assoc_rules(&assoc_rules);
 	apriori.set_extractor(&doc_text);
+	apriori.enable_log(print_frequent_itemsets);
 
 	bool succeed = true;
 	succeed &= apriori.apriori();
@@ -217,6 +221,7 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	start_t = time(NULL);
 	bool print_item_detial = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<ItemDetail> > assoc_rules;
@@ -262,12 +267,14 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		vector<string>& items_data = data.second->at(i);
 		for (unsigned int j = 0; j < items_data.size(); j++) {
 			unsigned int key_info = 0;
-			if (hash_table.get_key_info(key_info, items_data[j].c_str(), items_data[j].length())) {
+			if (hash_table.get_key_info(key_info, items_data[j].c_str(),
+					items_data[j].length())) {
 				items.push_back(Item(key_info));
 			} else {
 				ItemDetail item_detail = ItemDetail(items_data[j].c_str());
 				unsigned int item_id = trade_strvv.push_detail(item_detail);
-				hash_table.insert(items_data[j].c_str(), items_data[j].length(), item_id, item_id);
+				hash_table.insert(items_data[j].c_str(), items_data[j].length(),
+						item_id, item_id);
 			}
 		}
 		RecordInfo record_info;
@@ -281,6 +288,7 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	apriori.set_frequent_itemsets(&frequent_itemsets);
 	apriori.set_assoc_rules(&assoc_rules);
 	apriori.set_extractor(&trade_strvv);
+	apriori.enable_log(print_frequent_itemsets);
 
 	bool succeed = true;
 	succeed &= apriori.apriori();

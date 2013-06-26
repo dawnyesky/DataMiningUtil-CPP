@@ -25,9 +25,14 @@ struct FpTreeNode {
 	unsigned int m_count;
 
 	FpTreeNode() {
+		m_key = NULL;
+		m_same = NULL;
+		m_count = 0;
 	}
+
 	FpTreeNode(unsigned int key) {
 		m_key = new unsigned int(key);
+		m_same = NULL;
 		m_count = 1;
 	}
 	string print_tree(FpTreeNode* sub_tree) {
@@ -244,7 +249,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 					itemsets->push(*union_itemset, support);
 					this->logItemset("Frequent", i + 2, *union_itemset,
 							support);
-					printf("j,i:%u,%u\n",j,i);
+//					printf("j,i:%u,%u\n", j, i);
 				}
 			}
 		}
@@ -326,7 +331,7 @@ unsigned int FpGrowth<ItemType, ItemDetail, RecordInfoType>::get_support_count(
 	} else {
 		vector<unsigned int> pattern_base = vector<unsigned int>(
 				itemset.begin(), itemset.end() - 1);
-		printf("suffix:%u\t offset:%u\n", itemset.back(), itemset.size() - 2);
+//		printf("suffix:%u\t offset:%u\n", itemset.back(), itemset.size() - 2);
 		return m_pattern_counter[itemset.back()][itemset.size() - 2].get_count(
 				pattern_base.data());
 	}
@@ -344,7 +349,8 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::sort_items_index() {
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		index[i] = i;
 	}
-	quicksort<unsigned int>(counts, this->m_item_details.size(), true, false, index);
+	quicksort<unsigned int>(counts, this->m_item_details.size(), true, false,
+			index);
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		this->m_sorted_item_index.push_back(
 				index[this->m_item_details.size() - 1 - i]);

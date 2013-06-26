@@ -26,6 +26,7 @@ void test_dhp_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	start_t = time(NULL);
 	bool print_item_detial = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<ItemDetail> > assoc_rules;
@@ -37,6 +38,7 @@ void test_dhp_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	dhp.set_frequent_itemsets(&frequent_itemsets);
 	dhp.set_assoc_rules(&assoc_rules);
 	dhp.set_extractor(&trade_x);
+	dhp.enable_log(print_frequent_itemsets);
 
 	bool succeed = true;
 	succeed &= dhp.dhp();
@@ -114,6 +116,7 @@ void test_dhp_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	start_t = time(NULL);
 	bool print_item_detial = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<DocItemDetail> > assoc_rules;
@@ -125,6 +128,7 @@ void test_dhp_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	dhp.set_frequent_itemsets(&frequent_itemsets);
 	dhp.set_assoc_rules(&assoc_rules);
 	dhp.set_extractor(&doc_text);
+	dhp.enable_log(print_frequent_itemsets);
 
 	bool succeed = true;
 	succeed &= dhp.dhp();

@@ -13,7 +13,7 @@
 #include "libyskdmu/association/extractor/trade_text_extractor.h"
 
 TradeTextExtractor::TradeTextExtractor() {
-
+	m_data = NULL;
 }
 
 TradeTextExtractor::TradeTextExtractor(vector<RecordInfo>* record_infos,
@@ -23,6 +23,7 @@ TradeTextExtractor::TradeTextExtractor(vector<RecordInfo>* record_infos,
 	m_items = items;
 	m_item_details = item_details;
 	m_item_index = item_index;
+	m_data = NULL;
 	this->init();
 }
 
@@ -61,11 +62,11 @@ bool TradeTextExtractor::extract_record(void* data_addr) {
 			key_info = m_index.at(string(itoa((int) rid, 10)));
 			m_counter.at(string(itoa((int) rid, 10)))++;}
 
-		//整合数据
-		if(m_data->find(uid) == m_data->end()) {
+			//整合数据
+		if (m_data->find(uid) == m_data->end()) {
 			m_data->insert(
-			pair<unsigned int, map<unsigned int, double>*>(uid,
-					new map<unsigned int, double>()));
+					pair<unsigned int, map<unsigned int, double>*>(uid,
+							new map<unsigned int, double>()));
 		}
 		map<unsigned int, double>* prefs = m_data->at(uid);
 		prefs->insert(pair<unsigned int, double>(rid, score));

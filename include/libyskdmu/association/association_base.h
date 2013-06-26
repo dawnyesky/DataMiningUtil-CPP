@@ -36,6 +36,7 @@ public:
 			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor) = 0;
 	virtual unsigned int get_support_count(
 			const vector<unsigned int>& itemset) = 0;
+	void enable_log(bool enabled);
 
 	bool genrules();
 	void rec_genrules(vector<unsigned int>& frq_itemset,
@@ -62,12 +63,22 @@ protected:
 	double m_minsup; //最小支持度
 	double m_minconf; //最小置信度
 	bool is_inited; //是否已经初始化
+	bool enable_log_itemsets; //是否打印频繁项集
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 AssocBase<ItemType, ItemDetail, RecordInfoType>::AssocBase() {
 	m_itemsets_counter.clear();
+	m_extractor = NULL;
 	m_current_itemsets = NULL;
+	m_frequent_itemsets = NULL;
+	m_assoc_rules = NULL;
+	log = NULL;
+	enable_log_itemsets = false;
+	is_inited = false;
+	m_max_itemset_size = 0;
+	m_minsup = 0;
+	m_minconf = 0;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -84,6 +95,11 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void AssocBase<ItemType, ItemDetail, RecordInfoType>::set_assoc_rules(
 		vector<AssociationRule<ItemDetail> >* assoc_rules) {
 	m_assoc_rules = assoc_rules;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+void AssocBase<ItemType, ItemDetail, RecordInfoType>::enable_log(bool enabled) {
+	this->enable_log_itemsets = enabled;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -189,7 +205,7 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void AssocBase<ItemType, ItemDetail, RecordInfoType>::logItemset(
 		const char* type, unsigned int k, vector<unsigned int>& itemset,
 		unsigned int support) {
-	if (log->isDebugEnabled()) {
+	if (this->enable_log_itemsets && log->isDebugEnabled()) {
 		char* itemset_str = print_itemset(itemset);
 		if (support > 0) {
 			log->debug("%s %u-itemsets: { %s }, support count: %u", type, k,

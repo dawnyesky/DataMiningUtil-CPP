@@ -84,6 +84,7 @@ Extractor<ItemType, ItemDetailType, RecordInfoType>::Extractor() {
 	m_dhp_ihandler = NULL;
 	m_fp_growth_ihandler = NULL;
 	m_item_index = NULL;
+	log = NULL;
 }
 
 template<typename ItemType, typename ItemDetailType, typename RecordInfoType>

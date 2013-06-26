@@ -28,6 +28,7 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	bool print_item_detial = false;
 	bool print_index = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<ItemDetail> > assoc_rules;
@@ -40,6 +41,7 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	hi_apriori.set_frequent_itemsets(&frequent_itemsets);
 	hi_apriori.set_assoc_rules(&assoc_rules);
 	hi_apriori.set_extractor(&trade_x);
+	hi_apriori.enable_log(print_frequent_itemsets);
 
 	if (print_index) {
 		printf("Index:\n");
@@ -142,6 +144,7 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	bool print_item_detial = false;
 	bool print_index = false;
 	bool print_itemset = false;
+	bool print_frequent_itemsets = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<DocItemDetail> > assoc_rules;
@@ -154,6 +157,7 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	hi_apriori.set_frequent_itemsets(&frequent_itemsets);
 	hi_apriori.set_assoc_rules(&assoc_rules);
 	hi_apriori.set_extractor(&doc_text);
+	hi_apriori.enable_log(print_frequent_itemsets);
 
 	if (print_index) {
 		printf("Index:\n");

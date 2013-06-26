@@ -122,7 +122,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 			itemset.clear();
 			itemset.push_back(i);
 			frq_itemsets->push(itemset, support);
-//			this->logItemset("Frequent", 1, itemset, support);
+			this->logItemset("Frequent", 1, itemset, support);
 		}
 	}
 	if (frq_itemsets->get_itemsets().size() == 0) { //frequent 1-itemsets is not found
@@ -183,7 +183,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 					itemset.push_back(iter->first.at(k));
 				}
 				frq_itemsets->push(itemset, support);
-//				this->logItemset("Frequent", i + 2, itemset, support);
+				this->logItemset("Frequent", i + 2, itemset, support);
 			}
 		}
 		if (frq_itemsets->get_itemsets().size() > 0) {

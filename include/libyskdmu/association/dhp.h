@@ -201,7 +201,7 @@ bool DHP<ItemType, ItemDetail, RecordInfoType>::candidate_gen(
 			}
 			if (filter_result) {
 				candidate.push(*k_itemset, 0);
-//				this->logItemset("Candidate", k_itemset->size(), *k_itemset);
+				this->logItemset("Candidate", k_itemset->size(), *k_itemset);
 			}
 			delete k_itemset;
 		}
