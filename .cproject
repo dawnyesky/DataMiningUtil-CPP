@@ -29,8 +29,8 @@
 							<tool id="cdt.managedbuild.tool.gnu.archiver.base.887892089" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.base.1513913911" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.base">
 								<option id="gnu.cpp.compiler.option.include.paths.1065483548" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="../include"/>
 									<listOptionValue builtIn="false" value="/usr/include/libxml2"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}}/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Algorithms/include}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1465722759" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
@@ -110,7 +110,6 @@
 								<option id="gnu.cpp.compiler.option.include.paths.259669914" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/usr/include/libxml2"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Algorithms/include}&quot;"/>
-									<listOptionValue builtIn="false" value=".././include"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.debugging.level.453174869" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.optimization.level.2077292052" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" value="gnu.cpp.compiler.optimization.level.most" valueType="enumerated"/>
@@ -311,8 +310,19 @@
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 		<project id="DataMiningUtil.null.269518551" name="DataMiningUtil"/>
 	</storageModule>
-	<storageModule moduleId="refreshScope" versionNumber="1">
-		<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="mingw-release">
+			<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
+		</configuration>
+		<configuration configurationName="mingw-debug">
+			<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
+		</configuration>
+		<configuration configurationName="debug">
+			<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
+		</configuration>
+		<configuration configurationName="release">
+			<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
+		</configuration>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
@@ -630,8 +640,8 @@
 				</scannerInfoProvider>
 			</profile>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.917833292.789427108;cdt.managedbuild.toolchain.gnu.base.917833292.789427108.;cdt.managedbuild.tool.gnu.cpp.compiler.mingw.base.365031368;cdt.managedbuild.tool.gnu.cpp.compiler.input.1377756457">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP"/>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.917833292;cdt.managedbuild.toolchain.gnu.base.917833292.623704044;cdt.managedbuild.tool.gnu.c.compiler.base.651801202;cdt.managedbuild.tool.gnu.c.compiler.input.1729418058">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC"/>
 			<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile">
 				<buildOutputProvider>
 					<openAction enabled="true" filePath=""/>
@@ -693,8 +703,8 @@
 				</scannerInfoProvider>
 			</profile>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.917833292;cdt.managedbuild.toolchain.gnu.base.917833292.623704044;cdt.managedbuild.tool.gnu.c.compiler.base.651801202;cdt.managedbuild.tool.gnu.c.compiler.input.1729418058">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC"/>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.917833292.789427108;cdt.managedbuild.toolchain.gnu.base.917833292.789427108.;cdt.managedbuild.tool.gnu.cpp.compiler.mingw.base.365031368;cdt.managedbuild.tool.gnu.cpp.compiler.input.1377756457">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP"/>
 			<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile">
 				<buildOutputProvider>
 					<openAction enabled="true" filePath=""/>
