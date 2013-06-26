@@ -39,6 +39,7 @@ void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.01,
 	bool print_item_detial = false;
 	bool print_itemset = false;
 	bool print_frequent_itemsets = false;
+	bool print_assoc_rules = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<ItemDetail> > assoc_rules;
@@ -88,24 +89,26 @@ void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.01,
 				frequent_itemsets[i].get_itemsets().size());
 	}
 
-	for (unsigned int i = 0; i < assoc_rules.size(); i++) {
-		string condition = "";
-		unsigned int j = 0;
-		for (; j < assoc_rules[i].condition.size() - 1; j++) {
+	if (print_assoc_rules) {
+		for (unsigned int i = 0; i < assoc_rules.size(); i++) {
+			string condition = "";
+			unsigned int j = 0;
+			for (; j < assoc_rules[i].condition.size() - 1; j++) {
+				condition += assoc_rules[i].condition[j].m_identifier;
+				condition += ", ";
+			}
 			condition += assoc_rules[i].condition[j].m_identifier;
-			condition += ", ";
-		}
-		condition += assoc_rules[i].condition[j].m_identifier;
 
-		string consequent = "";
-		for (j = 0; j < assoc_rules[i].consequent.size() - 1; j++) {
+			string consequent = "";
+			for (j = 0; j < assoc_rules[i].consequent.size() - 1; j++) {
+				consequent += assoc_rules[i].consequent[j].m_identifier;
+				consequent += ", ";
+			}
 			consequent += assoc_rules[i].consequent[j].m_identifier;
-			consequent += ", ";
+			printf("Association Rules[%u]: %s ===> %s ; confidence: %f\n", i,
+					condition.c_str(), consequent.c_str(),
+					assoc_rules[i].confidence);
 		}
-		consequent += assoc_rules[i].consequent[j].m_identifier;
-		printf("Association Rules[%u]: %s ===> %s ; confidence: %f\n", i,
-				condition.c_str(), consequent.c_str(),
-				assoc_rules[i].confidence);
 	}
 
 	finish = clock();
@@ -130,6 +133,7 @@ void test_apriori_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	bool print_item_detial = false;
 	bool print_itemset = false;
 	bool print_frequent_itemsets = false;
+	bool print_assoc_rules = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<DocItemDetail> > assoc_rules;
@@ -179,24 +183,26 @@ void test_apriori_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 				frequent_itemsets[i].get_itemsets().size());
 	}
 
-	for (unsigned int i = 0; i < assoc_rules.size(); i++) {
-		string condition = "";
-		unsigned int j = 0;
-		for (; j < assoc_rules[i].condition.size() - 1; j++) {
+	if (print_assoc_rules) {
+		for (unsigned int i = 0; i < assoc_rules.size(); i++) {
+			string condition = "";
+			unsigned int j = 0;
+			for (; j < assoc_rules[i].condition.size() - 1; j++) {
+				condition += assoc_rules[i].condition[j].m_identifier;
+				condition += ", ";
+			}
 			condition += assoc_rules[i].condition[j].m_identifier;
-			condition += ", ";
-		}
-		condition += assoc_rules[i].condition[j].m_identifier;
 
-		string consequent = "";
-		for (j = 0; j < assoc_rules[i].consequent.size() - 1; j++) {
+			string consequent = "";
+			for (j = 0; j < assoc_rules[i].consequent.size() - 1; j++) {
+				consequent += assoc_rules[i].consequent[j].m_identifier;
+				consequent += ", ";
+			}
 			consequent += assoc_rules[i].consequent[j].m_identifier;
-			consequent += ", ";
+			printf("Association Rules[%u]: %s ===> %s ; confidence: %f\n", i,
+					condition.c_str(), consequent.c_str(),
+					assoc_rules[i].confidence);
 		}
-		consequent += assoc_rules[i].consequent[j].m_identifier;
-		printf("Association Rules[%u]: %s ===> %s ; confidence: %f\n", i,
-				condition.c_str(), consequent.c_str(),
-				assoc_rules[i].confidence);
 	}
 
 	finish = clock();
@@ -222,6 +228,7 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	bool print_item_detial = false;
 	bool print_itemset = false;
 	bool print_frequent_itemsets = false;
+	bool print_assoc_rules = false;
 	vector<KItemsets> frequent_itemsets;
 	frequent_itemsets.reserve(max_itemset_size);
 	vector<AssociationRule<ItemDetail> > assoc_rules;
@@ -326,24 +333,26 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 				frequent_itemsets[i].get_itemsets().size());
 	}
 
-	for (unsigned int i = 0; i < assoc_rules.size(); i++) {
-		string condition = "";
-		unsigned int j = 0;
-		for (; j < assoc_rules[i].condition.size() - 1; j++) {
+	if (print_assoc_rules) {
+		for (unsigned int i = 0; i < assoc_rules.size(); i++) {
+			string condition = "";
+			unsigned int j = 0;
+			for (; j < assoc_rules[i].condition.size() - 1; j++) {
+				condition += assoc_rules[i].condition[j].m_identifier;
+				condition += ", ";
+			}
 			condition += assoc_rules[i].condition[j].m_identifier;
-			condition += ", ";
-		}
-		condition += assoc_rules[i].condition[j].m_identifier;
 
-		string consequent = "";
-		for (j = 0; j < assoc_rules[i].consequent.size() - 1; j++) {
+			string consequent = "";
+			for (j = 0; j < assoc_rules[i].consequent.size() - 1; j++) {
+				consequent += assoc_rules[i].consequent[j].m_identifier;
+				consequent += ", ";
+			}
 			consequent += assoc_rules[i].consequent[j].m_identifier;
-			consequent += ", ";
+			printf("Association Rules[%u]: %s ===> %s ; confidence: %f\n", i,
+					condition.c_str(), consequent.c_str(),
+					assoc_rules[i].confidence);
 		}
-		consequent += assoc_rules[i].consequent[j].m_identifier;
-		printf("Association Rules[%u]: %s ===> %s ; confidence: %f\n", i,
-				condition.c_str(), consequent.c_str(),
-				assoc_rules[i].confidence);
 	}
 
 	delete data.first;
