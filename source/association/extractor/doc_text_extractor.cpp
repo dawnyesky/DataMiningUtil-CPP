@@ -158,48 +158,14 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 		}
 	}
 	if (v_items.size() > 0) {
-		// Apriori系列算法的回调函数
-		if (m_apriori_ihandler != NULL) {
+		//回调函数
+		if (m_ihandler != NULL) {
 			vector<unsigned int> record;
 			for (unsigned int j = 0; j < v_items.size(); j++) {
 				record.push_back(v_items[j].m_index);
 			}
-			(this->m_apriori_ihandler)(this->m_apriori, record);
+			(this->m_ihandler)(this->m_assoc, record, &v_items);
 		}
-		// DHP算法的回调函数
-		if (m_dhp_ihandler != NULL) {
-			vector<unsigned int> record;
-			for (unsigned int j = 0; j < v_items.size(); j++) {
-				record.push_back(v_items[j].m_index);
-			}
-			(this->m_dhp_ihandler)(this->m_dhp, record);
-		}
-		// FP-Growth系列算法的回调函数
-		if (m_fp_growth_ihandler != NULL) {
-			unsigned int record_array[v_items.size()];
-			for (unsigned int j = 0; j < v_items.size(); j++) {
-				record_array[j] = v_items[j].m_index;
-			}
-			unsigned int count_array[this->m_fp_growth->get_sorted_index().size()];
-			for (unsigned int k = 0;
-					k < this->m_fp_growth->get_sorted_index().size(); k++) {
-				count_array[this->m_fp_growth->get_sorted_index()[k]] =
-						this->m_fp_growth->get_sorted_index().size() - k;
-			}
-			unsigned int counts[v_items.size()];
-			for (unsigned int l = 0; l < v_items.size(); l++) {
-				counts[l] = count_array[record_array[l]];
-			}
-			// 让记录索引按照一次频繁项的计数值降序排列
-			quicksort<unsigned int>(counts, v_items.size(), true, false,
-					record_array);
-			vector<unsigned int> record;
-			for (unsigned int m = 0; m < v_items.size(); m++) {
-				record.push_back(record_array[v_items.size() - 1 - m]);
-			}
-			(this->m_fp_growth_ihandler)(this->m_fp_growth, record);
-		}
-
 		if (m_items != NULL) {
 			m_items->push_back(v_items);
 		}

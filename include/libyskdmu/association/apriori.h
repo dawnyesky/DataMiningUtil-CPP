@@ -46,7 +46,8 @@ public:
 	 */
 	bool filter(KItemsets& potential_frq, KItemsets& prv_frq,
 			vector<unsigned int>* k_itemset);
-//	friend void count_itemsets(APriori<ItemType, ItemDetail, RecordInfoType>* apriori,
+//	friend void count_itemsets(
+//			AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
 //			vector<unsigned int>& record);
 	virtual void set_extractor(
 			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor);
@@ -57,8 +58,11 @@ public:
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-void count_itemsets(Apriori<ItemType, ItemDetail, RecordInfoType>* apriori,
-		vector<unsigned int>& record) {
+void count_itemsets(
+		AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
+		vector<unsigned int>& record, void* v_items) {
+	Apriori<ItemType, ItemDetail, RecordInfoType>* apriori = (Apriori<ItemType,
+			ItemDetail, RecordInfoType>*) assoc_instance;
 	if (NULL == apriori->m_current_itemsets)
 		return;
 	else {
@@ -267,7 +271,7 @@ void Apriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 	this->m_extractor->set_record_infos(&this->m_record_infos);
 //	this->m_extractor->set_items(&this->m_items); //添加索引记录，apriori使用已存储结构进行统计才开启
 	this->m_extractor->set_item_details(&this->m_item_details);
-	this->m_extractor->m_apriori = this;
+	this->m_extractor->m_assoc = this;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

@@ -61,8 +61,10 @@ public:
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-void call_back(DHP<ItemType, ItemDetail, RecordInfoType>* dhp,
-		vector<unsigned int>& record) {
+void call_back(AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
+		vector<unsigned int>& record, void* v_items) {
+	DHP<ItemType, ItemDetail, RecordInfoType>* dhp = (DHP<ItemType, ItemDetail,
+			RecordInfoType>*) assoc_instance;
 	if (NULL == dhp->m_current_itemsets)
 		return;
 	else {
@@ -201,7 +203,7 @@ bool DHP<ItemType, ItemDetail, RecordInfoType>::candidate_gen(
 			}
 			if (filter_result) {
 				candidate.push(*k_itemset, 0);
-				this->logItemset("Candidate", k_itemset->size(), *k_itemset);
+//				this->logItemset("Candidate", k_itemset->size(), *k_itemset);
 			}
 			delete k_itemset;
 		}
@@ -231,7 +233,7 @@ void DHP<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 	this->m_extractor->set_record_infos(&this->m_record_infos);
 //	this->m_extractor->set_items(&this->m_items); //添加索引记录，apriori使用已存储结构进行统计才开启
 	this->m_extractor->set_item_details(&this->m_item_details);
-	this->m_extractor->m_dhp = this;
+	this->m_extractor->m_assoc = this;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

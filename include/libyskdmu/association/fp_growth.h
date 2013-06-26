@@ -137,6 +137,35 @@ void insert_tree(FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth,
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+void call_back(AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
+		vector<unsigned int>& record, void* v_items) {
+	FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth = (FpGrowth<
+			ItemType, ItemDetail, RecordInfoType>*) assoc_instance;
+	vector<Item>* items = (vector<Item>*) v_items;
+
+	unsigned int record_array[items->size()];
+	for (unsigned int j = 0; j < items->size(); j++) {
+		record_array[j] = items->at(j).m_index;
+	}
+	unsigned int count_array[fp_growth->get_sorted_index().size()];
+	for (unsigned int k = 0; k < fp_growth->get_sorted_index().size(); k++) {
+		count_array[fp_growth->get_sorted_index()[k]] =
+				fp_growth->get_sorted_index().size() - k;
+	}
+	unsigned int counts[items->size()];
+	for (unsigned int l = 0; l < items->size(); l++) {
+		counts[l] = count_array[record_array[l]];
+	}
+	//让记录索引按照一次频繁项的计数值降序排列
+	quicksort<unsigned int>(counts, items->size(), true, false, record_array);
+	vector<unsigned int> v_record;
+	for (unsigned int m = 0; m < items->size(); m++) {
+		v_record.push_back(record_array[items->size() - 1 - m]);
+	}
+	insert_tree<ItemType, ItemDetail, RecordInfoType>(fp_growth, v_record);
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 FpGrowth<ItemType, ItemDetail, RecordInfoType>::FpGrowth() {
 	this->m_current_itemsets = NULL;
 	m_fp_tree = NULL;
@@ -204,7 +233,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	this->m_extractor->set_item_details(&temp_item_detail);
 	this->m_extractor->set_record_infos(NULL);
 	this->m_extractor->set_items(NULL);
-	this->m_extractor->set_items_handler(insert_tree);
+	this->m_extractor->set_items_handler(call_back);
 	this->m_extractor->read_data(false);
 
 	//对FP-Tree进行挖掘，找出所有频繁项集
@@ -319,7 +348,7 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 	this->m_extractor->set_record_infos(&this->m_record_infos);
 	this->m_extractor->set_items(&this->m_items);
 	this->m_extractor->set_item_details(&this->m_item_details);
-	this->m_extractor->m_fp_growth = this;
+	this->m_extractor->m_assoc = this;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

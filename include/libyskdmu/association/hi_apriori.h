@@ -188,7 +188,7 @@ void HiAPriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 //	this->m_extractor->set_items(&this->m_items);
 	this->m_extractor->set_item_details(&this->m_item_details);
 	this->m_extractor->set_item_index(&this->m_item_index);
-	this->m_extractor->m_apriori = this;
+	this->m_extractor->m_assoc = this;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
