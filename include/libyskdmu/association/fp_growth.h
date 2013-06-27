@@ -157,10 +157,10 @@ void fp_call_back(
 		counts[l] = count_array[record_array[l]];
 	}
 	//让记录索引按照一次频繁项的计数值降序排列
-	quicksort<unsigned int>(counts, record.size(), true, false, record_array);
+	quicksort<unsigned int>(counts, record.size(), false, false, record_array);
 	vector<unsigned int> v_record;
 	for (unsigned int m = 0; m < record.size(); m++) {
-		v_record.push_back(record_array[record.size() - 1 - m]);
+		v_record.push_back(record_array[m]);
 	}
 	insert_tree<ItemType, ItemDetail, RecordInfoType>(fp_growth, v_record);
 }
@@ -196,10 +196,10 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 		return false;
 	}
 
-	unsigned int minsup_count = double2int(
+	this->m_minsup_count = double2int(
 			this->m_record_infos.size() * this->m_minsup);
-	if (0 == minsup_count)
-		minsup_count = 1;
+	if (0 == this->m_minsup_count)
+		this->m_minsup_count = 1;
 	vector<unsigned int> itemset;
 	KItemsets *frq_itemsets;
 
@@ -208,7 +208,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		unsigned int support = this->m_extractor->get_counter().at(
 				string(this->m_item_details[i].m_identifier));
-		if (support >= minsup_count) {
+		if (support >= this->m_minsup_count) {
 			itemset.clear();
 			itemset.push_back(i);
 			frq_itemsets->push(itemset, support);
@@ -242,8 +242,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 		//初始化KItemsets需要谨慎，这里取的是平均值的两倍，太大会占用过多内存
 		k_itemsets.push_back(
 				KItemsets(i + 1,
-						2 * combine(this->m_item_details.size(), i + 1)
-								/ this->m_item_details.size()));
+						3 * combine(this->m_item_details.size(), i + 1)));
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		m_pattern_base.push_back(k_itemsets);
@@ -257,6 +256,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 		m_pattern_counter.push_back(pattern_counter);
 	}
 
+	//此处的k_itemsets代表父/祖父节点排列组合成的频繁模式基
 	rec_fp_growth(m_fp_tree, k_itemsets);
 
 	KItemsets* itemsets = NULL;
@@ -272,13 +272,12 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 					pattern_base.begin(); iter != pattern_base.end(); iter++) {
 				unsigned int support = m_pattern_counter[j][i].get_count(
 						iter->first.data());
-				if (support >= minsup_count) {
+				if (support >= this->m_minsup_count) {
 					vector<unsigned int>* union_itemset = KItemsets::union_set(
 							iter->first, current);
 					itemsets->push(*union_itemset, support);
 					this->logItemset("Frequent", i + 2, *union_itemset,
 							support);
-					printf("j,i:%u,%u\n", j, i);
 				}
 			}
 		}
@@ -324,7 +323,7 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 				if (!pattern_base[union_itemset->size() - 1].has_itemset(
 						current)) {
 					pattern_base[union_itemset->size() - 1].push(*union_itemset,
-							0);
+							0); //此处的0不代表任何意义，只是不需要这个参数
 				}
 				delete union_itemset;
 			}
@@ -365,7 +364,6 @@ unsigned int FpGrowth<ItemType, ItemDetail, RecordInfoType>::get_support_count(
 	} else {
 		vector<unsigned int> pattern_base = vector<unsigned int>(
 				itemset.begin(), itemset.end() - 1);
-//		printf("suffix:%u\t offset:%u\n", itemset.back(), itemset.size() - 2);
 		return m_pattern_counter[itemset.back()][itemset.size() - 2].get_count(
 				pattern_base.data());
 	}

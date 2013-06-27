@@ -57,8 +57,8 @@ public:
 	/*
 	 * description: 插入函数
 	 *  parameters: key:			关键字
-	 *  			  key_length: 关键字长度
-	 *  			  key_info:	详细项
+	 *  			  key_length: 	关键字长度
+	 *  			  key_info:		详细项
 	 *      return: 插入的槽对应的哈希值
 	 */
 	virtual unsigned int insert(const char *key, size_t key_length, unsigned int& key_info, unsigned int record_id);
@@ -69,14 +69,14 @@ public:
 	virtual unsigned int size_of_index();
 	/*
 	 * description: 获取记录数量函数
-	 *  parameters: (in)		key:				关键字
+	 *  parameters: (in)		key:			关键字
 	 *  			  			key_length:		关键字长度
 	 *      return: 标记在索引头指针的记录数量
 	 */
 	virtual unsigned int get_mark_record_num(const char *key, size_t key_length);
 	/*
 	 * description: 获取实际记录数量函数
-	 *  parameters: (in)		key:				关键字
+	 *  parameters: (in)		key:			关键字
 	 *  			  			key_length:		关键字长度
 	 *      return: 记录的实际数量
 	 */
@@ -84,7 +84,7 @@ public:
 	/*
 	 * description: 查找记录函数
 	 *  parameters: (out)	records:			存放记录的缓冲区，使用后要记得释放内存
-	 *  			  (in)		key:				关键字
+	 *  			  (in)		key:			关键字
 	 *  						key_length:		关键字长度
 	 *      return: 记录的数量，如果缓冲区已满(即比实际记录数小)则返回缓冲区大小
 	 */
@@ -92,7 +92,7 @@ public:
 	/*
 	 * description: 获取关键字信息
 	 *  parameters: (out)	key_info:		详细项
-	 *  			  (in)		key:			关键字
+	 *  			  (in)		key:		关键字
 	 *  						key_length:	关键字长度
 	 *      return: 关键字对应的关键字信息
 	 */
@@ -100,7 +100,7 @@ public:
 	/*
 	 * description: 求记录索引项的交集函数(在保证索引链表有序的前提下用穿孔法)
 	 *  parameters: keys:		关键字数组
-	 *  			  key_num:		关键字数量
+	 *  			  key_num:	关键字数量
 	 *      return: records[0]:	交集的元素个数
 	 *      		  records[1]~records[record_num]: 交集的元素
 	 */
@@ -111,7 +111,7 @@ public:
 	 * description: 哈希值生成函数
 	 *  parameters: str:			关键字
 	 *  			  length:		关键字长度
-	 *  			  key_info:	关键字信息
+	 *  			  key_info:		关键字信息
 	 *      return: 存放该item元组计数值在哈希表的位置
 	 */
 	virtual unsigned int hashfunc(const char *str, size_t length);
@@ -119,7 +119,7 @@ public:
 	 * description: 冲突处理函数
 	 *  parameters: str:				关键字
 	 *  			  length:			关键字长度
-	 *  			  key_info:		关键字信息
+	 *  			  key_info:			关键字信息
 	 *  			  collision_key:	冲突关键字
 	 *      return: 不冲突的替代位置
 	 */

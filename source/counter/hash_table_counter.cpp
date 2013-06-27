@@ -38,7 +38,7 @@ HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension) {
 	}
 	m_hash_func = &hash;
 	m_probe_func = &probe;
-	this->log = LogUtil::get_instance()->get_log_instance("hashTableCounter");
+	this->m_log_fp = LogUtil::get_instance()->get_log_instance("hashTableCounter");
 }
 
 HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
@@ -52,7 +52,7 @@ HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
 	}
 	m_hash_func = (NULL == hash_func ? &hash : hash_func);
 	m_probe_func = (NULL == probe_func ? &probe : probe_func);
-	this->log = LogUtil::get_instance()->get_log_instance("hashTableCounter");
+	this->m_log_fp = LogUtil::get_instance()->get_log_instance("hashTableCounter");
 }
 
 HashTableCounter::HashTableCounter(const HashTableCounter& counter) {
@@ -65,7 +65,7 @@ HashTableCounter::HashTableCounter(const HashTableCounter& counter) {
 	}
 	m_hash_func = counter.m_hash_func;
 	m_probe_func = counter.m_probe_func;
-	this->log = LogUtil::get_instance()->get_log_instance("hashTableCounter");
+	this->m_log_fp = LogUtil::get_instance()->get_log_instance("hashTableCounter");
 }
 
 HashTableCounter::~HashTableCounter() {

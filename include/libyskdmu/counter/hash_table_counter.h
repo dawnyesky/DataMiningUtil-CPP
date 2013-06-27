@@ -74,8 +74,7 @@ private:
 	unsigned int m_table_size;
 	IHashFunc m_hash_func; //哈希函数指针
 	IProbeFunc m_probe_func; //探查序列函数指针
-	FILE* m_log_fp; //日志文件指针
-	LogInstance* log;
+	LogInstance* m_log_fp; //日志文件指针
 };
 
 #endif /* HASH_TABLE_COUNTER_H_ */

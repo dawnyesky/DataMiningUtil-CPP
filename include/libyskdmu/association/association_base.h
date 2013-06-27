@@ -61,6 +61,7 @@ protected:
 	LogInstance* log; //日志指针
 	unsigned int m_max_itemset_size; //频繁项集的最大次数
 	double m_minsup; //最小支持度
+	unsigned int m_minsup_count;
 	double m_minconf; //最小置信度
 	bool is_inited; //是否已经初始化
 	bool enable_log_itemsets; //是否打印频繁项集
@@ -78,6 +79,7 @@ AssocBase<ItemType, ItemDetail, RecordInfoType>::AssocBase() {
 	is_inited = false;
 	m_max_itemset_size = 0;
 	m_minsup = 0;
+	m_minsup_count = 0;
 	m_minconf = 0;
 }
 
