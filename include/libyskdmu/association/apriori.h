@@ -13,8 +13,6 @@
 #include <log4cpp/FileAppender.hh>
 #include "libyskalgrthms/math/digit_util.h"
 #include "libyskdmu/util/set_util.h"
-#include "libyskdmu/counter/map_triangle_matrix.h"
-//#include "libyskdmu/counter/array_triangle_matrix.h"
 #include "libyskdmu/association/association_base.h"
 
 using namespace std;
@@ -295,9 +293,8 @@ void Apriori<ItemType, ItemDetail, RecordInfoType>::bind_call_back() {
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void Apriori<ItemType, ItemDetail, RecordInfoType>::create_counter() {
 	for (unsigned int i = 0; i < this->m_max_itemset_size; i++) {
-//		this->m_itemsets_counter.push_back(new HashTableCounter(this->m_item_details.size(), i + 1));
-		this->m_itemsets_counter.push_back(new MapTriangleMatrix(this->m_item_details.size()));
-//		this->m_itemsets_counter.push_back(new TriangleMatrix(this->m_item_details.size()));
+		this->m_itemsets_counter.push_back(
+				new HashTableCounter(this->m_item_details.size(), i + 1));
 	}
 }
 
