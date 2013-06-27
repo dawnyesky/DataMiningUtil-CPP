@@ -61,8 +61,9 @@ public:
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-void call_back(AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
-		vector<unsigned int>& record, void* v_items) {
+void dhp_call_back(
+		AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
+		vector<unsigned int>& record) {
 	DHP<ItemType, ItemDetail, RecordInfoType>* dhp = (DHP<ItemType, ItemDetail,
 			RecordInfoType>*) assoc_instance;
 	if (NULL == dhp->m_current_itemsets)
@@ -238,7 +239,7 @@ void DHP<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void DHP<ItemType, ItemDetail, RecordInfoType>::bind_call_back() {
-	this->m_extractor->set_items_handler(call_back);
+	this->m_extractor->set_items_handler(dhp_call_back);
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

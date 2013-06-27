@@ -100,7 +100,7 @@ bool TradeStrvvExtractor::extract_record(void* data_addr) {
 			for (unsigned int j = 0; j < v_items.size(); j++) {
 				record.push_back(v_items[j].m_index);
 			}
-			(this->m_ihandler)(this->m_assoc, record, &v_items);
+			(this->m_ihandler)(this->m_assoc, record);
 		}
 		if (m_items != NULL) {
 			m_items->push_back(v_items);

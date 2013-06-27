@@ -40,7 +40,9 @@ void TradeXmlExtractor::read_data(bool with_hi) {
 	m_counter.clear();
 	while (NULL != (entry = readdir(pDir))) {
 #ifndef __MINGW32__
-		if (entry->d_type == 8) {
+		if (entry->d_type == 8
+				&& strcmp(".xml",
+						entry->d_name + (strlen(entry->d_name) - 4)) == 0) {
 #endif
 			//普通文件
 			strcpy(fpath, TRADE_INPUT_DIR);
@@ -134,10 +136,9 @@ bool TradeXmlExtractor::extract_record(void* data_addr) {
 									1));
 				} else {
 					key_info = m_index.at(item_str);
-					m_counter.at(item_str)++;
-				}
+					m_counter.at(item_str)++;}
 
-				//抽取item
+					//抽取item
 				Item item = Item(key_info);
 				pair<unsigned int, bool> bs_result = b_search<Item>(v_items,
 						item);
@@ -154,7 +155,7 @@ bool TradeXmlExtractor::extract_record(void* data_addr) {
 					for (unsigned int j = 0; j < v_items.size(); j++) {
 						record.push_back(v_items[j].m_index);
 					}
-					(this->m_ihandler)(this->m_assoc, record, &v_items);
+					(this->m_ihandler)(this->m_assoc, record);
 				}
 				if (m_items != NULL) {
 					m_items->push_back(v_items);

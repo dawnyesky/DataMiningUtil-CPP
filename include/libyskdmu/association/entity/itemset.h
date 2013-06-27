@@ -24,7 +24,7 @@ public:
 
 	/*
 	 * description: 合并两个项集
-	 *  parameters: (in)		itemset_1:		项集1
+	 *  parameters: (in)			itemset_1:		项集1
 	 *  			  				itemset_2:		项集2
 	 *      return: (out)	合并结果项集
 	 */
@@ -33,7 +33,7 @@ public:
 			const vector<unsigned int>& itemset_2);
 	/*
 	 * description: 求两个项集的差集
-	 *  parameters: (in)		minuend:			被减集合
+	 *  parameters: (in)			minuend:		被减集合
 	 *  			  				subtrahend:		减集合
 	 *      return: (out)	差集
 	 */

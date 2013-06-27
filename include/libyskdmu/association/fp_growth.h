@@ -92,6 +92,7 @@ public:
 	void rec_fp_growth(FpTreeNode* sub_tree, vector<KItemsets> pattern_base);
 	virtual void set_extractor(
 			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor);
+	void bind_call_back();
 	virtual unsigned int get_support_count(const vector<unsigned int>& itemset);
 	const vector<unsigned int> get_sorted_index() const;
 
@@ -137,30 +138,29 @@ void insert_tree(FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth,
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-void call_back(AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
-		vector<unsigned int>& record, void* v_items) {
+void fp_call_back(
+		AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
+		vector<unsigned int>& record) {
 	FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth = (FpGrowth<
 			ItemType, ItemDetail, RecordInfoType>*) assoc_instance;
-	vector<Item>* items = (vector<Item>*) v_items;
-
-	unsigned int record_array[items->size()];
-	for (unsigned int j = 0; j < items->size(); j++) {
-		record_array[j] = items->at(j).m_index;
+	unsigned int record_array[record.size()];
+	for (unsigned int j = 0; j < record.size(); j++) {
+		record_array[j] = record.at(j);
 	}
-	unsigned int count_array[fp_growth->get_sorted_index().size()];
-	for (unsigned int k = 0; k < fp_growth->get_sorted_index().size(); k++) {
-		count_array[fp_growth->get_sorted_index()[k]] =
-				fp_growth->get_sorted_index().size() - k;
+	vector<unsigned int> sorted_index = fp_growth->get_sorted_index();
+	unsigned int count_array[sorted_index.size()];
+	for (unsigned int k = 0; k < sorted_index.size(); k++) {
+		count_array[sorted_index[k]] = sorted_index.size() - k;
 	}
-	unsigned int counts[items->size()];
-	for (unsigned int l = 0; l < items->size(); l++) {
+	unsigned int counts[record.size()];
+	for (unsigned int l = 0; l < record.size(); l++) {
 		counts[l] = count_array[record_array[l]];
 	}
 	//让记录索引按照一次频繁项的计数值降序排列
-	quicksort<unsigned int>(counts, items->size(), true, false, record_array);
+	quicksort<unsigned int>(counts, record.size(), true, false, record_array);
 	vector<unsigned int> v_record;
-	for (unsigned int m = 0; m < items->size(); m++) {
-		v_record.push_back(record_array[items->size() - 1 - m]);
+	for (unsigned int m = 0; m < record.size(); m++) {
+		v_record.push_back(record_array[record.size() - 1 - m]);
 	}
 	insert_tree<ItemType, ItemDetail, RecordInfoType>(fp_growth, v_record);
 }
@@ -229,11 +229,11 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	m_fp_tree = new FpTreeNode();
 	m_fp_tree->m_key = NULL;
 
+	bind_call_back();
 	vector<ItemDetail> temp_item_detail; //为了不对前一次记录的数据重写，加入一个临时变量，否则handler将无法正确确定item索引值
 	this->m_extractor->set_item_details(&temp_item_detail);
 	this->m_extractor->set_record_infos(NULL);
 	this->m_extractor->set_items(NULL);
-	this->m_extractor->set_items_handler(call_back);
 	this->m_extractor->read_data(false);
 
 	//对FP-Tree进行挖掘，找出所有频繁项集
@@ -260,7 +260,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	rec_fp_growth(m_fp_tree, k_itemsets);
 
 	KItemsets* itemsets = NULL;
-	// 遍历频繁模式基表，把每个频繁模式基与后缀连接。
+	//遍历频繁模式基表，把每个频繁模式基与后缀连接。
 	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
 		itemsets = new KItemsets(i + 2);
 		for (unsigned int j = 0; j < this->m_item_details.size(); j++) {
@@ -278,7 +278,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 					itemsets->push(*union_itemset, support);
 					this->logItemset("Frequent", i + 2, *union_itemset,
 							support);
-//					printf("j,i:%u,%u\n", j, i);
+					printf("j,i:%u,%u\n", j, i);
 				}
 			}
 		}
@@ -349,6 +349,11 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 	this->m_extractor->set_items(&this->m_items);
 	this->m_extractor->set_item_details(&this->m_item_details);
 	this->m_extractor->m_assoc = this;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+void FpGrowth<ItemType, ItemDetail, RecordInfoType>::bind_call_back() {
+	this->m_extractor->set_items_handler(fp_call_back);
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

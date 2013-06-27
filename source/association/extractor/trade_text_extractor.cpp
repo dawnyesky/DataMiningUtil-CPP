@@ -62,7 +62,7 @@ bool TradeTextExtractor::extract_record(void* data_addr) {
 			key_info = m_index.at(string(itoa((int) rid, 10)));
 			m_counter.at(string(itoa((int) rid, 10)))++;}
 
-		//整合数据
+			//整合数据
 		if (m_data->find(uid) == m_data->end()) {
 			m_data->insert(
 					pair<unsigned int, map<unsigned int, double>*>(uid,
@@ -104,7 +104,7 @@ bool TradeTextExtractor::extract_record(void* data_addr) {
 				for (unsigned int j = 0; j < v_items.size(); j++) {
 					record.push_back(v_items[j].m_index);
 				}
-				(this->m_ihandler)(this->m_assoc, record, &v_items);
+				(this->m_ihandler)(this->m_assoc, record);
 			}
 			if (m_items != NULL) {
 				m_items->push_back(v_items);

@@ -24,7 +24,7 @@ public:
 	// 记录处理器函数指针类型模板
 	typedef void (*ItemsHandler)(
 			AssocBase<ItemType, ItemDetailType, RecordInfoType>* assoc_instance,
-			vector<unsigned int>& record, void* v_items);
+			vector<unsigned int>& record);
 
 	Extractor();
 	virtual ~Extractor();

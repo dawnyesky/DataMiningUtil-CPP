@@ -58,9 +58,9 @@ public:
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-void count_itemsets(
+void apriori_call_back(
 		AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
-		vector<unsigned int>& record, void* v_items) {
+		vector<unsigned int>& record) {
 	Apriori<ItemType, ItemDetail, RecordInfoType>* apriori = (Apriori<ItemType,
 			ItemDetail, RecordInfoType>*) assoc_instance;
 	if (NULL == apriori->m_current_itemsets)
@@ -153,7 +153,6 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 		//没有存储结构start
 //		this->m_item_details.clear(); //不可以这样，编译器可能会做优化，把上面HashTable的大小设置为0
 //		this->m_extractor->set_item_details(&this->m_item_details);
-
 		bind_call_back();
 		vector<ItemDetail> temp_item_detail; //为了不对前一次记录的数据重写，加入一个临时变量，否则handler将无法正确确定item索引值
 		this->m_extractor->set_item_details(&temp_item_detail);
@@ -288,7 +287,7 @@ unsigned int Apriori<ItemType, ItemDetail, RecordInfoType>::get_support_count(
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void Apriori<ItemType, ItemDetail, RecordInfoType>::bind_call_back() {
-	this->m_extractor->set_items_handler(count_itemsets);
+	this->m_extractor->set_items_handler(apriori_call_back);
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
