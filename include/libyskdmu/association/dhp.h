@@ -216,12 +216,10 @@ bool DHP<ItemType, ItemDetail, RecordInfoType>::candidate_gen(
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool DHP<ItemType, ItemDetail, RecordInfoType>::dhp_filter(
 		vector<unsigned int>* k_itemset) {
-	unsigned int minsup_count = double2int(
-			this->m_record_infos.size() * this->m_minsup);
-	if (0 == minsup_count)
-		minsup_count = 1;
+	if (0 == this->m_minsup_count)
+		this->m_minsup_count = 1;
 	if (m_dhp_counter[this->m_current_itemsets->get_term_num()]->get_count(
-			k_itemset->data()) >= minsup_count)
+			k_itemset->data()) >= this->m_minsup_count)
 		return true;
 	else
 		return false;

@@ -76,10 +76,10 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 		return false;
 	}
 
-	unsigned int minsup_count = double2int(
+	this->m_minsup_count = double2int(
 			this->m_record_infos.size() * this->m_minsup);
-	if (0 == minsup_count)
-		minsup_count = 1;
+	if (0 == this->m_minsup_count)
+		this->m_minsup_count = 1;
 	vector<unsigned int> itemset;
 	KItemsets *frq_itemsets;
 	char **keys = new char*[1];
@@ -90,7 +90,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 		unsigned int *result;
 		keys[0] = this->m_item_details[i].m_identifier;
 		result = m_item_index.get_intersect_records((const char **) keys, 1);
-		if (result[0] >= minsup_count) {
+		if (result[0] >= this->m_minsup_count) {
 			itemset.clear();
 			itemset.push_back(i);
 			frq_itemsets->push(itemset, result[0]);
@@ -163,10 +163,8 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
 		vector<unsigned int>* k_itemset, unsigned int* support) {
 	char **keys = new char*[k_itemset->size()];
-	unsigned int minsup_count = double2int(
-			this->m_record_infos.size() * this->m_minsup);
-	if (0 == minsup_count)
-		minsup_count = 1;
+	if (0 == this->m_minsup_count)
+		this->m_minsup_count = 1;
 	unsigned int *result;
 	for (unsigned int j = 0; j < k_itemset->size(); j++) {
 		keys[j] = this->m_item_details[k_itemset->at(j)].m_identifier;
@@ -177,7 +175,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
 	delete[] keys;
 	delete[] result;
 
-	return minsup_count >= *support;
+	return this->m_minsup_count >= *support;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

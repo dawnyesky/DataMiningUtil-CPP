@@ -110,10 +110,10 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 		return false;
 	}
 
-	unsigned int minsup_count = double2int(
+	this->m_minsup_count = double2int(
 			this->m_record_infos.size() * this->m_minsup);
-	if (0 == minsup_count)
-		minsup_count = 1;
+	if (0 == this->m_minsup_count)
+		this->m_minsup_count = 1;
 	vector<unsigned int> itemset;
 	KItemsets *frq_itemsets;
 
@@ -122,7 +122,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		unsigned int support = this->m_extractor->get_counter().at(
 				string(this->m_item_details[i].m_identifier));
-		if (support >= minsup_count) {
+		if (support >= this->m_minsup_count) {
 			itemset.clear();
 			itemset.push_back(i);
 			frq_itemsets->push(itemset, support);
@@ -180,7 +180,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 			unsigned int support =
 					this->m_itemsets_counter[this->m_current_itemsets->get_term_num()
 							- 1]->get_count(iter->first.data());
-			if (support >= minsup_count) {
+			if (support >= this->m_minsup_count) {
 				itemset.clear();
 				for (unsigned int k = 0; k < i + 2; k++) {
 					itemset.push_back(iter->first.at(k));
