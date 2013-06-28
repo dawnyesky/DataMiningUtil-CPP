@@ -144,7 +144,7 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 				key_info = m_index.at(word_str);
 				m_counter.at(word_str)++;}
 
-				//抽取item
+			//抽取item
 			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,
 					parsed_words[i].iLength);
 			pair<unsigned int, bool> bs_result = b_search<DocItem>(v_items,

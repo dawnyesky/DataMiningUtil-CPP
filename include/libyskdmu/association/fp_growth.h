@@ -122,7 +122,6 @@ void rec_insert_tree(FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth,
 		FpTreeNode* new_node = new FpTreeNode(keys[0]);
 		sub_fp_tree = new_node;
 		fp_tree->m_child.push_back(new_node);
-		// 通过结点链结构将其链接到具有相同key的结点
 	}
 	// 考察剩余的元素，若非空即递归调用insert_tree
 	keys.erase(keys.begin());
@@ -162,6 +161,11 @@ void fp_call_back(
 	for (unsigned int m = 0; m < record.size(); m++) {
 		v_record.push_back(record_array[m]);
 	}
+//	printf("#");
+//	for (unsigned int z = 0; z < v_record.size(); z++) {
+//		printf("%u, ", v_record[z]);
+//	}
+//	printf("\n");
 	insert_tree<ItemType, ItemDetail, RecordInfoType>(fp_growth, v_record);
 }
 
@@ -242,7 +246,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 		//初始化KItemsets需要谨慎，这里取的是平均值的两倍，太大会占用过多内存
 		k_itemsets.push_back(
 				KItemsets(i + 1,
-						3 * combine(this->m_item_details.size(), i + 1)));
+						2.5 * combine(this->m_item_details.size(), i + 1)));
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		m_pattern_base.push_back(k_itemsets);
@@ -293,6 +297,11 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 		FpTreeNode* sub_tree, vector<KItemsets> pattern_base) {
 	if (sub_tree->m_key != NULL) {
+//		printf("pattern_base:\n");
+//		for (unsigned int z = 0; z < pattern_base.size(); z++) {
+//			pattern_base[z].print();
+//		}
+//		printf("\n");
 		// 把pattern_base加入当前节点的频繁模式基中
 		vector<unsigned int> current = vector<unsigned int>(sub_tree->m_key,
 				sub_tree->m_key + 1);
@@ -307,8 +316,41 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 					m_pattern_base[*(sub_tree->m_key)][i].push(current_itemset,
 							0);
 				}
+//				if (*sub_tree->m_key == 2 && current_itemset.size() == 1
+//						&& current_itemset[0] == 0) {
+//					printf("count:%u\n",
+//							m_pattern_counter[*(sub_tree->m_key)][i].get_count(
+//									current_itemset.data()));
+//				}
+//				if (*sub_tree->m_key == 2 && i == 0) {
+//					int tt[current_itemset.size()];
+//					for (unsigned int t = 0; t < current_itemset.size(); t++)
+//						tt[t] = current_itemset.data()[t];
+//					printf("count[%u,%u] on %s with %u\n", *(sub_tree->m_key), i,
+//							ivtoa(tt, current_itemset.size(), 10),
+//							sub_tree->m_count);
+//				}
+//				const unsigned int data[2] = { 0, 2 };
+//				unsigned int old_value = m_pattern_counter[2][0].get_count(
+//						data);
 				m_pattern_counter[*(sub_tree->m_key)][i].count(
 						current_itemset.data(), sub_tree->m_count);
+//				if (m_pattern_counter[2][0].get_count(data) > old_value) {
+//					unsigned int ew = m_pattern_counter[2][0].get_count(data);
+//					printf("The ew:%u\n", ew);
+//					int tt[current_itemset.size()];
+//					for (unsigned int t = 0; t < current_itemset.size(); t++)
+//						tt[t] = current_itemset.data()[t];
+//					printf("count[2,0] on %s with %u\n",
+//							ivtoa(tt, current_itemset.size(), 10),
+//							sub_tree->m_count);
+//				}
+//				if (*sub_tree->m_key == 2 && current_itemset.size() == 1
+//						&& current_itemset[0] == 0) {
+//					printf("count:%u\n",
+//							m_pattern_counter[*(sub_tree->m_key)][i].get_count(
+//									current_itemset.data()));
+//				}
 			}
 		}
 
@@ -334,7 +376,7 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 		}
 	}
 
-	// 对每个子节点递归进行挖掘
+// 对每个子节点递归进行挖掘
 	for (unsigned int i = 0; i < sub_tree->m_child.size(); i++) {
 		rec_fp_growth(sub_tree->m_child[i], pattern_base);
 	}

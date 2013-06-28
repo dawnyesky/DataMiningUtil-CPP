@@ -29,7 +29,7 @@ unsigned int probe(const unsigned int *key, unsigned int length,
 HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension) {
 	m_dimension = dimension;
 	m_size = size;
-	m_table_size = combine(m_size, m_dimension) / 2 * 2; //哈希表大小
+	m_table_size = combine(m_size, m_dimension) * 2.5; //哈希表大小
 	if (0 == m_table_size)
 		m_table_size = 100;
 	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
@@ -45,7 +45,7 @@ HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
 		IHashFunc hash_func, IProbeFunc probe_func) {
 	m_dimension = dimension;
 	m_size = size;
-	m_table_size = combine(m_size, m_dimension) / 2; //哈希表大小
+	m_table_size = combine(m_size, m_dimension) * 2.5; //哈希表大小
 	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		m_hash_table[i] = NULL;
@@ -58,7 +58,7 @@ HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
 HashTableCounter::HashTableCounter(const HashTableCounter& counter) {
 	m_dimension = counter.m_dimension;
 	m_size = counter.m_size;
-	m_table_size = combine(m_size, m_dimension) / 2; //哈希表大小
+	m_table_size = combine(m_size, m_dimension) * 2.5; //哈希表大小
 	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		m_hash_table[i] = NULL;

@@ -28,7 +28,7 @@ public:
 	}
 };
 
-void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.01,
+void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		double minconf = 0.4) {
 	printf("**********Apriori with XML Data testing start testing**********\n");
 	printf(

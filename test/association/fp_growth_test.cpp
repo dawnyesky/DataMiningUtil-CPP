@@ -25,8 +25,8 @@ void test_fp_growth_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 			max_itemset_size, minsup, minconf);
 	start = clock();
 	start_t = time(NULL);
-	bool print_item_detial = true;
-	bool print_fp_tree = true;
+	bool print_item_detial = false;
+	bool print_fp_tree = false;
 	bool print_itemset = false;
 	bool print_frequent_itemsets = false;
 	bool print_assoc_rules = false;

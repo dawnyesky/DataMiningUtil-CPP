@@ -150,7 +150,7 @@ bool DHP<ItemType, ItemDetail, RecordInfoType>::init(
 	this->m_minsup = minsup;
 	this->m_minconf = minconf;
 	this->destroy_counter();
-	this->create_counter();
+//	this->create_counter(); //如果记数器具有自适应大小则应该放在这里初始化
 	this->log = LogUtil::get_instance()->get_log_instance("dhp");
 	return true;
 }

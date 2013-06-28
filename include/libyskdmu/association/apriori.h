@@ -95,7 +95,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::init(
 	this->m_minsup = minsup;
 	this->m_minconf = minconf;
 	this->destroy_counter();
-	this->create_counter();
+//	this->create_counter();
 	this->log = LogUtil::get_instance()->get_log_instance("apriori");
 	return true;
 }
@@ -136,18 +136,21 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 	delete frq_itemsets;
 
 	/* F2~n generation */
+	this->create_counter(); //必须在这里创建记数器，因为计数器需要一次频繁项集的个数来初始化大小，如果日后改进自适应可放在init
 	for (unsigned int i = 0;
 			this->m_frequent_itemsets->size() == i + 1
 					&& i + 1 < this->m_max_itemset_size; i++) {
 
-		KItemsets candidate_itemsets = KItemsets(i + 2);
+		KItemsets candidate_itemsets = KItemsets(i + 2,
+				2.5 * combine(this->m_item_details.size(), i + 2));
 		if (!candidate_gen(candidate_itemsets, this->m_frequent_itemsets->at(i),
 				this->m_frequent_itemsets->at(0))) {
 			return false;
 		}
 
 		this->m_current_itemsets = &candidate_itemsets;
-		frq_itemsets = new KItemsets(i + 2);
+		frq_itemsets = new KItemsets(i + 2,
+				2.5 * combine(this->m_item_details.size(), i + 2));
 
 		//扫描数据集检查是否频繁
 		//没有存储结构start
