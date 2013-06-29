@@ -97,6 +97,7 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 
 	/************************** 分词，获取关键字 **************************/
 	int result_count = 0;
+	map<string, unsigned int> index;
 	static const size_t buf_size = 100; //缓冲区大小
 	char word[buf_size]; //分词结果缓冲区
 	char temp[buf_size];
@@ -130,19 +131,40 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 			unsigned int key_info = 0;
 			//抽取item_detail
 			string word_str = string(word);
-			if (m_index.find(word_str) == m_index.end()) {
+			map<string, unsigned int>::const_iterator key_info_iter =
+					m_index.find(word_str);
+//			if (strcmp("夏煊", word_str.c_str()) == 0) {
+//				printf("Found in %s\n", file_path);
+//			}
+			if (key_info_iter == m_index.end()) {
 				m_item_details->push_back(
 						DocItemDetail(word, parsed_words[i].szPOS));
 				key_info = m_item_details->size() - 1;
+				index.insert(
+						std::map<string, unsigned int>::value_type(word_str,
+								key_info));
 				m_index.insert(
 						std::map<string, unsigned int>::value_type(word_str,
 								key_info));
 				m_counter.insert(
 						std::map<string, unsigned int>::value_type(word_str,
 								1));
+//				if (strcmp("夏煊", word_str.c_str()) == 0) {
+//					printf("counting '%s' on %s\n", word_str.c_str(),
+//							file_path);
+//				}
 			} else {
-				key_info = m_index.at(word_str);
-				m_counter.at(word_str)++;}
+				key_info = key_info_iter->second;
+				if (index.find(word_str) == index.end()) {
+//					if (strcmp("夏煊", word_str.c_str()) == 0) {
+//						printf("counting new '%s' on %s\n", word_str.c_str(),
+//								file_path);
+//					}
+					index.insert(
+							std::map<string, unsigned int>::value_type(word_str,
+									key_info));
+					m_counter.at(word_str)++;}
+				}
 
 			//抽取item
 			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,

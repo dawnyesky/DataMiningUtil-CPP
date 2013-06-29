@@ -161,11 +161,6 @@ void fp_call_back(
 	for (unsigned int m = 0; m < record.size(); m++) {
 		v_record.push_back(record_array[m]);
 	}
-//	printf("#");
-//	for (unsigned int z = 0; z < v_record.size(); z++) {
-//		printf("%u, ", v_record[z]);
-//	}
-//	printf("\n");
 	insert_tree<ItemType, ItemDetail, RecordInfoType>(fp_growth, v_record);
 }
 
