@@ -86,7 +86,7 @@ bool KItemsets::has_itemset(vector<unsigned int>& itemset) {
 			|| m_term_num == numeric_limits<unsigned int>::max()) {
 		sort(itemset.begin(), itemset.end());
 		unsigned int key_info;
-		char *key = ivtoa((int*) itemset.data(), itemset.size(), 10);
+		char *key = ivtoa((int*) itemset.data(), itemset.size(), "", 10);
 		if (m_itemsets_index.get_key_info(key_info, key, strlen(key))) {
 			if (key != NULL)
 				delete[] key;
@@ -108,7 +108,7 @@ bool KItemsets::push(vector<unsigned int>& itemset, unsigned int support) {
 		m_itemsets.insert(
 				pair<vector<unsigned int>, unsigned int>(itemset, support));
 		//添加索引用以去重
-		const char *key = ivtoa((int*) itemset.data(), itemset.size(), 10);
+		const char *key = ivtoa((int*) itemset.data(), itemset.size(), "", 10);
 		unsigned int key_info;
 		m_itemsets_index.insert(key, strlen(key), key_info, 0);
 		if (key != NULL)
