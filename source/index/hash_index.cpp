@@ -252,11 +252,6 @@ bool HashIndex::get_key_info(unsigned int& key_info, const char *key,
 
 unsigned int* HashIndex::get_intersect_records(const char **keys,
 		unsigned int key_num) {
-//	printf("finding the intersection of: ");
-//	for (unsigned int i = 0; i < key_num; i++)
-//		printf("%s, ", keys[i]);
-//	printf("\n");
-
 	if (keys != NULL) {
 		IndexItem **ptr = new IndexItem*[key_num];
 		IndexItem *cur_min = NULL;

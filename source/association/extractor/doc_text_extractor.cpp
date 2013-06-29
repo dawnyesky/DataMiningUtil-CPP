@@ -133,9 +133,6 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 			string word_str = string(word);
 			map<string, unsigned int>::const_iterator key_info_iter =
 					m_index.find(word_str);
-//			if (strcmp("夏煊", word_str.c_str()) == 0) {
-//				printf("Found in %s\n", file_path);
-//			}
 			if (key_info_iter == m_index.end()) {
 				m_item_details->push_back(
 						DocItemDetail(word, parsed_words[i].szPOS));
@@ -149,22 +146,15 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 				m_counter.insert(
 						std::map<string, unsigned int>::value_type(word_str,
 								1));
-//				if (strcmp("夏煊", word_str.c_str()) == 0) {
-//					printf("counting '%s' on %s\n", word_str.c_str(),
-//							file_path);
-//				}
 			} else {
 				key_info = key_info_iter->second;
 				if (index.find(word_str) == index.end()) {
-//					if (strcmp("夏煊", word_str.c_str()) == 0) {
-//						printf("counting new '%s' on %s\n", word_str.c_str(),
-//								file_path);
-//					}
 					index.insert(
 							std::map<string, unsigned int>::value_type(word_str,
 									key_info));
-					m_counter.at(word_str)++;}
+					m_counter.at(word_str)++;
 				}
+			}
 
 			//抽取item
 			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,

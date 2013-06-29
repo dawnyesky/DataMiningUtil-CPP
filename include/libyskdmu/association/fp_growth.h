@@ -292,11 +292,6 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 		FpTreeNode* sub_tree, vector<KItemsets> pattern_base) {
 	if (sub_tree->m_key != NULL) {
-//		printf("pattern_base:\n");
-//		for (unsigned int z = 0; z < pattern_base.size(); z++) {
-//			pattern_base[z].print();
-//		}
-//		printf("\n");
 		// 把pattern_base加入当前节点的频繁模式基中
 		vector<unsigned int> current = vector<unsigned int>(sub_tree->m_key,
 				sub_tree->m_key + 1);
@@ -311,41 +306,8 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 					m_pattern_base[*(sub_tree->m_key)][i].push(current_itemset,
 							0);
 				}
-//				if (*sub_tree->m_key == 2 && current_itemset.size() == 1
-//						&& current_itemset[0] == 0) {
-//					printf("count:%u\n",
-//							m_pattern_counter[*(sub_tree->m_key)][i].get_count(
-//									current_itemset.data()));
-//				}
-//				if (*sub_tree->m_key == 2 && i == 0) {
-//					int tt[current_itemset.size()];
-//					for (unsigned int t = 0; t < current_itemset.size(); t++)
-//						tt[t] = current_itemset.data()[t];
-//					printf("count[%u,%u] on %s with %u\n", *(sub_tree->m_key), i,
-//							ivtoa(tt, current_itemset.size(), 10),
-//							sub_tree->m_count);
-//				}
-//				const unsigned int data[2] = { 0, 2 };
-//				unsigned int old_value = m_pattern_counter[2][0].get_count(
-//						data);
 				m_pattern_counter[*(sub_tree->m_key)][i].count(
 						current_itemset.data(), sub_tree->m_count);
-//				if (m_pattern_counter[2][0].get_count(data) > old_value) {
-//					unsigned int ew = m_pattern_counter[2][0].get_count(data);
-//					printf("The ew:%u\n", ew);
-//					int tt[current_itemset.size()];
-//					for (unsigned int t = 0; t < current_itemset.size(); t++)
-//						tt[t] = current_itemset.data()[t];
-//					printf("count[2,0] on %s with %u\n",
-//							ivtoa(tt, current_itemset.size(), 10),
-//							sub_tree->m_count);
-//				}
-//				if (*sub_tree->m_key == 2 && current_itemset.size() == 1
-//						&& current_itemset[0] == 0) {
-//					printf("count:%u\n",
-//							m_pattern_counter[*(sub_tree->m_key)][i].get_count(
-//									current_itemset.data()));
-//				}
 			}
 		}
 

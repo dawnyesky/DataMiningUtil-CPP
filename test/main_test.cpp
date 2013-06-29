@@ -20,23 +20,26 @@ extern void test_doc_text_extractor();
 extern void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup =
 		0.6, double minconf = 0.4);
 extern void test_apriori_doc(unsigned int max_itemset_size = 2, double minsup =
-		0.2, double minconf = 0.4);
+		0.05, double minconf = 0.4);
 extern void test_apriori_strvv(unsigned int max_itemset_size = 3,
 		double minsup = 0.6, double minconf = 0.4);
 
 extern void test_hi_apriori_xml(unsigned int max_itemset_size = 3,
 		double minsup = 0.6, double minconf = 0.4);
 extern void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
-		double minsup = 0.2, double minconf = 0.4);
+		double minsup = 0.05, double minconf = 0.4);
 
 extern void test_fp_growth_xml(unsigned int max_itemset_size = 3,
 		double minsup = 0.6, double minconf = 0.4);
 extern void test_fp_growth_doc(unsigned int max_itemset_size = 2,
-		double minsup = 0.2, double minconf = 0.4);
+		double minsup = 0.05, double minconf = 0.4);
 
 extern void test_dhp_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		double minconf = 0.4);
 extern void test_dhp_doc(unsigned int max_itemset_size = 2,
+		double minsup = 0.05, double minconf = 0.4);
+
+extern void test_combine_algorithms(unsigned int max_itemset_size = 2,
 		double minsup = 0.2, double minconf = 0.4);
 
 extern void test_cf_ub();
@@ -49,7 +52,8 @@ extern void test_cf_ib_wds();
 
 extern void test_cf_ib(int argc, char *argv[]);
 
-extern void test_cf_uib(double ib_coe, double ib_sim_thres, double ub_sim_thres);
+extern void test_cf_uib(double ib_coe, double ib_sim_thres,
+		double ub_sim_thres);
 
 extern void find_best_coe();
 
@@ -62,15 +66,16 @@ int main(int argc, char *argv[]) {
 //	test_hash_index();
 //	test_trade_x_extractor();
 //	test_doc_text_extractor();
-	test_apriori_xml();
+//	test_apriori_xml();
 //	test_apriori_strvv();
 //	test_apriori_doc();
 //	test_fp_growth_xml();
 //	test_fp_growth_doc();
 //	test_dhp_xml();
 //	test_dhp_doc();
-	test_hi_apriori_xml();
+//	test_hi_apriori_xml();
 //	test_hi_apriori_doc();
+	test_combine_algorithms();
 //	test_cf();
 //	test_cf_ub_wds();
 //	test_cf_ub(argc, argv);
