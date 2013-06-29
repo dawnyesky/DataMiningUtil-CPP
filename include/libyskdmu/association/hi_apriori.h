@@ -20,6 +20,8 @@ public:
 	HiAPriori();
 	HiAPriori(unsigned int hi_table_size);
 	virtual ~HiAPriori();
+	virtual bool init(unsigned int max_itemset_size, double minsup,
+			double minconf);
 
 	/*
 	 * description: HI-Apriori 频繁项集生成算法
@@ -67,6 +69,16 @@ HiAPriori<ItemType, ItemDetail, RecordInfoType>::~HiAPriori() {
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::init(
+		unsigned int max_itemset_size, double minsup, double minconf) {
+	this->m_max_itemset_size = max_itemset_size;
+	this->m_minsup = minsup;
+	this->m_minconf = minconf;
+	this->log = LogUtil::get_instance()->get_log_instance("hiApriori");
+	return true;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 	// 读取数据集
 	this->m_extractor->read_data(true);
@@ -109,7 +121,8 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 	for (unsigned int i = 0;
 			this->m_frequent_itemsets->size() == i + 1
 					&& i + 1 < this->m_max_itemset_size; i++) {
-		frq_itemsets = new KItemsets(i + 2);
+		frq_itemsets = new KItemsets(i + 2,
+				2.5 * combine(this->m_item_details.size(), i + 2));
 		if (!hi_frq_gen(*frq_itemsets, this->m_frequent_itemsets->at(i),
 				this->m_frequent_itemsets->at(0))) {
 			return false;
@@ -175,7 +188,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
 	delete[] keys;
 	delete[] result;
 
-	return this->m_minsup_count >= *support;
+	return *support >= this->m_minsup_count;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
