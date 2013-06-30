@@ -8,7 +8,6 @@
 #include <string.h>
 #include "libyskalgrthms/sort/quicksort_tmplt.h"
 #include "libyskdmu/util/search_util.h"
-#include "libyskdmu/association/fp_growth.h"
 #include "libyskdmu/association/extractor/trade_strvv_extractor.h"
 
 TradeStrvvExtractor::TradeStrvvExtractor() {
@@ -17,7 +16,7 @@ TradeStrvvExtractor::TradeStrvvExtractor() {
 
 TradeStrvvExtractor::TradeStrvvExtractor(vector<RecordInfo>* record_infos,
 		vector<vector<Item> >* items, vector<ItemDetail>* item_details,
-		OpenHashIndex* item_index) {
+		HashIndex* item_index) {
 	m_record_infos = record_infos;
 	m_items = items;
 	m_item_details = item_details;

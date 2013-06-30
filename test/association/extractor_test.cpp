@@ -9,6 +9,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/open_hash_index.h"
 #include <libyskdmu/association/extractor/trade_x_extractor.h>
 #include <libyskdmu/association/extractor/doc_text_extractor.h>
 
@@ -24,21 +26,21 @@ void test_trade_x_extractor() {
 	vector<RecordInfo> record_infos;
 	vector<vector<Item> > items;
 	vector<ItemDetail> item_details;
-	OpenHashIndex item_index = OpenHashIndex(table_size);
+	OpenHashIndex* item_index = new OpenHashIndex(table_size);
 	TradeXmlExtractor trade_x = TradeXmlExtractor(&record_infos, &items,
-			&item_details, &item_index);
+			&item_details, item_index);
 //	trade_x.hi_extract_record((char*) "./shared/DataRecords/2011.11.11.xml");
 	trade_x.read_data(false);
 
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = item_index.get_hash_table();
+		IndexHead **hash_table = item_index->get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
 				identifier = item_details[hash_table[i]->key_info].m_identifier;
-				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ",
-						i, item_index.hashfunc(identifier, strlen(identifier)),
+				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
+						item_index->hashfunc(identifier, strlen(identifier)),
 						identifier);
 				IndexItem *p = hash_table[i]->inverted_index;
 				while (p != NULL) {
@@ -101,8 +103,8 @@ void test_doc_text_extractor() {
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
 				identifier = item_details[hash_table[i]->key_info].m_identifier;
-				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ",
-						i, item_index.hashfunc(identifier, strlen(identifier)),
+				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
+						item_index.hashfunc(identifier, strlen(identifier)),
 						identifier);
 				IndexItem *p = hash_table[i]->inverted_index;
 				while (p != NULL) {
@@ -118,7 +120,8 @@ void test_doc_text_extractor() {
 	if (print_record) {
 		printf("Record:\n");
 		for (unsigned int i = 0; i < record_infos.size(); i++) {
-			printf("ID: %u\tDocument name: %s\tIterms: ", i, record_infos[i].m_doc_name);
+			printf("ID: %u\tDocument name: %s\tIterms: ", i,
+					record_infos[i].m_doc_name);
 //			fprintf(stderr, "ID: %u\tDocument name: %s\tIterms: ", i, record_infos[i].m_doc_name);
 			for (unsigned int j = 0; j < items[i].size(); j++) {
 				printf("%s[%u], ",
@@ -134,7 +137,8 @@ void test_doc_text_extractor() {
 	}
 //	fclose(log_fp);
 
-	printf("Index size is: %f(MB)\n", item_index.size_of_index() / (1024.0 * 1024));
+	printf("Index size is: %f(MB)\n",
+			item_index.size_of_index() / (1024.0 * 1024));
 	finish = clock();
 	duration = (float) (finish - start) / (CLOCKS_PER_SEC);
 	printf("DocTextExtractor testing duaration: %f(secs)\n", duration);

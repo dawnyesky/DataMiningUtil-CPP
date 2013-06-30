@@ -11,24 +11,30 @@
 #include <string.h>
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/util/search_util.h"
+#include "libyskdmu/index/open_hash_index.h"
 #include "libyskdmu/association/entity/itemset.h"
 
 KItemsets::KItemsets() {
 	m_term_num = 1;
+	m_itemsets_index = new OpenHashIndex();
 }
 
 KItemsets::KItemsets(unsigned int term_num, unsigned int reserved_itemset_num) :
-		m_term_num(term_num), m_itemsets_index(reserved_itemset_num) {
+		m_term_num(term_num) {
+	m_itemsets_index = new OpenHashIndex(reserved_itemset_num);
 }
 
 KItemsets::KItemsets(const KItemsets& k_itemsets) :
-		m_itemsets(k_itemsets.m_itemsets), m_itemsets_index(
-				k_itemsets.m_itemsets_index) {
+		m_itemsets(k_itemsets.m_itemsets) {
 	m_term_num = k_itemsets.m_term_num;
+	m_itemsets_index = new OpenHashIndex(
+			*(OpenHashIndex*) k_itemsets.m_itemsets_index);
 }
 
 KItemsets::~KItemsets() {
-
+	if (m_itemsets_index != NULL) {
+		delete m_itemsets_index;
+	}
 }
 
 vector<unsigned int>* KItemsets::union_set(
@@ -87,7 +93,7 @@ bool KItemsets::has_itemset(vector<unsigned int>& itemset) {
 		sort(itemset.begin(), itemset.end());
 		unsigned int key_info;
 		char *key = ivtoa((int*) itemset.data(), itemset.size(), ",", 10);
-		if (m_itemsets_index.get_key_info(key_info, key, strlen(key))) {
+		if (m_itemsets_index->get_key_info(key_info, key, strlen(key))) {
 			if (key != NULL)
 				delete[] key;
 			return true;
@@ -110,7 +116,7 @@ bool KItemsets::push(vector<unsigned int>& itemset, unsigned int support) {
 		//添加索引用以去重
 		const char *key = ivtoa((int*) itemset.data(), itemset.size(), ",", 10);
 		unsigned int key_info;
-		m_itemsets_index.insert(key, strlen(key), key_info, 0);
+		m_itemsets_index->insert(key, strlen(key), key_info, 0);
 		if (key != NULL)
 			delete[] key;
 		return true;

@@ -27,7 +27,7 @@ unsigned int probe(const char *key, unsigned int length,
 		unsigned int table_size, unsigned int collision_key,
 		unsigned int probe_step);
 
-class OpenHashIndex: HashIndex {
+class OpenHashIndex: public HashIndex {
 public:
 	OpenHashIndex();
 	OpenHashIndex(unsigned int table_size);
@@ -93,8 +93,16 @@ public:
 	 */
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);
+#ifdef __DEBUG__
+	virtual unsigned int hashfunc(const char *str, size_t length);
+	virtual unsigned int collision_handler(const char *str, size_t length,
+			unsigned int collision_key);
+	IndexHead** get_hash_table() {
+		return m_hash_table;
+	}
+#else
 
-//private:
+protected:
 	/*
 	 * description: 哈希值生成函数
 	 *  parameters: str:			关键字
@@ -113,10 +121,7 @@ public:
 	 */
 	virtual unsigned int collision_handler(const char *str, size_t length,
 			unsigned int collision_key);
-
-	IndexHead** get_hash_table() {
-		return m_hash_table;
-	}
+#endif
 
 private:
 	IndexItem* min_record_id(IndexItem **ptr, unsigned int ptr_num);

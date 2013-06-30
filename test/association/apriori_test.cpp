@@ -12,6 +12,7 @@
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 #include "libyskdmu/association/extractor/trade_strvv_extractor.h"
 #include "libyskdmu/association/apriori.h"
+#include "libyskdmu/index/open_hash_index.h"
 
 static clock_t start, finish;
 static time_t start_t, finish_t;

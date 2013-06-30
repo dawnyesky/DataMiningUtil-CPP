@@ -46,14 +46,14 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = hi_apriori.m_item_index.get_hash_table();
+		IndexHead **hash_table = hi_apriori.m_item_index->get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < 1000; i++) {
 			if (hash_table[i] != NULL) {
 				identifier =
 						hi_apriori.m_item_details[hash_table[i]->key_info].m_identifier;
 				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
-						hi_apriori.m_item_index.hashfunc(identifier,
+						hi_apriori.m_item_index->hashfunc(identifier,
 								strlen(identifier)), identifier);
 				IndexItem *p = hash_table[i]->inverted_index;
 				while (p != NULL) {
@@ -165,14 +165,14 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = hi_apriori.m_item_index.get_hash_table();
+		IndexHead **hash_table = hi_apriori.m_item_index->get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < 1000; i++) {
 			if (hash_table[i] != NULL) {
 				identifier =
 						hi_apriori.m_item_details[hash_table[i]->key_info].m_identifier;
 				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
-						hi_apriori.m_item_index.hashfunc(identifier,
+						hi_apriori.m_item_index->hashfunc(identifier,
 								strlen(identifier)), identifier);
 				IndexItem *p = hash_table[i]->inverted_index;
 				while (p != NULL) {

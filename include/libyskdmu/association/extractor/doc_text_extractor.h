@@ -25,7 +25,7 @@ public:
 	DocTextExtractor();
 	DocTextExtractor(vector<DocTextRecordInfo>* record_infos,
 			vector<vector<DocItem> >* items,
-			vector<DocItemDetail>* item_details, OpenHashIndex* item_index);
+			vector<DocItemDetail>* item_details, HashIndex* item_index);
 	virtual ~DocTextExtractor();
 	void read_data(bool with_hi);
 	bool extract_record(void* data_addr);

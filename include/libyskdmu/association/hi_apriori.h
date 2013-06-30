@@ -9,6 +9,7 @@
 #define HI_APRIORI_H_
 
 #include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/open_hash_index.h"
 #include "libyskdmu/association/entity/itemset.h"
 #include "libyskdmu/association/apriori.h"
 
@@ -48,24 +49,25 @@ public:
 	virtual unsigned int get_support_count(const vector<unsigned int>& itemset);
 
 public:
-	OpenHashIndex m_item_index; //以m_item_details的索引作为KeyInfo
+	HashIndex* m_item_index; //以m_item_details的索引作为KeyInfo
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 HiAPriori<ItemType, ItemDetail, RecordInfoType>::HiAPriori() {
-
+	m_item_index = new OpenHashIndex();
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 HiAPriori<ItemType, ItemDetail, RecordInfoType>::HiAPriori(
-		unsigned int hi_table_size) :
-		m_item_index(hi_table_size) {
-
+		unsigned int hi_table_size) {
+	m_item_index = new OpenHashIndex(hi_table_size);
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 HiAPriori<ItemType, ItemDetail, RecordInfoType>::~HiAPriori() {
-
+	if (m_item_index != NULL) {
+		delete m_item_index;
+	}
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -101,7 +103,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		unsigned int *result;
 		keys[0] = this->m_item_details[i].m_identifier;
-		result = m_item_index.get_intersect_records((const char **) keys, 1);
+		result = m_item_index->get_intersect_records((const char **) keys, 1);
 		if (result[0] >= this->m_minsup_count) {
 			itemset.clear();
 			itemset.push_back(i);
@@ -182,7 +184,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
 	for (unsigned int j = 0; j < k_itemset->size(); j++) {
 		keys[j] = this->m_item_details[k_itemset->at(j)].m_identifier;
 	}
-	result = m_item_index.get_intersect_records((const char **) keys,
+	result = m_item_index->get_intersect_records((const char **) keys,
 			k_itemset->size());
 	*support = result[0];
 	delete[] keys;
@@ -198,7 +200,7 @@ void HiAPriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 	this->m_extractor->set_record_infos(&this->m_record_infos);
 //	this->m_extractor->set_items(&this->m_items);
 	this->m_extractor->set_item_details(&this->m_item_details);
-	this->m_extractor->set_item_index(&this->m_item_index);
+	this->m_extractor->set_item_index(this->m_item_index);
 	this->m_extractor->m_assoc = this;
 }
 
@@ -210,7 +212,7 @@ unsigned int HiAPriori<ItemType, ItemDetail, RecordInfoType>::get_support_count(
 	for (unsigned int i = 0; i < itemset.size(); i++) {
 		keys[i] = this->m_item_details[itemset[i]].m_identifier;
 	}
-	result = m_item_index.get_intersect_records((const char **) keys,
+	result = m_item_index->get_intersect_records((const char **) keys,
 			itemset.size());
 	unsigned int support_count = result[0];
 	delete[] keys;

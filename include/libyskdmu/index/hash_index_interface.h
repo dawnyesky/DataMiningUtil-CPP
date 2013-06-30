@@ -87,6 +87,10 @@ public:
 	 */
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num) = 0;
+#ifdef __DEBUG__
+	virtual unsigned int hashfunc(const char *str, size_t length) = 0;
+	virtual IndexHead** get_hash_table() = 0;
+#else
 
 protected:
 	/*
@@ -97,6 +101,7 @@ protected:
 	 *      return: 存放该item元组计数值在哈希表的位置
 	 */
 	virtual unsigned int hashfunc(const char *str, size_t length) = 0;
+#endif
 
 protected:
 	unsigned int m_table_size; //哈希表大小

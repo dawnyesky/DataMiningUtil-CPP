@@ -11,7 +11,6 @@
 #include <vector>
 #include <set>
 #include "libyskdmu/index/hash_index_interface.h"
-#include "libyskdmu/index/open_hash_index.h"
 
 using namespace std;
 
@@ -56,7 +55,7 @@ public:
 private:
 	unsigned int m_term_num;
 	map<vector<unsigned int>, unsigned int> m_itemsets;
-	OpenHashIndex m_itemsets_index;
+	HashIndex* m_itemsets_index;
 };
 
 #endif /* ITEMSET_H_ */
