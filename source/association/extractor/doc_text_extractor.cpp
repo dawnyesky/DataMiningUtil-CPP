@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include "libyskdmu/util/charset_util.h"
-#include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/util/search_util.h"
 #include "libyskdmu/association/fp_growth.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
@@ -21,7 +20,7 @@ DocTextExtractor::DocTextExtractor() {
 
 DocTextExtractor::DocTextExtractor(vector<DocTextRecordInfo>* record_infos,
 		vector<vector<DocItem> >* items, vector<DocItemDetail>* item_details,
-		HashIndex* item_index) {
+		OpenHashIndex* item_index) {
 	m_record_infos = record_infos;
 	m_items = items;
 	m_item_details = item_details;

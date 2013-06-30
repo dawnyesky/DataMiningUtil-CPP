@@ -18,7 +18,7 @@ TradeTextExtractor::TradeTextExtractor() {
 
 TradeTextExtractor::TradeTextExtractor(vector<RecordInfo>* record_infos,
 		vector<vector<Item> >* items, vector<ItemDetail>* item_details,
-		HashIndex* item_index) {
+		OpenHashIndex* item_index) {
 	m_record_infos = record_infos;
 	m_items = items;
 	m_item_details = item_details;

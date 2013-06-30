@@ -10,7 +10,8 @@
 
 #include <vector>
 #include <string>
-#include "libyskdmu/index/hash_index.h"
+#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/open_hash_index.h"
 #include "libyskdmu/association/entity/item.h"
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -32,7 +33,7 @@ public:
 	void set_items(vector<vector<ItemType> >* items);
 	void set_item_details(vector<ItemDetailType>* item_details);
 	void set_items_handler(ItemsHandler items_handler);
-	void set_item_index(HashIndex* item_index);
+	void set_item_index(OpenHashIndex* item_index);
 	map<string, unsigned int>& get_counter();
 	virtual void init();
 	/*
@@ -54,7 +55,7 @@ protected:
 	vector<vector<ItemType> >* m_items;
 	vector<ItemDetailType>* m_item_details;
 	ItemsHandler m_ihandler;
-	HashIndex* m_item_index;
+	OpenHashIndex* m_item_index;
 	LogInstance* log; //日志指针
 };
 
@@ -104,7 +105,7 @@ void Extractor<ItemType, ItemDetailType, RecordInfoType>::set_items_handler(
 
 template<typename ItemType, typename ItemDetailType, typename RecordInfoType>
 void Extractor<ItemType, ItemDetailType, RecordInfoType>::set_item_index(
-		HashIndex* item_index) {
+		OpenHashIndex* item_index) {
 	m_item_index = item_index;
 }
 

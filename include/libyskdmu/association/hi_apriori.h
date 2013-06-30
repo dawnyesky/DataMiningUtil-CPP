@@ -8,7 +8,7 @@
 #ifndef HI_APRIORI_H_
 #define HI_APRIORI_H_
 
-#include "libyskdmu/index/hash_index.h"
+#include "libyskdmu/index/hash_index_interface.h"
 #include "libyskdmu/association/entity/itemset.h"
 #include "libyskdmu/association/apriori.h"
 
@@ -48,7 +48,7 @@ public:
 	virtual unsigned int get_support_count(const vector<unsigned int>& itemset);
 
 public:
-	HashIndex m_item_index; //以m_item_details的索引作为KeyInfo
+	OpenHashIndex m_item_index; //以m_item_details的索引作为KeyInfo
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

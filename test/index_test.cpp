@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "libyskdmu/index/hash_index.h"
+#include "libyskdmu/index/open_hash_index.h"
 
 using namespace std;
 
@@ -29,7 +29,7 @@ void test_hash_index() {
 			"hello kitty", "snoopy", "sheldon", "penny", "saber", "archer",
 			"T-Pat" };
 	srand((unsigned int)time(NULL));
-	HashIndex index = HashIndex(table_size);
+	OpenHashIndex index = OpenHashIndex(table_size);
 	const char *identifier = NULL;
 	unsigned int iden_index, hashcode;
 	for (unsigned int i = 0; i < record_num * term_num_per_record; i++) {

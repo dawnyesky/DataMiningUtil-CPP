@@ -17,10 +17,10 @@ static clock_t start, finish;
 static time_t start_t, finish_t;
 static double duration, duration_t;
 
-class HashTable: public HashIndex {
+class HashTable: public OpenHashIndex {
 public:
 	HashTable(unsigned int size) :
-			HashIndex(size) {
+			OpenHashIndex(size) {
 	}
 	unsigned int collision_handler(const unsigned int k_item[],
 			unsigned int collision_key) const {

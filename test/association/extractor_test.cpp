@@ -24,7 +24,7 @@ void test_trade_x_extractor() {
 	vector<RecordInfo> record_infos;
 	vector<vector<Item> > items;
 	vector<ItemDetail> item_details;
-	HashIndex item_index = HashIndex(table_size);
+	OpenHashIndex item_index = OpenHashIndex(table_size);
 	TradeXmlExtractor trade_x = TradeXmlExtractor(&record_infos, &items,
 			&item_details, &item_index);
 //	trade_x.hi_extract_record((char*) "./shared/DataRecords/2011.11.11.xml");
@@ -79,7 +79,7 @@ void test_doc_text_extractor() {
 	vector<DocTextRecordInfo> record_infos;
 	vector<vector<DocItem> > items;
 	vector<DocItemDetail> item_details;
-	HashIndex item_index = HashIndex(table_size);
+	OpenHashIndex item_index = OpenHashIndex(table_size);
 	DocTextExtractor doc_text = DocTextExtractor(&record_infos, &items,
 			&item_details, &item_index);
 

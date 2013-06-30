@@ -20,7 +20,7 @@ public:
 	TradeXmlExtractor();
 	TradeXmlExtractor(vector<RecordInfo>* record_infos,
 			vector<vector<Item> >* items, vector<ItemDetail>* item_details,
-			HashIndex* item_index);
+			OpenHashIndex* item_index);
 	virtual ~TradeXmlExtractor();
 	void read_data(bool with_hi);
 	bool extract_record(void* data_addr);
