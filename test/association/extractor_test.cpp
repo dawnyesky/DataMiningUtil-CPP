@@ -34,7 +34,7 @@ void test_trade_x_extractor() {
 
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = item_index->get_hash_table();
+		IndexHead **hash_table = (IndexHead **) item_index->get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
@@ -98,7 +98,7 @@ void test_doc_text_extractor() {
 //	FILE *log_fp = freopen("./log/test_extractor.log", "w", stderr);
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = item_index.get_hash_table();
+		IndexHead **hash_table = (IndexHead **) item_index.get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {

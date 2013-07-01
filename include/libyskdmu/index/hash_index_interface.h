@@ -89,7 +89,7 @@ public:
 			unsigned int key_num) = 0;
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length) = 0;
-	virtual IndexHead** get_hash_table() = 0;
+	virtual void* get_hash_table() = 0;
 #else
 
 protected:

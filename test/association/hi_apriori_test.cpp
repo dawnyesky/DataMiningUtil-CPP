@@ -46,7 +46,8 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = hi_apriori.m_item_index->get_hash_table();
+		IndexHead **hash_table =
+				(IndexHead **) hi_apriori.m_item_index->get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < 1000; i++) {
 			if (hash_table[i] != NULL) {
@@ -165,7 +166,8 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 
 	if (print_index) {
 		printf("Index:\n");
-		IndexHead **hash_table = hi_apriori.m_item_index->get_hash_table();
+		IndexHead **hash_table =
+				(IndexHead **) hi_apriori.m_item_index->get_hash_table();
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < 1000; i++) {
 			if (hash_table[i] != NULL) {

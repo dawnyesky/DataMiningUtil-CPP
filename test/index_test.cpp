@@ -28,19 +28,19 @@ void test_hash_index() {
 	const char* identifiers[11] = { "chicken", "dog", "bumblebee", "cat",
 			"hello kitty", "snoopy", "sheldon", "penny", "saber", "archer",
 			"T-Pat" };
-	srand((unsigned int)time(NULL));
+	srand((unsigned int) time(NULL));
 	OpenHashIndex index = OpenHashIndex(table_size);
 	const char *identifier = NULL;
 	unsigned int iden_index, hashcode;
 	for (unsigned int i = 0; i < record_num * term_num_per_record; i++) {
 		iden_index = rand() % 11;
 		identifier = identifiers[iden_index];
-		hashcode = index.insert(identifier, strlen(identifier), iden_index, i
-				/ term_num_per_record);
+		hashcode = index.insert(identifier, strlen(identifier), iden_index,
+				i / term_num_per_record);
 	}
 
 	if (print_index) {
-		IndexHead **hash_table = index.get_hash_table();
+		IndexHead **hash_table = (IndexHead **) index.get_hash_table();
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
 				identifier = identifiers[hash_table[i]->key_info];

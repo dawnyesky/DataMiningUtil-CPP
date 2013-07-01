@@ -97,7 +97,7 @@ public:
 	virtual unsigned int hashfunc(const char *str, size_t length);
 	virtual unsigned int collision_handler(const char *str, size_t length,
 			unsigned int collision_key);
-	IndexHead** get_hash_table() {
+	void* get_hash_table() {
 		return m_hash_table;
 	}
 #else
