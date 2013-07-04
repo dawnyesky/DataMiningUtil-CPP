@@ -10,7 +10,7 @@
 
 #include <vector>
 #include <set>
-#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/hash_index.h"
 
 using namespace std;
 

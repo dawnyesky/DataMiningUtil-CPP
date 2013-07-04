@@ -10,7 +10,7 @@
 
 #include <vector>
 #include <string>
-#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/association/entity/item.h"
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>

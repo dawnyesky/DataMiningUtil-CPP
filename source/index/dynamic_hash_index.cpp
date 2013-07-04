@@ -5,20 +5,39 @@
  *      Author: Yan Shankai
  */
 
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
 #include "libyskdmu/index/dynamic_hash_index.h"
 
 DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
 		unsigned int global_deep) {
 	m_bucket_size = bucket_size;
 	m_d = global_deep;
+	m_catalogs = new Catalog[(int) pow(m_d, 2)];
+	for (unsigned int i = 0; i < (int) pow(m_d, 2); i++) {
+		m_catalogs[i].bucket = new Bucket();
+	}
+	m_retry_times = 5;
 }
 
 DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
-
+	m_bucket_size = dynamic_hash_index.m_bucket_size;
+	m_d = dynamic_hash_index.m_d;
+	m_catalogs = new Catalog[(int) pow(m_d, 2)];
+	for (unsigned int i = 0; i < (int) pow(m_d, 2); i++) {
+		m_catalogs[i].bucket = new Bucket();
+	}
+	m_retry_times = 5;
 }
 
 DynamicHashIndex::~DynamicHashIndex() {
-
+	for (unsigned int i = 0; i < pow(m_d, 2); i++) {
+		delete m_catalogs->bucket;
+	}
+	if (m_catalogs != NULL) {
+		delete[] m_catalogs;
+	}
 }
 
 bool DynamicHashIndex::init(HashFunc hash_func) {
@@ -26,9 +45,188 @@ bool DynamicHashIndex::init(HashFunc hash_func) {
 	return true;
 }
 
+unsigned int DynamicHashIndex::addressing(unsigned int hashcode) {
+	unsigned int mask = 0x01;
+	for (unsigned int i = 1; i < m_d; i++) {
+		mask |= mask << i;
+	}
+	return hashcode & mask;
+}
+
+pair<unsigned int, int> DynamicHashIndex::locate_index(const char *key,
+		size_t key_length) {
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	vector<IndexHead>& elements = m_catalogs[catalog_id].bucket->elements;
+	pair<unsigned int, int> result;
+	result.first = catalog_id;
+	result.second = -1;
+	char key_str[key_length + 1];
+	strcpy(key_str, key);
+	memset(key_str + key_length, '\0', 1);
+	for (unsigned int i = 0; i < elements.size(); i++) {
+		if (strcmp(elements[i].identifier, key_str) == 0) {
+			result.second = i;
+		}
+	}
+	return result;
+}
+
 unsigned int DynamicHashIndex::insert(const char *key, size_t key_length,
 		unsigned int& key_info, unsigned int record_id) {
-	return 0;
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	Bucket* bucket = m_catalogs[catalog_id].bucket;
+	unsigned int retry_times = 0;
+	while (bucket->elements.size() >= m_bucket_size
+			&& retry_times <= m_retry_times) { //如果桶一直是满的且还没超过重试次数则继续分裂
+		if (!split_bucket(catalog_id)) {
+			if (!split_catalog()) {
+				continue;
+			} else {
+				catalog_id = addressing(hashcode);
+				split_bucket(catalog_id);
+			}
+		}
+		bucket = m_catalogs[catalog_id].bucket;
+		retry_times++;
+	}
+
+	if (bucket->elements.size() >= m_bucket_size) { //超出分裂桶的尝试个数，尝试调整哈希函数
+		exit(-1);
+	}
+
+	pair<unsigned int, int> location = locate_index(key, key_length);
+	bucket = m_catalogs[location.first].bucket;
+	if (location.second == -1) { //不存在此记录
+		IndexHead index_head;
+		index_head.identifier = new char[key_length + 1];
+		strcpy(index_head.identifier, key);
+		index_head.key_info = key_info;
+		index_head.index_item_num = 1;
+		index_head.inverted_index = new IndexItem;
+		index_head.inverted_index->record_id = record_id;
+		index_head.inverted_index->next = NULL;
+		bucket->elements.push_back(index_head);
+		m_catalogs[location.first].element_num++;
+	} else { //已存在此记录
+		IndexItem *p = bucket->elements[location.second].inverted_index;
+		IndexItem *q = NULL;
+		while (p->record_id > record_id && p->next != NULL) { //降序地插入
+			q = p;
+			p = p->next;
+		}
+		if (p->record_id > record_id) {
+			bucket->elements[location.second].index_item_num++;
+			p->next = new IndexItem;
+			p->next->record_id = record_id;
+			p->next->next = NULL;
+		} else if (p->record_id < record_id) {
+			bucket->elements[location.second].index_item_num++;
+			if (NULL == q) { //当前链表只有一个记录
+				bucket->elements[location.second].inverted_index =
+						new IndexItem;
+				q = bucket->elements[location.second].inverted_index;
+			} else {
+				q->next = new IndexItem;
+				q = q->next;
+			}
+			q->record_id = record_id;
+			q->next = p;
+		}
+	}
+	return hashcode;
+}
+
+bool DynamicHashIndex::split_bucket(unsigned int catalog_id,
+		unsigned int local_deep) {
+	if (catalog_id > pow(m_d, 2) - 1) { //目录索引越界
+		return false;
+	}
+	if (m_d == m_catalogs[catalog_id].l) { //局部深度与全局深度相等
+		return false;
+	}
+	Bucket* old_bucket = m_catalogs[catalog_id].bucket;
+	if (local_deep == 0) { //默认分裂方式
+		//调整目录的桶指向
+		unsigned int old_deep = m_catalogs[catalog_id].l;
+		for (unsigned int i = 0; i < 2; i++) {
+			Bucket* new_bucket = new Bucket();
+			for (unsigned int j = 0; j < (int) pow(2, m_d - old_deep - 1);
+					j++) {
+				m_catalogs[(catalog_id + i * (int) pow(2, old_deep)
+						+ j * (int) pow(2, old_deep + 1)) % (int) pow(2, m_d)].bucket =
+						new_bucket;
+			}
+		}
+		//重新分配旧桶的元素
+		for (vector<IndexHead>::iterator iter = old_bucket->elements.begin();
+				iter != old_bucket->elements.end(); iter++) {
+			m_catalogs[addressing(
+					hashfunc(iter->identifier, strlen(iter->identifier)))].bucket->elements.push_back(
+					*iter);
+		}
+	} else { //按指定局部深度分裂
+		if (local_deep > m_d)
+			return false;
+		else if (local_deep < m_catalogs[catalog_id].l)
+			return false;
+		else if (local_deep == m_catalogs[catalog_id].l)
+			return true;
+		//调整目录的桶指向
+		unsigned int old_deep = m_catalogs[catalog_id].l;
+		for (unsigned int i = 0; i < (int) pow(2, local_deep - old_deep); i++) {
+			Bucket* new_bucket = new Bucket();
+			for (unsigned int j = 0; j < (int) pow(2, m_d - local_deep); j++) {
+				m_catalogs[(catalog_id + i * (int) pow(2, old_deep)
+						+ j * (int) pow(2, local_deep)) % (int) pow(2, m_d)].bucket =
+						new_bucket;
+			}
+		}
+		//重新分配旧桶的元素
+		for (vector<IndexHead>::iterator iter = old_bucket->elements.begin();
+				iter != old_bucket->elements.end(); iter++) {
+			m_catalogs[addressing(
+					hashfunc(iter->identifier, strlen(iter->identifier)))].bucket->elements.push_back(
+					*iter);
+		}
+	}
+	delete old_bucket;
+	return true;
+}
+
+bool DynamicHashIndex::split_catalog(unsigned int global_deep) {
+	if (global_deep == 0) { //默认分裂方式
+		unsigned int old_d = m_d;
+		m_d *= 2;
+		Catalog* old_catalogs = m_catalogs;
+		//目录分裂成2倍
+		m_catalogs = new Catalog[(int) pow(m_d, 2)];
+		//索引的最后(m_d-1)位相同的目录指向原目录的Bucket
+		for (unsigned int i = 0; i < old_d; i++) {
+			m_catalogs[i] = old_catalogs[i];
+			m_catalogs[i + (int) pow(old_d, 2)] = old_catalogs[i];
+		}
+		delete[] old_catalogs;
+	} else { //按指定全局深度分裂
+		if (global_deep < m_d)
+			return false;
+		else if (global_deep == m_d)
+			return true;
+		unsigned int old_d = m_d;
+		m_d *= pow(2, global_deep - m_d);
+		Catalog* old_catalogs = m_catalogs;
+		//目录分裂成2^(global-m_d)倍
+		m_catalogs = new Catalog[(int) pow(m_d, 2)];
+		//索引的最后(m_d-1)位相同的目录指向原目录的Bucket
+		for (unsigned int i = 0; i < old_d; i++) {
+			for (unsigned int j = 0; j < pow(2, global_deep - m_d); j++) {
+				m_catalogs[i + j * (int) pow(old_d, 2)] = old_catalogs[i];
+			}
+		}
+		delete[] old_catalogs;
+	}
+	return true;
 }
 
 unsigned int DynamicHashIndex::size_of_index() {
@@ -37,29 +235,159 @@ unsigned int DynamicHashIndex::size_of_index() {
 
 unsigned int DynamicHashIndex::get_mark_record_num(const char *key,
 		size_t key_length) {
-	return 0;
+	pair<unsigned int, int> location = locate_index(key, key_length);
+	if (location.second == -1) {
+		return 0;
+	} else {
+		return m_catalogs[location.first].bucket->elements[location.second].index_item_num;
+	}
 }
 
 unsigned int DynamicHashIndex::get_real_record_num(const char *key,
 		size_t key_length) {
-	return 0;
+	pair<unsigned int, int> location = locate_index(key, key_length);
+	if (location.second == -1) {
+		return 0;
+	} else {
+		unsigned int count = 0;
+		IndexItem *p =
+				m_catalogs[location.first].bucket->elements[location.second].inverted_index;
+		while (p != NULL) {
+			count++;
+			p = p->next;
+		}
+		return count;
+	}
 }
 
-unsigned int DynamicHashIndex::find_record(unsigned int *records, const char *key,
-		size_t key_length) {
-	return 0;
+unsigned int DynamicHashIndex::find_record(unsigned int *records,
+		const char *key, size_t key_length) {
+	pair<unsigned int, int> location = locate_index(key, key_length);
+	if (location.second == -1) {
+		return 0;
+	} else {
+		IndexHead& index_head =
+				m_catalogs[location.first].bucket->elements[location.second];
+		IndexItem *p = index_head.inverted_index;
+		unsigned int i = 0;
+		for (i = 0; i < index_head.index_item_num; i++) {
+			if (NULL == p) {
+				break;
+			} else {
+				records[i] = p->record_id;
+				p = p->next;
+			}
+		}
+		if (NULL == p && i == index_head.index_item_num) {
+			return index_head.index_item_num;
+		} else if (i < index_head.index_item_num) { //计数值大于实际值
+			return i;
+		} else { //计数值小于实际值
+			return get_real_record_num(key, key_length);
+		}
+	}
 }
 
 bool DynamicHashIndex::get_key_info(unsigned int& key_info, const char *key,
 		size_t key_length) {
-	return false;
+	pair<unsigned int, int> location = locate_index(key, key_length);
+	if (location.second == -1) {
+		return false;
+	} else {
+		key_info =
+				m_catalogs[location.first].bucket->elements[location.second].key_info;
+		return true;
+	}
 }
 
 unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 		unsigned int key_num) {
-	return NULL;
+	if (keys != NULL) {
+		IndexItem **ptr = new IndexItem*[key_num];
+		IndexItem *cur_min = NULL;
+		unsigned int intersect_num = 0;
+		unsigned int records_max_num = 0;
+		unsigned int ptr_num = key_num;
+		unsigned int hashcode;
+		//准备纸带针孔，根据keys的每个值(i)来初始化跟踪指针ptr[j]，并记录针对准的孔中最小的一个cur_min和最少的记录数records_max_num，交集大小不会超过records_max_num
+		for (unsigned int i = 0, j = 0; i < key_num; i++) {
+			pair<unsigned int, int> location = locate_index(keys[i],
+					strlen(keys[i]));
+			IndexHead& index_head =
+					m_catalogs[location.first].bucket->elements[location.second];
+			if (location.second == -1) {
+				ptr_num--;
+				continue;
+			} else {
+				if (j == 0) {
+					cur_min = index_head.inverted_index;
+					records_max_num = index_head.index_item_num;
+				} else {
+					if (index_head.inverted_index->record_id
+							< cur_min->record_id) {
+						cur_min = index_head.inverted_index;
+					}
+					if (index_head.index_item_num < records_max_num) {
+						records_max_num = index_head.index_item_num;
+					}
+				}
+				ptr[j] = index_head.inverted_index;
+				j++;
+			}
+		}
+
+		unsigned int *records = new unsigned int[records_max_num + 1];
+		bool finished = false;
+		bool intersect = true;
+		/* 开始穿孔 */
+		while (!finished) {
+			intersect = true;
+			for (unsigned int i = 0; i < ptr_num; i++) {
+				if (ptr[i] == cur_min) {
+					continue;
+				}
+				if (ptr[i]->record_id > cur_min->record_id) {
+					//对齐当前纸带的针孔
+					do {
+						ptr[i] = ptr[i]->next;
+					} while (ptr[i] != NULL
+							&& ptr[i]->record_id > cur_min->record_id);
+				}
+				if (ptr[i] == NULL) {
+					finished = true;
+					intersect = false;
+					break;
+				}
+				if (ptr[i]->record_id < cur_min->record_id) { //cur_min的record_id不在交集内
+					cur_min = ptr[i];
+					intersect = false;
+					break;
+				}
+			}
+			if (intersect) {
+				records[++intersect_num] = cur_min->record_id;
+				for (unsigned int i = 0; i < ptr_num; i++) {
+					ptr[i] = ptr[i]->next;
+					if (NULL == ptr[i]) {
+						finished = true;
+					}
+				}
+				if (!finished) {
+					cur_min = min_record_id(ptr, ptr_num);
+				}
+			}
+		}
+		/* 结束穿孔 */
+		records[0] = intersect_num;
+		delete[] ptr;
+		return records;
+	} else {
+		unsigned int *records = new unsigned int[1];
+		records[0] = 0;
+		return records;
+	}
 }
 
 unsigned int DynamicHashIndex::hashfunc(const char *str, size_t length) {
-	return 0;
+	return m_hash_func(str, length, m_table_size);
 }

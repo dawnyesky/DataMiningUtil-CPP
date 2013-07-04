@@ -8,7 +8,7 @@
 #ifndef HI_APRIORI_H_
 #define HI_APRIORI_H_
 
-#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/index/open_hash_index.h"
 #include "libyskdmu/association/entity/itemset.h"
 #include "libyskdmu/association/apriori.h"

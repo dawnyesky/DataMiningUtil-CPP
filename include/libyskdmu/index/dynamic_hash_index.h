@@ -9,7 +9,13 @@
 #define DYNAMIC_HASH_INDEX_H_
 
 #include "libyskdmu/util/hashfunc_util.h"
-#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/closed_hash_index.h"
+
+struct Catalog {
+	unsigned int l;
+	unsigned int element_num;
+	Bucket* bucket;
+};
 
 class DynamicHashIndex: HashIndex {
 public:
@@ -19,8 +25,27 @@ public:
 	virtual ~DynamicHashIndex();
 
 	bool init(HashFunc hash_func = simple_hash);
+
+	/*
+	 * description: 寻址函数
+	 *  parameters: hashcode:	哈希值
+	 *      return: 对应的目录项索引值
+	 */
+	virtual unsigned int addressing(unsigned int hashcode);
+	/*
+	 * description: 定位函数
+	 *  parameters: key:		关键字
+	 *  			key_length:	关键字长度
+	 *      return: （对应的目录项索引值，目标在桶中的索引号，不存在返回-1,重复返回最近插入的那个）
+	 */
+	virtual pair<unsigned int, int> locate_index(const char *key,
+			size_t key_length);
 	virtual unsigned int insert(const char *key, size_t key_length,
 			unsigned int& key_info, unsigned int record_id);
+
+	virtual bool split_bucket(unsigned int catalog_id, unsigned int local_deep =
+			0);
+	virtual bool split_catalog(unsigned int global_deep = 0);
 	virtual unsigned int size_of_index();
 	virtual unsigned int get_mark_record_num(const char *key,
 			size_t key_length);
@@ -40,19 +65,16 @@ public:
 #else
 
 protected:
-	/*
-	 * description: 哈希值生成函数
-	 *  parameters: str:			关键字
-	 *  			  length:		关键字长度
-	 *  			  key_info:		关键字信息
-	 *      return: 存放该item元组计数值在哈希表的位置
-	 */
 	virtual unsigned int hashfunc(const char *str, size_t length);
 #endif
 
 protected:
 	unsigned int m_bucket_size; //桶大小
 	unsigned int m_d; //全局位深度D
+	Catalog* m_catalogs; //目录
+
+private:
+	unsigned int m_retry_times; //插入记录的重试次数
 };
 
 #endif /* DYNAMIC_HASH_INDEX_H_ */

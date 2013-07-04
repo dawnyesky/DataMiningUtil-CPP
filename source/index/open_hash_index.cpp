@@ -367,17 +367,3 @@ unsigned int OpenHashIndex::collision_handler(const char *str, size_t length,
 //	}
 	return collision_key;
 }
-
-IndexItem* OpenHashIndex::min_record_id(IndexItem **ptr, unsigned int ptr_num) {
-	if (ptr != NULL) {
-		IndexItem* cur_min = ptr[0];
-		for (unsigned int i = 1; i < ptr_num; i++) {
-			if (ptr[i]->record_id < cur_min->record_id) {
-				cur_min = ptr[i];
-			}
-		}
-		return cur_min;
-	} else {
-		return NULL;
-	}
-}

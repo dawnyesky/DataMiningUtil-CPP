@@ -104,6 +104,15 @@ protected:
 #endif
 
 protected:
+	/*
+	 * description: 寻找ID最小的记录
+	 *  parameters: ptr:		记录链表头
+	 *  			ptr_num:	记录链表的记录个数
+	 *      return: ID最小的记录指针
+	 */
+	IndexItem* min_record_id(IndexItem **ptr, unsigned int ptr_num);
+
+protected:
 	unsigned int m_table_size; //哈希表大小
 	HashFunc m_hash_func; //哈希函数指针
 	LogInstance* m_log_fp; //日志文件指针

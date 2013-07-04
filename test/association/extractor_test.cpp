@@ -9,7 +9,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "libyskdmu/index/hash_index_interface.h"
+#include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/index/open_hash_index.h"
 #include <libyskdmu/association/extractor/trade_x_extractor.h>
 #include <libyskdmu/association/extractor/doc_text_extractor.h>
