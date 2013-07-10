@@ -21,13 +21,7 @@ OpenHashIndex::OpenHashIndex() {
 		m_hash_table[i] = NULL;
 	m_hash_func = &simple_hash;
 	m_probe_func = &probe;
-//	try {
-//		log4cpp::PropertyConfigurator::configure("./shared/log4cpp.conf");
-//	} catch (log4cpp::ConfigureFailure& f) {
-//		printf("Configure Problem %s\n", f.what());
-//		return;
-//	}
-//	log = &log4cpp::Category::getInstance(std::string("hashIndex"));
+	m_log_fp = LogUtil::get_instance()->get_log_instance("openHashIndex");
 }
 
 OpenHashIndex::OpenHashIndex(unsigned int table_size) {
@@ -37,13 +31,7 @@ OpenHashIndex::OpenHashIndex(unsigned int table_size) {
 		m_hash_table[i] = NULL;
 	m_hash_func = &simple_hash;
 	m_probe_func = &probe;
-//	try {
-//		log4cpp::PropertyConfigurator::configure("./shared/log4cpp.conf");
-//	} catch (log4cpp::ConfigureFailure& f) {
-//		printf("Configure Problem %s\n", f.what());
-//		return;
-//	}
-//	log = &log4cpp::Category::getInstance(std::string("hashIndex"));
+	m_log_fp = LogUtil::get_instance()->get_log_instance("openHashIndex");
 }
 
 OpenHashIndex::OpenHashIndex(unsigned int table_size, HashFunc hash_func,
@@ -54,13 +42,7 @@ OpenHashIndex::OpenHashIndex(unsigned int table_size, HashFunc hash_func,
 		m_hash_table[i] = NULL;
 	m_hash_func = (NULL == hash_func ? &simple_hash : hash_func);
 	m_probe_func = (NULL == probe_func ? &probe : probe_func);
-//	try {
-//		log4cpp::PropertyConfigurator::configure("./shared/log4cpp.conf");
-//	} catch (log4cpp::ConfigureFailure& f) {
-//		printf("Configure Problem %s\n", f.what());
-//		return;
-//	}
-//	log = &log4cpp::Category::getInstance(std::string("hashIndex"));
+	m_log_fp = LogUtil::get_instance()->get_log_instance("openHashIndex");
 }
 
 OpenHashIndex::OpenHashIndex(const OpenHashIndex& hash_index) {
@@ -100,7 +82,7 @@ OpenHashIndex::OpenHashIndex(const OpenHashIndex& hash_index) {
 	}
 	m_hash_func = hash_index.m_hash_func;
 	m_probe_func = hash_index.m_probe_func;
-//	log = hash_index.log;
+	m_log_fp = hash_index.m_log_fp;
 }
 
 OpenHashIndex::~OpenHashIndex() {
@@ -279,6 +261,10 @@ unsigned int* OpenHashIndex::get_intersect_records(const char **keys,
 		unsigned int *records = new unsigned int[records_max_num + 1];
 		bool finished = false;
 		bool intersect = true;
+		//如果找到的索引项小于2个则视为交集操作返回空
+		if (ptr_num < 2) {
+			finished = true;
+		}
 		/* 开始穿孔 */
 		while (!finished) {
 			intersect = true;

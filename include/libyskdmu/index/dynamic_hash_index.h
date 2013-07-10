@@ -13,7 +13,6 @@
 
 struct Catalog {
 	unsigned int l;
-	unsigned int element_num;
 	Bucket* bucket;
 };
 
@@ -60,7 +59,10 @@ public:
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length);
 	void* get_hash_table() {
-		return NULL;
+		return m_catalogs;
+	}
+	unsigned int get_global_deep() {
+		return m_d;
 	}
 #else
 

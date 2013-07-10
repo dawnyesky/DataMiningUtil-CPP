@@ -14,26 +14,39 @@ DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
 		unsigned int global_deep) {
 	m_bucket_size = bucket_size;
 	m_d = global_deep;
-	m_catalogs = new Catalog[(int) pow(m_d, 2)];
-	for (unsigned int i = 0; i < (int) pow(m_d, 2); i++) {
+	m_catalogs = new Catalog[(int) pow(2, m_d)];
+	for (unsigned int i = 0; i < (int) pow(2, m_d); i++) {
+		m_catalogs[i].l = m_d;
 		m_catalogs[i].bucket = new Bucket();
 	}
-	m_retry_times = 5;
+	m_retry_times = 100;
+	m_log_fp = LogUtil::get_instance()->get_log_instance("dynamicHashIndex");
 }
 
 DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
 	m_bucket_size = dynamic_hash_index.m_bucket_size;
 	m_d = dynamic_hash_index.m_d;
-	m_catalogs = new Catalog[(int) pow(m_d, 2)];
-	for (unsigned int i = 0; i < (int) pow(m_d, 2); i++) {
+	m_retry_times = dynamic_hash_index.m_retry_times;
+	m_log_fp = dynamic_hash_index.m_log_fp;
+	m_catalogs = new Catalog[(int) pow(2, m_d)];
+	for (unsigned int i = 0; i < (int) pow(2, m_d); i++) {
+		m_catalogs[i].l = m_d;
 		m_catalogs[i].bucket = new Bucket();
 	}
-	m_retry_times = 5;
 }
 
 DynamicHashIndex::~DynamicHashIndex() {
-	for (unsigned int i = 0; i < pow(m_d, 2); i++) {
-		delete m_catalogs->bucket;
+	unsigned int catalogs_size = pow(2, m_d);
+	unsigned int deleted[catalogs_size];
+	memset(deleted, 0, catalogs_size);
+	for (unsigned int i = 0; i < catalogs_size; i++) {
+		if (deleted[i] == 0) {
+			delete m_catalogs[i].bucket;
+			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
+					j++) {
+				deleted[i + j * (int) pow(2, m_catalogs[i].l)] = true;
+			}
+		}
 	}
 	if (m_catalogs != NULL) {
 		delete[] m_catalogs;
@@ -48,7 +61,7 @@ bool DynamicHashIndex::init(HashFunc hash_func) {
 unsigned int DynamicHashIndex::addressing(unsigned int hashcode) {
 	unsigned int mask = 0x01;
 	for (unsigned int i = 1; i < m_d; i++) {
-		mask |= mask << i;
+		mask |= 0x01 << i;
 	}
 	return hashcode & mask;
 }
@@ -88,11 +101,13 @@ unsigned int DynamicHashIndex::insert(const char *key, size_t key_length,
 				split_bucket(catalog_id);
 			}
 		}
+		catalog_id = addressing(hashcode);
 		bucket = m_catalogs[catalog_id].bucket;
 		retry_times++;
 	}
 
 	if (bucket->elements.size() >= m_bucket_size) { //超出分裂桶的尝试个数，尝试调整哈希函数
+		m_log_fp->error("Splitting bucket time out!");
 		exit(-1);
 	}
 
@@ -108,7 +123,6 @@ unsigned int DynamicHashIndex::insert(const char *key, size_t key_length,
 		index_head.inverted_index->record_id = record_id;
 		index_head.inverted_index->next = NULL;
 		bucket->elements.push_back(index_head);
-		m_catalogs[location.first].element_num++;
 	} else { //已存在此记录
 		IndexItem *p = bucket->elements[location.second].inverted_index;
 		IndexItem *q = NULL;
@@ -140,7 +154,7 @@ unsigned int DynamicHashIndex::insert(const char *key, size_t key_length,
 
 bool DynamicHashIndex::split_bucket(unsigned int catalog_id,
 		unsigned int local_deep) {
-	if (catalog_id > pow(m_d, 2) - 1) { //目录索引越界
+	if (catalog_id > pow(2, m_d) - 1) { //目录索引越界
 		return false;
 	}
 	if (m_d == m_catalogs[catalog_id].l) { //局部深度与全局深度相等
@@ -152,19 +166,13 @@ bool DynamicHashIndex::split_bucket(unsigned int catalog_id,
 		unsigned int old_deep = m_catalogs[catalog_id].l;
 		for (unsigned int i = 0; i < 2; i++) {
 			Bucket* new_bucket = new Bucket();
-			for (unsigned int j = 0; j < (int) pow(2, m_d - old_deep - 1);
-					j++) {
-				m_catalogs[(catalog_id + i * (int) pow(2, old_deep)
-						+ j * (int) pow(2, old_deep + 1)) % (int) pow(2, m_d)].bucket =
-						new_bucket;
+			for (unsigned int j = 0;
+					j < (unsigned int) pow(2, m_d - old_deep - 1); j++) {
+				unsigned int cid = (catalog_id + i * (int) pow(2, old_deep)
+						+ j * (int) pow(2, old_deep + 1)) % (int) pow(2, m_d);
+				m_catalogs[cid].bucket = new_bucket;
+				m_catalogs[cid].l++;
 			}
-		}
-		//重新分配旧桶的元素
-		for (vector<IndexHead>::iterator iter = old_bucket->elements.begin();
-				iter != old_bucket->elements.end(); iter++) {
-			m_catalogs[addressing(
-					hashfunc(iter->identifier, strlen(iter->identifier)))].bucket->elements.push_back(
-					*iter);
 		}
 	} else { //按指定局部深度分裂
 		if (local_deep > m_d)
@@ -178,54 +186,57 @@ bool DynamicHashIndex::split_bucket(unsigned int catalog_id,
 		for (unsigned int i = 0; i < (int) pow(2, local_deep - old_deep); i++) {
 			Bucket* new_bucket = new Bucket();
 			for (unsigned int j = 0; j < (int) pow(2, m_d - local_deep); j++) {
-				m_catalogs[(catalog_id + i * (int) pow(2, old_deep)
-						+ j * (int) pow(2, local_deep)) % (int) pow(2, m_d)].bucket =
-						new_bucket;
+				unsigned int cid = (catalog_id + i * (int) pow(2, old_deep)
+						+ j * (int) pow(2, local_deep)) % (int) pow(2, m_d);
+				m_catalogs[cid].bucket = new_bucket;
+				m_catalogs[cid].l += local_deep;
 			}
 		}
-		//重新分配旧桶的元素
-		for (vector<IndexHead>::iterator iter = old_bucket->elements.begin();
-				iter != old_bucket->elements.end(); iter++) {
-			m_catalogs[addressing(
-					hashfunc(iter->identifier, strlen(iter->identifier)))].bucket->elements.push_back(
-					*iter);
-		}
+	}
+	//重新分配旧桶的元素
+	for (vector<IndexHead>::iterator iter = old_bucket->elements.begin();
+			iter != old_bucket->elements.end(); iter++) {
+		m_catalogs[addressing(
+				hashfunc(iter->identifier, strlen(iter->identifier)))].bucket->elements.push_back(
+				*iter);
 	}
 	delete old_bucket;
 	return true;
 }
 
 bool DynamicHashIndex::split_catalog(unsigned int global_deep) {
+	unsigned int old_d = m_d;
+	Catalog* old_catalogs = m_catalogs;
 	if (global_deep == 0) { //默认分裂方式
-		unsigned int old_d = m_d;
-		m_d *= 2;
-		Catalog* old_catalogs = m_catalogs;
+		m_d++;
 		//目录分裂成2倍
-		m_catalogs = new Catalog[(int) pow(m_d, 2)];
+		m_catalogs = new Catalog[(int) pow(2, m_d)];
 		//索引的最后(m_d-1)位相同的目录指向原目录的Bucket
-		for (unsigned int i = 0; i < old_d; i++) {
-			m_catalogs[i] = old_catalogs[i];
-			m_catalogs[i + (int) pow(old_d, 2)] = old_catalogs[i];
+		for (unsigned int i = 0; i < (unsigned int) pow(2, old_d); i++) {
+			m_catalogs[i].bucket = old_catalogs[i].bucket;
+			m_catalogs[i].l = old_catalogs[i].l;
+			unsigned int cid = i + (int) pow(2, old_d);
+			m_catalogs[cid].bucket = old_catalogs[i].bucket;
+			m_catalogs[cid].l = old_catalogs[i].l;
 		}
-		delete[] old_catalogs;
 	} else { //按指定全局深度分裂
 		if (global_deep < m_d)
 			return false;
 		else if (global_deep == m_d)
 			return true;
-		unsigned int old_d = m_d;
-		m_d *= pow(2, global_deep - m_d);
-		Catalog* old_catalogs = m_catalogs;
+		m_d = global_deep;
 		//目录分裂成2^(global-m_d)倍
-		m_catalogs = new Catalog[(int) pow(m_d, 2)];
+		m_catalogs = new Catalog[(int) pow(2, m_d)];
 		//索引的最后(m_d-1)位相同的目录指向原目录的Bucket
-		for (unsigned int i = 0; i < old_d; i++) {
-			for (unsigned int j = 0; j < pow(2, global_deep - m_d); j++) {
-				m_catalogs[i + j * (int) pow(old_d, 2)] = old_catalogs[i];
+		for (unsigned int i = 0; i < pow(2, old_d); i++) {
+			for (unsigned int j = 0; j < pow(2, m_d - old_d); j++) {
+				unsigned int cid = i + j * (int) pow(2, old_d);
+				m_catalogs[cid].bucket = old_catalogs[i].bucket;
+				m_catalogs[cid].l = old_catalogs[i].l;
 			}
 		}
-		delete[] old_catalogs;
 	}
+	delete[] old_catalogs;
 	return true;
 }
 
@@ -339,6 +350,10 @@ unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 		unsigned int *records = new unsigned int[records_max_num + 1];
 		bool finished = false;
 		bool intersect = true;
+		//如果找到的索引项小于2个则视为交集操作返回空
+		if (ptr_num < 2) {
+			finished = true;
+		}
 		/* 开始穿孔 */
 		while (!finished) {
 			intersect = true;

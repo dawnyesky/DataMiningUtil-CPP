@@ -16,8 +16,8 @@ using namespace std;
 static clock_t start, finish;
 static float duration;
 
-void test_hash_index() {
-	printf("**********HashIndex start testing**********\n");
+void test_open_hash_index() {
+	printf("**********OpenHashIndex start testing**********\n");
 	start = clock();
 	unsigned int record_num = 10;
 	unsigned int term_num_per_record = 10;
@@ -85,6 +85,6 @@ void test_hash_index() {
 
 	finish = clock();
 	duration = (float) (finish - start) / (CLOCKS_PER_SEC);
-	printf("HashIndex testing duaration: %f(secs)\n", duration);
-	printf("**********HashIndex finish testing**********\n\n");
+	printf("OpenHashIndex testing duaration: %f(secs)\n", duration);
+	printf("**********OpenHashIndex finish testing**********\n\n");
 }
