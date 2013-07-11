@@ -16,7 +16,7 @@ struct Catalog {
 	Bucket* bucket;
 };
 
-class DynamicHashIndex: HashIndex {
+class DynamicHashIndex: public HashIndex {
 public:
 	DynamicHashIndex(unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);

@@ -1,12 +1,12 @@
 /*
- * hash_index_interface.h
+ * hash_index.h
  *
  *  Created on: 2011-11-29
  *      Author: Yan Shankai
  */
 
-#ifndef HASH_INDEX_INTERFACE_H_
-#define HASH_INDEX_INTERFACE_H_
+#ifndef HASH_INDEX_H_
+#define HASH_INDEX_H_
 
 #include <stdio.h>
 #include "libyskdmu/util/hashfunc_util.h"
@@ -22,6 +22,8 @@ struct IndexHead {
 	unsigned int key_info; //与identifier相关的信息
 	unsigned int index_item_num; //索引项数量
 	IndexItem *inverted_index; //倒排索引链表，存储此item在哪些record中出现过
+
+	friend bool operator==(const IndexHead& operand1, const IndexHead& operand2);
 };
 
 class HashIndex {
@@ -118,4 +120,4 @@ protected:
 	LogInstance* m_log_fp; //日志文件指针
 };
 
-#endif /* HASH_INDEX_INTERFACE_H_ */
+#endif /* HASH_INDEX_H_ */

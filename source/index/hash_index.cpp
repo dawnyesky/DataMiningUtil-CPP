@@ -5,6 +5,7 @@
  *      Author: Yan Shankai
  */
 
+#include <string.h>
 #include "libyskdmu/index/hash_index.h"
 
 IndexItem* HashIndex::min_record_id(IndexItem **ptr, unsigned int ptr_num) {
@@ -19,4 +20,9 @@ IndexItem* HashIndex::min_record_id(IndexItem **ptr, unsigned int ptr_num) {
 	} else {
 		return NULL;
 	}
+}
+
+bool operator==(const IndexHead& operand1, const IndexHead& operand2) {
+	return strcmp(operand1.identifier, operand2.identifier) == 0
+			&& operand1.key_info == operand2.key_info;
 }

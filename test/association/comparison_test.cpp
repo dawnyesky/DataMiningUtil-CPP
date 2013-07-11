@@ -98,7 +98,7 @@ void test_combine_algorithms(unsigned int max_itemset_size = 2, double minsup =
 	start = clock();
 	start_t = time(NULL);
 
-	char* algorithms[3] = { "Apriori", "FP-Growth", "HI-Apriori" };
+	const char* algorithms[3] = { "Apriori", "FP-Growth", "HI-Apriori" };
 	vector<KItemsets>* apriori_fre = apriori_doc(max_itemset_size, minsup,
 			minconf);
 	vector<KItemsets>* fpGrowth_fre = fp_growth_doc(max_itemset_size, minsup,
@@ -123,7 +123,7 @@ void test_combine_algorithms(unsigned int max_itemset_size = 2, double minsup =
 			map<vector<unsigned int>, unsigned int> temp = fre_itemsets[0];
 			fre_itemsets[0] = fre_itemsets[min_size];
 			fre_itemsets[min_size] = temp;
-			char* temp_algorithm = algorithms[0];
+			const char* temp_algorithm = algorithms[0];
 			algorithms[0] = algorithms[min_size];
 			algorithms[min_size] = temp_algorithm;
 		}
