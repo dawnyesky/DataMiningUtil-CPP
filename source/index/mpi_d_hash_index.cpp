@@ -184,11 +184,29 @@ bool MPIDHashIndex::synchronize() {
 }
 
 Catalog* MPIDHashIndex::get_local_catalogs() {
-	return NULL;
+	Catalog* result = new Catalog[m_responsible_cats.second];
+	for (unsigned int i = 0; i < m_responsible_cats.second; i++) {
+		result[i].l = m_catalogs[i + m_responsible_cats.first].l;
+		result[i].bucket = NULL;
+	}
+	return result;
 }
 
 IndexHead* MPIDHashIndex::get_local_index() {
-	return NULL;
+	Bucket* buckets[m_responsible_cats.second];
+	unsigned int elements_sum = 0;
+	for (unsigned int i = 0; i < m_responsible_cats.second; i++) {
+		buckets[i] = m_catalogs[i + m_responsible_cats.first].bucket;
+		elements_sum += buckets[i]->elements.size();
+	}
+	IndexHead* result = new IndexHead[elements_sum];
+	for (unsigned int i = 0, index = 0; i < m_responsible_cats.second; i++) {
+		for (unsigned int j = 0; j < buckets[i]->elements.size(); j++) {
+			result[index] = buckets[i]->elements[j];
+			index++;
+		}
+	}
+	return result;
 }
 
 unsigned int MPIDHashIndex::size_of_global_index() {
@@ -197,32 +215,86 @@ unsigned int MPIDHashIndex::size_of_global_index() {
 
 unsigned int MPIDHashIndex::insert(const char *key, size_t key_length,
 		unsigned int& key_info, unsigned int record_id) {
-	return 0;
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	if (catalog_id >= m_responsible_cats.first
+			&& catalog_id
+					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+		return DynamicHashIndex::insert(key, key_length, key_info, record_id);
+	} else { //远程访问
+		return 0;
+	}
 }
 
 unsigned int MPIDHashIndex::get_mark_record_num(const char *key,
 		size_t key_length) {
-	return 0;
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	if (catalog_id >= m_responsible_cats.first
+			&& catalog_id
+					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+		return DynamicHashIndex::get_mark_record_num(key, key_length);
+	} else { //远程访问
+		return 0;
+	}
 }
 
 unsigned int MPIDHashIndex::get_real_record_num(const char *key,
 		size_t key_length) {
-	return 0;
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	if (catalog_id >= m_responsible_cats.first
+			&& catalog_id
+					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+		return DynamicHashIndex::get_real_record_num(key, key_length);
+	} else { //远程访问
+		return 0;
+	}
 }
 
 unsigned int MPIDHashIndex::find_record(unsigned int *records, const char *key,
 		size_t key_length) {
-	return 0;
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	if (catalog_id >= m_responsible_cats.first
+			&& catalog_id
+					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+		return DynamicHashIndex::find_record(records, key, key_length);
+	} else { //远程访问
+		return 0;
+	}
 }
 
 bool MPIDHashIndex::get_key_info(unsigned int& key_info, const char *key,
 		size_t key_length) {
-	return false;
+	unsigned int hashcode = hashfunc(key, key_length);
+	unsigned int catalog_id = addressing(hashcode);
+	if (catalog_id >= m_responsible_cats.first
+			&& catalog_id
+					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+		return DynamicHashIndex::get_key_info(key_info, key, key_length);
+	} else { //远程访问
+		return false;
+	}
 }
 
 unsigned int* MPIDHashIndex::get_intersect_records(const char **keys,
 		unsigned int key_num) {
-	return NULL;
+	bool local_accessible = true;
+	bool local_accessibles[key_num];
+	for (unsigned int i = 0; i < key_num; i++) {
+		unsigned int hashcode = hashfunc(keys[i], strlen(keys[i]));
+		unsigned int catalog_id = addressing(hashcode);
+		local_accessibles[i] = catalog_id >= m_responsible_cats.first
+				&& catalog_id
+						< m_responsible_cats.first + m_responsible_cats.second;
+		local_accessible &= local_accessibles[i];
+	}
+	if (local_accessible) { //本地访问
+		return DynamicHashIndex::get_intersect_records(keys, key_num);
+	} else { //远程访问
+		return NULL;
+	}
 }
 
 unsigned int* MPIDHashIndex::gen_statistics() {
