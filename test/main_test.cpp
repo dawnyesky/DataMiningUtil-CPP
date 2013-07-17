@@ -12,7 +12,8 @@ extern void test_is_subset();
 extern void test_triangle_matrix();
 extern void test_hash_table_counter();
 
-extern void test_hash_index();
+extern void test_open_hash_index();
+extern void test_mpi_d_hash_index(int argc, char *argv[]);
 
 extern void test_trade_x_extractor();
 extern void test_doc_text_extractor();
@@ -63,7 +64,8 @@ int main(int argc, char *argv[]) {
 //	test_is_subset();
 //	test_triangle_matrix();
 //	test_hash_table_counter();
-//	test_hash_index();
+//	test_open_hash_index();
+	test_mpi_d_hash_index(argc, argv);
 //	test_trade_x_extractor();
 //	test_doc_text_extractor();
 //	test_apriori_xml();
@@ -75,7 +77,7 @@ int main(int argc, char *argv[]) {
 //	test_dhp_doc();
 //	test_hi_apriori_xml();
 //	test_hi_apriori_doc();
-	test_combine_algorithms();
+//	test_combine_algorithms();
 //	test_cf();
 //	test_cf_ub_wds();
 //	test_cf_ub(argc, argv);
