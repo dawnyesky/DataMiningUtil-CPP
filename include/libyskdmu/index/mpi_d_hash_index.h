@@ -22,7 +22,7 @@ struct SynBcastMsg {
 	unsigned int* catalog_size;
 };
 
-class MPIDHashIndex: public DistributedHashIndex {
+class MPIDHashIndex: public DynamicHashIndex, public DistributedHashIndex {
 public:
 	MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
@@ -61,7 +61,7 @@ private:
 	 *      return: 生成是否成功
 	 */
 	bool gen_syng_msg_type(unsigned int global_deep, unsigned int* statistics,
-			MPI_Datatype& datatype, SynGatherMsg& msg);
+			MPI_Datatype& newtype, SynGatherMsg& msg);
 	/*
 	 * description: 为同步操作的Gather操作生成消息类型
 	 *  parameters: (IN)global_deep:	动态哈希表的全局深度
@@ -69,7 +69,7 @@ private:
 	 *  			(OUT)datatype:		MPI数据类型
 	 *      return: 生成是否成功
 	 */
-	bool gen_synb_msg_type(unsigned int numprocs, MPI_Datatype& datatype,
+	bool gen_synb_msg_type(unsigned int numprocs, MPI_Datatype& newtype,
 			SynBcastMsg& msg);
 	/*
 	 * description: 合并桶函数
@@ -85,6 +85,7 @@ protected:
 private:
 	MPI_Comm m_comm;
 	int m_root_pid;
+	volatile bool is_synchronized;
 };
 
 #endif /* MPI_D_HASH_INDEX_H_ */

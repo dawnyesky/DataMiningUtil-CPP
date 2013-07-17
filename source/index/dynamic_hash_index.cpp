@@ -41,6 +41,21 @@ DynamicHashIndex::~DynamicHashIndex() {
 	memset(deleted, 0, catalogs_size);
 	for (unsigned int i = 0; i < catalogs_size; i++) {
 		if (deleted[i] == 0) {
+			for (vector<IndexHead>::iterator iter =
+					m_catalogs[i].bucket->elements.begin();
+					iter != m_catalogs[i].bucket->elements.end(); iter++) {
+				char *identifier = iter->identifier;
+				if (NULL != identifier) {
+					delete[] identifier;
+				}
+				IndexItem *p = iter->inverted_index;
+				IndexItem *q = NULL;
+				while (NULL != p) {
+					q = p->next;
+					delete p;
+					p = q;
+				}
+			}
 			delete m_catalogs[i].bucket;
 			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
 					j++) {

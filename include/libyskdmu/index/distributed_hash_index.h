@@ -10,8 +10,11 @@
 
 #include "libyskdmu/index/dynamic_hash_index.h"
 
-class DistributedHashIndex: public DynamicHashIndex {
+class DistributedHashIndex: public virtual HashIndex {
 public:
+	virtual ~DistributedHashIndex() {
+	}
+
 	/*
 	 * description: 同步函数，把分布的哈希表合并并分割给每个节点负责一部分
 	 *  parameters:

@@ -11,14 +11,16 @@
 #include "libyskdmu/index/mpi_d_hash_index.h"
 
 MPIDHashIndex::MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size,
-		unsigned int global_deep) {
+		unsigned int global_deep) :
+		DynamicHashIndex(bucket_size, global_deep) {
 	m_comm = comm;
-	m_bucket_size = bucket_size;
-	m_d = global_deep;
+//	m_bucket_size = bucket_size;
+//	m_d = global_deep;
 	m_root_pid = 0;
 	m_responsible_cats.first = 0;
 	m_responsible_cats.second = 0;
 	m_log_fp = LogUtil::get_instance()->get_log_instance("mpiDHashIndex");
+	is_synchronized = false;
 }
 
 MPIDHashIndex::~MPIDHashIndex() {
@@ -51,7 +53,7 @@ bool MPIDHashIndex::synchronize() {
 	//准备Broadcast消息数据类型
 	MPI_Datatype synb_msg_type;
 	gen_synb_msg_type(m_d, synb_msg_type, synb_msg);
-
+	MPI_Barrier(m_comm);
 	//汇总
 	MPI_Gather(&syng_send_msg, 1, syng_msg_type, &syng_recv_msg, 1,
 			syng_msg_type, m_root_pid, m_comm);
@@ -170,6 +172,7 @@ bool MPIDHashIndex::synchronize() {
 		}
 		m_catalogs[i].bucket = union_bucket(buckets, numprocs);
 	}
+	is_synchronized = true;
 
 	//释放消息数据类型
 	MPI_Type_free(&syng_msg_type);
@@ -217,9 +220,11 @@ unsigned int MPIDHashIndex::insert(const char *key, size_t key_length,
 		unsigned int& key_info, unsigned int record_id) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (catalog_id >= m_responsible_cats.first
-			&& catalog_id
-					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+	if (!is_synchronized
+			|| (catalog_id >= m_responsible_cats.first
+					&& catalog_id
+							< m_responsible_cats.first
+									+ m_responsible_cats.second)) { //本地访问
 		return DynamicHashIndex::insert(key, key_length, key_info, record_id);
 	} else { //远程访问
 		return 0;
@@ -319,46 +324,46 @@ unsigned int* MPIDHashIndex::gen_statistics() {
 }
 
 bool MPIDHashIndex::gen_syng_msg_type(unsigned int global_deep,
-		unsigned int* statistics, MPI_Datatype& datatype, SynGatherMsg& msg) {
-	int block_size[2];
-	MPI_Aint offset[2];
-	MPI_Datatype element_type[2] = { MPI_UNSIGNED };
+		unsigned int* statistics, MPI_Datatype& newtype, SynGatherMsg& msg) {
+	int blocklens[2];
+	MPI_Aint indices[2];
+	MPI_Datatype old_type[2] = { MPI_UNSIGNED, MPI_UNSIGNED };
 
-	block_size[0] = 1;
-	block_size[1] = (unsigned int) pow(2, global_deep);
+	blocklens[0] = 1;
+	blocklens[1] = (unsigned int) pow(2, global_deep);
 
-	MPI_Address(&msg.global_deep, &offset[0]);
-	MPI_Address(&msg.statistics, &offset[1]);
+	MPI_Address(&msg.global_deep, &indices[0]);
+	MPI_Address(&msg.statistics, &indices[1]);
 
-	offset[1] = offset[1] - offset[0];
-	offset[0] = 0;
+	indices[1] = indices[1] - indices[0];
+	indices[0] = 0;
 
-	MPI_Type_struct(2, block_size, offset, element_type, &datatype);
-	MPI_Type_commit(&datatype);
+	MPI_Type_struct(2, blocklens, indices, old_type, &newtype);
+	MPI_Type_commit(&newtype);
 
 	return true;
 }
 
 bool MPIDHashIndex::gen_synb_msg_type(unsigned int numprocs,
-		MPI_Datatype& datatype, SynBcastMsg& msg) {
-	int block_size[3];
-	MPI_Aint offset[3];
-	MPI_Datatype element_type[3] = { MPI_UNSIGNED };
+		MPI_Datatype& newtype, SynBcastMsg& msg) {
+	int blocklens[3];
+	MPI_Aint indices[3];
+	MPI_Datatype old_type[3] = { MPI_UNSIGNED, MPI_UNSIGNED, MPI_UNSIGNED };
 
-	block_size[0] = 1;
-	block_size[1] = numprocs;
-	block_size[2] = numprocs;
+	blocklens[0] = 1;
+	blocklens[1] = numprocs;
+	blocklens[2] = numprocs;
 
-	MPI_Address(&msg.global_deep, &offset[0]);
-	MPI_Address(&msg.catalog_offset, &offset[1]);
-	MPI_Address(&msg.catalog_size, &offset[2]);
+	MPI_Address(&msg.global_deep, &indices[0]);
+	MPI_Address(&msg.catalog_offset, &indices[1]);
+	MPI_Address(&msg.catalog_size, &indices[2]);
 
-	offset[2] = offset[2] - offset[1];
-	offset[1] = offset[1] - offset[0];
-	offset[0] = 0;
+	indices[2] = indices[2] - indices[1];
+	indices[1] = indices[1] - indices[0];
+	indices[0] = 0;
 
-	MPI_Type_struct(3, block_size, offset, element_type, &datatype);
-	MPI_Type_commit(&datatype);
+	MPI_Type_struct(3, blocklens, indices, old_type, &newtype);
+	MPI_Type_commit(&newtype);
 
 	return true;
 }

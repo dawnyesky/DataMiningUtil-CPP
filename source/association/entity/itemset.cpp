@@ -28,7 +28,7 @@ KItemsets::KItemsets(const KItemsets& k_itemsets) :
 		m_itemsets(k_itemsets.m_itemsets) {
 	m_term_num = k_itemsets.m_term_num;
 	m_itemsets_index = new OpenHashIndex(
-			*(OpenHashIndex*) k_itemsets.m_itemsets_index);
+			*(OpenHashIndex*) (void*) k_itemsets.m_itemsets_index);
 }
 
 KItemsets::~KItemsets() {

@@ -16,7 +16,7 @@ struct Catalog {
 	Bucket* bucket;
 };
 
-class DynamicHashIndex: public HashIndex {
+class DynamicHashIndex: public virtual HashIndex {
 public:
 	DynamicHashIndex(unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
@@ -58,7 +58,7 @@ public:
 			unsigned int key_num);
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length);
-	void* get_hash_table() {
+	virtual void* get_hash_table() {
 		return m_catalogs;
 	}
 	unsigned int get_global_deep() {

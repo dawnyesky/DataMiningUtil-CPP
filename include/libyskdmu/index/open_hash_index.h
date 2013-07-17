@@ -27,7 +27,7 @@ unsigned int probe(const char *key, unsigned int length,
 		unsigned int table_size, unsigned int collision_key,
 		unsigned int probe_step);
 
-class OpenHashIndex: public HashIndex {
+class OpenHashIndex: public virtual HashIndex {
 public:
 	OpenHashIndex();
 	OpenHashIndex(unsigned int table_size);
