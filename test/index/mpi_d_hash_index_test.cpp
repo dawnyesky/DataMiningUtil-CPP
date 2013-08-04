@@ -33,17 +33,18 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 			"hello kitty", "snoopy", "sheldon", "penny", "saber", "archer",
 			"T-Pat" };
 
-	MPIDHashIndex index = MPIDHashIndex(MPI_COMM_WORLD);
+	MPIDHashIndex index = MPIDHashIndex(MPI_COMM_WORLD );
 	index.init();
 
 	const char *identifier = NULL;
 	unsigned int iden_index, hashcode;
-	srand((unsigned int) time(NULL));
+	srand((unsigned int) time(NULL) * pid);
 	for (unsigned int i = 0; i < record_num * term_num_per_record; i++) {
 		iden_index = rand() % 11;
 		identifier = identifiers[iden_index];
 		hashcode = index.insert(identifier, strlen(identifier), iden_index,
-				i / term_num_per_record);
+				pid * record_num * term_num_per_record
+						+ i / term_num_per_record);
 	}
 
 	if (print_index) {
@@ -66,7 +67,6 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 					for (unsigned int j = 0; j < num; j++) {
 						printf("%u, ", records[j]);
 					}
-
 					printf("\n");
 				}
 			}
@@ -96,7 +96,6 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 					for (unsigned int j = 0; j < num; j++) {
 						printf("%u, ", records[j]);
 					}
-
 					printf("\n");
 				}
 			}

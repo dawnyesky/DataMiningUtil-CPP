@@ -92,7 +92,8 @@ private:
 	int m_root_pid;
 	volatile bool is_synchronized;
 	const static unsigned int SYNG_RECV_BUF_SIZE = 4096;
-	const static unsigned int SYNATA_RECV_BUF_SIZE = 4096;
+	const static unsigned int SYNB_BUF_SIZE = 4096;
+	const static unsigned int SYNATA_BUF_SIZE = 4096;
 };
 
 #endif /* MPI_D_HASH_INDEX_H_ */

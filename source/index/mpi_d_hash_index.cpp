@@ -29,13 +29,18 @@ MPIDHashIndex::~MPIDHashIndex() {
 
 bool MPIDHashIndex::synchronize() {
 	int pid, numprocs;
-	MPI_Comm_rank(MPI_COMM_WORLD, &pid);
-	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	MPI_Comm_rank(m_comm, &pid);
+	MPI_Comm_size(m_comm, &numprocs);
 
 	//声明和准备Gather消息数据
 	SynGatherMsg syng_send_msg;
+	SynGatherMsg* syng_recv_msg = NULL;
 	syng_send_msg.global_deep = m_d;
 	syng_send_msg.statistics = gen_statistics();
+//	for (unsigned int i = 0; i < pow(2, m_d); i++) {
+//		printf("syng_send_msg.statistics[%i]:%i\n", i,
+//				syng_send_msg.statistics[i]);
+//	}
 	pair<void*, int> syng_recv_msg_pkg;
 	syng_recv_msg_pkg.first = NULL;
 	syng_recv_msg_pkg.second = 0;
@@ -53,17 +58,20 @@ bool MPIDHashIndex::synchronize() {
 			syng_recv_msg_pkg.first, syng_recv_msg_pkg.second, MPI_PACKED,
 			m_root_pid, m_comm);
 
-	//解包Gather消息
-	SynGatherMsg* syng_recv_msg = unpack_syng_msg(syng_recv_msg_pkg);
-
 	//声明和准备Broadcast消息数据
 	SynBcastMsg synb_msg;
-	synb_msg.global_deep = m_d;
-	synb_msg.catalog_offset = new unsigned int[numprocs];
-	synb_msg.catalog_size = new unsigned int[numprocs];
+	synb_msg.global_deep = 0;
+	synb_msg.catalog_offset = NULL;
+	synb_msg.catalog_size = NULL;
 
 	//处理汇总数据
 	if (pid == m_root_pid) {
+		//解包Gather消息
+		syng_recv_msg = unpack_syng_msg(syng_recv_msg_pkg);
+		synb_msg.catalog_offset = new unsigned int[numprocs];
+		memset(synb_msg.catalog_offset, 0, numprocs * sizeof(unsigned int));
+		synb_msg.catalog_size = new unsigned int[numprocs];
+		memset(synb_msg.catalog_size, 0, numprocs * sizeof(unsigned int));
 		//找出最大全局深度
 		unsigned int max_pid = 0;
 		unsigned int max_d = syng_recv_msg[0].global_deep;
@@ -77,6 +85,7 @@ bool MPIDHashIndex::synchronize() {
 		//统计
 		unsigned int catalog_size = pow(2, max_d);
 		unsigned int counter[catalog_size];
+		memset(counter, 0, catalog_size * sizeof(unsigned int));
 		for (unsigned int i = 0; i < numprocs; i++) {
 			//把所有节点的目录都展开到最大全局深度
 			if (syng_recv_msg[i].global_deep < max_d) {
@@ -86,18 +95,30 @@ bool MPIDHashIndex::synchronize() {
 					unsigned int multiple = catalog_size / old_catalog_size;
 					for (unsigned int k = 0; k < multiple; k++) {
 						unsigned int cid = j + k * old_catalog_size;
-						counter[cid] = syng_recv_msg[i].statistics[j]
+						assert(cid < catalog_size);
+						counter[cid] += syng_recv_msg[i].statistics[j]
 								/ multiple;
+//						printf("syng_recv_msg[%i].statistics[%i]:%i\n", i, j,
+//								syng_recv_msg[i].statistics[j]);
 					}
+				}
+			} else {
+				for (unsigned int j = 0; j < catalog_size; j++) {
+					counter[j] += syng_recv_msg[i].statistics[j];
+//					printf("syng_recv_msg[%i].statistics[%i]:%i\n", i, j,
+//							syng_recv_msg[i].statistics[j]);
 				}
 			}
 		}
 
 		unsigned int sum = 0; //总和
 		for (unsigned int i = 0; i < catalog_size; i++) {
+//			printf("counter[i]:%i\n", counter[i]);
 			sum += counter[i];
 		}
+//		printf("Sum is: %u\n", sum);
 		unsigned int element_per_proc = sum / numprocs; //平均每个节点处理的索引项
+//		printf("Element per proc:%i\n", element_per_proc);
 
 		//准备Broadcast消息数据
 		synb_msg.global_deep = max_d;
@@ -111,8 +132,14 @@ bool MPIDHashIndex::synchronize() {
 			synb_msg.catalog_size[pid] = i - synb_msg.catalog_offset[pid] + 1;
 			accumulation = 0;
 			pid++;
-			if (pid < numprocs) {
+			if (pid < numprocs) { //正常情况
 				synb_msg.catalog_offset[pid] = i + 1;
+			} else { //计算误差
+				if (i < catalog_size) { //还有目录没有分配完
+					synb_msg.catalog_size[pid - 1] = catalog_size
+							- synb_msg.catalog_offset[pid - 1];
+				}
+				break;
 			}
 		}
 		//调整分配末尾的几个节点，负载均衡
@@ -134,6 +161,10 @@ bool MPIDHashIndex::synchronize() {
 				offset++;
 			}
 		}
+//		for (unsigned int i = 0; i < numprocs; i++) {
+//			printf("catalog offset, size:%i, %i\n", synb_msg.catalog_offset[i],
+//					synb_msg.catalog_size[i]);
+//		}
 	}
 
 	//打包Broadcast消息
@@ -144,13 +175,18 @@ bool MPIDHashIndex::synchronize() {
 			m_comm);
 
 	if (pid != m_root_pid) {
-		delete[] synb_msg.catalog_offset;
-		delete[] synb_msg.catalog_size;
 		SynBcastMsg* bcast_msg = unpack_synb_msg(synb_msg_pkg);
+		synb_msg.global_deep = bcast_msg->global_deep;
 		synb_msg.catalog_offset = bcast_msg->catalog_offset;
 		synb_msg.catalog_size = bcast_msg->catalog_size;
 		delete bcast_msg;
 	}
+
+//	unsigned int temp = 0;
+//	for (unsigned int i = 0; i < numprocs; i++) {
+//		temp += synb_msg.catalog_size[i];
+//	}
+//	printf("Summary size:%i\n", temp);
 
 	//处理统计数据
 	m_responsible_cats.first = synb_msg.catalog_offset[pid];
@@ -174,19 +210,27 @@ bool MPIDHashIndex::synchronize() {
 	int send_buf_offset[numprocs];
 	int send_buf_size[numprocs];
 	//打包Alltoall消息
+//	printf("catalogs_size:%i/%i\n", catalogs_size,
+//			(int) pow(2, synb_msg.global_deep));
 	pair<void*, int*> synata_send_msg_pkg = pack_synata_msg(synata_send_msg,
 			synb_msg.catalog_offset, synb_msg.catalog_size);
+	send_buf_offset[0] = 0;
+	send_buf_size[0] = synata_send_msg_pkg.second[0];
+	for (unsigned int i = 1; i < numprocs; i++) {
+		send_buf_offset[i] = send_buf_offset[i - 1] + send_buf_size[i - 1];
+		send_buf_size[i] = synata_send_msg_pkg.second[i];
+	}
 
-	//准备Alltoall接受的数据
+	//准备Alltoall接收的数据缓冲区
 	int recv_buf_offset[numprocs];
 	int recv_buf_size[numprocs];
 	for (unsigned int i = 0; i < numprocs; i++) {
-		recv_buf_offset[i] = i * SYNATA_RECV_BUF_SIZE;
-		recv_buf_size[i] = SYNATA_RECV_BUF_SIZE;
+		recv_buf_offset[i] = i * SYNATA_BUF_SIZE;
+		recv_buf_size[i] = SYNATA_BUF_SIZE;
 	}
 	pair<void*, int> synata_recv_msg_pkg;
-	synata_recv_msg_pkg.first = malloc(numprocs * SYNATA_RECV_BUF_SIZE);
-	synata_recv_msg_pkg.second = numprocs * SYNATA_RECV_BUF_SIZE;
+	synata_recv_msg_pkg.first = malloc(numprocs * SYNATA_BUF_SIZE);
+	synata_recv_msg_pkg.second = numprocs * SYNATA_BUF_SIZE;
 
 	//交换数据
 	MPI_Alltoallv(synata_send_msg_pkg.first, send_buf_size, send_buf_offset,
@@ -196,35 +240,34 @@ bool MPIDHashIndex::synchronize() {
 	//解包Alltoall消息，存储的是已合并各个进程里属于自己负责的桶列表
 	SynAlltoallMsg* synata_recv_msg = unpack_synata_msg(synata_recv_msg_pkg);
 
-//	Bucket* recv_buckets[numprocs];
-//	for (unsigned int i = 0; i < numprocs; i++) {
-//		recv_buckets[i] = synata_recv_msg[i].buckets;
-//	}
-	assert(synata_recv_msg->bucket_num == m_responsible_cats.second);
 	//处理交换数据
-	for (unsigned int i = m_responsible_cats.first;
-			i < m_responsible_cats.second; i++) {
-		if (m_catalogs[i].bucket != NULL) {
-			delete m_catalogs[i].bucket;
+	for (unsigned int i = 0; i < m_responsible_cats.second; i++) {
+		unsigned int cid = i + m_responsible_cats.first;
+		if (m_catalogs[cid].bucket != NULL) {
+			for (vector<IndexHead>::iterator iter =
+					m_catalogs[cid].bucket->elements.begin();
+					iter != m_catalogs[cid].bucket->elements.end(); iter++) {
+				char *identifier = iter->identifier;
+				if (NULL != identifier) {
+					delete[] identifier;
+				}
+				IndexItem *p = iter->inverted_index;
+				IndexItem *q = NULL;
+				while (NULL != p) {
+					q = p->next;
+					delete p;
+					p = q;
+				}
+			}
+			delete m_catalogs[cid].bucket;
 		}
-		m_catalogs[i].bucket = new Bucket;
-		m_catalogs[i].bucket->elements = synata_recv_msg->buckets[i
-				- m_responsible_cats.first].elements;
+		m_catalogs[cid].bucket = new Bucket;
+		m_catalogs[cid].bucket->elements = synata_recv_msg->buckets[i].elements;
 	}
-//	for (unsigned int i = m_responsible_cats.first;
-//			i < m_responsible_cats.second; i++) {
-//		Bucket buckets[numprocs];
-//		for (unsigned int j = 0; j < numprocs; j++) {
-//			buckets[j] = recv_buckets[j][i];
-//		}
-//		if (m_catalogs[i].bucket != NULL) {
-//			delete m_catalogs[i].bucket;
-//		}
-//		m_catalogs[i].bucket = new Bucket;
-//		union_bucket(m_catalogs[i].bucket, buckets, numprocs);
-//	}
 	is_synchronized = true;
 
+	delete[] syng_send_msg.statistics;
+	free(syng_send_msg_pkg.first);
 	if (pid == m_root_pid) {
 		for (unsigned int i = 0; i < numprocs; i++) {
 			delete[] syng_recv_msg[i].statistics;
@@ -232,14 +275,12 @@ bool MPIDHashIndex::synchronize() {
 		delete[] syng_recv_msg;
 		free(syng_recv_msg_pkg.first);
 	}
-	delete[] syng_send_msg.statistics;
+
 	delete[] synb_msg.catalog_offset;
 	delete[] synb_msg.catalog_size;
-	for (unsigned int i = 0; i < numprocs; i++) {
-		delete synata_recv_msg[i].buckets;
-	}
-	free(syng_send_msg_pkg.first);
 	free(synb_msg_pkg.first);
+
+	delete[] synata_recv_msg->buckets;
 	free(synata_send_msg_pkg.first);
 	free(synata_recv_msg_pkg.first);
 	return true;
@@ -320,9 +361,11 @@ unsigned int MPIDHashIndex::find_record(unsigned int *records, const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (catalog_id >= m_responsible_cats.first
-			&& catalog_id
-					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+	if (!is_synchronized
+			|| (catalog_id >= m_responsible_cats.first
+					&& catalog_id
+							< m_responsible_cats.first
+									+ m_responsible_cats.second)) { //本地访问
 		return DynamicHashIndex::find_record(records, key, key_length);
 	} else { //远程访问
 		return 0;
@@ -365,18 +408,21 @@ unsigned int* MPIDHashIndex::gen_statistics() {
 	unsigned int catalogs_size = pow(2, m_d);
 	unsigned int* result = new unsigned int[catalogs_size];
 	unsigned int handled[catalogs_size]; //标记是否之前遍历指向共同的桶的目录时已处理过
-	memset(handled, 0, catalogs_size);
+	memset(handled, 0, catalogs_size * sizeof(unsigned int));
 	for (unsigned int i = 0; i < catalogs_size; i++) {
 		if (handled[i] == 0) {
+//			printf("d:%i,l:%i,d-l:%i;in i:%i\n", m_d, m_catalogs[i].l, m_d - m_catalogs[i].l, i);
 			//如果有多个目录指向同一个桶则把平均值记入各个目录里
 			unsigned int element_avg_num = m_catalogs[i].bucket->elements.size()
 					/ (unsigned int) pow(2, m_d - m_catalogs[i].l);
+//			printf("element average num:%u\n", element_avg_num);
 			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
 					j++) {
 				unsigned int cid = i
 						+ j * (unsigned int) pow(2, m_catalogs[i].l);
+//				printf("Handle cid:%u\n", cid);
 				result[cid] = element_avg_num;
-				handled[cid] = true;
+				handled[cid] = 1;
 			}
 		}
 	}
@@ -400,6 +446,17 @@ pair<void*, int> MPIDHashIndex::pack_syng_msg(SynGatherMsg& msg) {
 			&position, m_comm);
 	MPI_Pack(msg.statistics, catalogs_size, MPI_UNSIGNED, result.first,
 			result.second, &position, m_comm);
+//	printf("Before Pack\n");
+//	for (unsigned int i = 0; i < catalogs_size; i++) {
+//		printf("msg.statistics[%i]:%i\n", i, msg.statistics[i]);
+//	}
+//	position = 0;
+//	MPI_Unpack(result.first, result.second, &position, msg.statistics,
+//			catalogs_size, MPI_UNSIGNED, m_comm);
+//	printf("After Pack\n");
+//	for (unsigned int i = 0; i < catalogs_size; i++) {
+//		printf("msg.statistics[%i]:%i\n", i, msg.statistics[i]);
+//	}
 
 	return result;
 }
@@ -409,12 +466,19 @@ SynGatherMsg* MPIDHashIndex::unpack_syng_msg(pair<void*, int> msg_pkg) {
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 	SynGatherMsg* result = new SynGatherMsg[numprocs];
 	for (unsigned int i = 0; i < numprocs; i++) {
+		position = i * SYNG_RECV_BUF_SIZE;
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
 				&result[i].global_deep, 1, MPI_UNSIGNED, m_comm);
+//		printf("unpack process[%i]'s global_deep:%i\n", i,
+//				result[i].global_deep);
 		unsigned int catalog_size = pow(2, result[i].global_deep);
 		result[i].statistics = new unsigned int[catalog_size];
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
 				result[i].statistics, catalog_size, MPI_UNSIGNED, m_comm);
+//		for (unsigned int j = 0; j < catalog_size; j++) {
+//			printf("unpack process[%i]'s statistics[%i]:%i\n", i, j,
+//					result[i].statistics[j]);
+//		}
 	}
 	return result;
 }
@@ -426,12 +490,15 @@ pair<void*, int> MPIDHashIndex::pack_synb_msg(SynBcastMsg& msg) {
 	//计算缓冲区大小：
 	result.second = 0;
 	MPI_Pack_size(1 + 2 * catalogs_size, MPI_UNSIGNED, m_comm, &result.second);
+	assert(result.second <= SYNB_BUF_SIZE); //断言打包的数据比设定的缓冲区小
+	result.second = SYNB_BUF_SIZE;
 
 	//分配缓冲区空间
 	result.first = malloc(result.second);
 
-	if (msg.catalog_offset != NULL && msg.catalog_size != NULL) {
-		//开始打包
+	//开始打包
+	if (msg.global_deep
+			!= 0&& msg.catalog_offset != NULL && msg.catalog_size != NULL) {
 		int position = 0;
 		MPI_Pack(&msg.global_deep, 1, MPI_UNSIGNED, result.first, result.second,
 				&position, m_comm);
@@ -440,7 +507,6 @@ pair<void*, int> MPIDHashIndex::pack_synb_msg(SynBcastMsg& msg) {
 		MPI_Pack(msg.catalog_size, catalogs_size, MPI_UNSIGNED, result.first,
 				result.second, &position, m_comm);
 	}
-
 	return result;
 }
 
@@ -448,17 +514,15 @@ SynBcastMsg* MPIDHashIndex::unpack_synb_msg(pair<void*, int> msg_pkg) {
 	int numprocs, position = 0;
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 	SynBcastMsg* result = new SynBcastMsg;
-	for (unsigned int i = 0; i < numprocs; i++) {
-		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
-				&result[i].global_deep, 1, MPI_UNSIGNED, m_comm);
-		unsigned int catalog_size = pow(2, result[i].global_deep);
-		result[i].catalog_offset = new unsigned int[catalog_size];
-		result[i].catalog_size = new unsigned int[catalog_size];
-		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
-				result[i].catalog_offset, catalog_size, MPI_UNSIGNED, m_comm);
-		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
-				result[i].catalog_size, catalog_size, MPI_UNSIGNED, m_comm);
-	}
+	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &result->global_deep,
+			1, MPI_UNSIGNED, m_comm);
+	unsigned int catalog_size = pow(2, result->global_deep);
+	result->catalog_offset = new unsigned int[catalog_size];
+	result->catalog_size = new unsigned int[catalog_size];
+	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result->catalog_offset,
+			catalog_size, MPI_UNSIGNED, m_comm);
+	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result->catalog_size,
+			catalog_size, MPI_UNSIGNED, m_comm);
 	return result;
 }
 
@@ -498,35 +562,30 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 				&dynamic_char_size);
 		result.second[i] = fixed_uint_size + dynamic_uint_size
 				+ dynamic_char_size;
+		assert(result.second[i] <= SYNATA_BUF_SIZE); //断言打包的数据比设定的缓冲区小
+		result.second[i] = SYNATA_BUF_SIZE;
 	}
-//	fixed_uint_num += numprocs + msg.bucket_num; //每个进程的桶数量+每个桶里的索引数量
-//	for (unsigned int i = 0; i < msg.bucket_num; i++) {
-//		fixed_uint_num += 3 * msg.buckets[i].elements.size();
-//		for (vector<IndexHead>::const_iterator iter =
-//				msg.buckets[i].elements.begin();
-//				iter != msg.buckets[i].elements.end(); iter++) {
-//			dynamic_char_num += strlen(iter->identifier) + 1;
-//			dynamic_uint_num += iter->index_item_num;
-//		}
-//	}
-	int total_fixed_uint_size, total_dynamic_uint_size, total_dynamic_char_size;
-	MPI_Pack_size(total_fixed_uint_num, MPI_UNSIGNED, m_comm,
-			&total_fixed_uint_size);
-	MPI_Pack_size(total_dynamic_uint_num, MPI_UNSIGNED, m_comm,
-			&total_dynamic_uint_size);
-	MPI_Pack_size(total_dynamic_char_num, MPI_CHAR, m_comm,
-			&total_dynamic_char_size);
-	int total_size = total_fixed_uint_size + total_dynamic_uint_size
-			+ total_dynamic_char_size;
+//	int total_fixed_uint_size, total_dynamic_uint_size, total_dynamic_char_size;
+//	MPI_Pack_size(total_fixed_uint_num, MPI_UNSIGNED, m_comm,
+//			&total_fixed_uint_size);
+//	MPI_Pack_size(total_dynamic_uint_num, MPI_UNSIGNED, m_comm,
+//			&total_dynamic_uint_size);
+//	MPI_Pack_size(total_dynamic_char_num, MPI_CHAR, m_comm,
+//			&total_dynamic_char_size);
+//	int total_size = total_fixed_uint_size + total_dynamic_uint_size
+//			+ total_dynamic_char_size;
+	int total_size = numprocs * SYNATA_BUF_SIZE;
 
 	//分配缓冲区空间
 	result.first = malloc(total_size);
-
+//	printf("Start pack\n");
 	//开始打包
 	int position = 0;
 	for (unsigned int i = 0; i < numprocs; i++) {
+		position = i * SYNATA_BUF_SIZE;
 		MPI_Pack(catalog_size + i, 1, MPI_UNSIGNED, result.first, total_size,
 				&position, m_comm); //每个进程的桶数量
+//		printf("Start Print %i,%i\n", catalog_offset[i], catalog_size[i]);
 		for (unsigned int j = 0; j < catalog_size[i]; j++) {
 			unsigned int bid = catalog_offset[i] + j;
 			unsigned int element_num = msg.buckets[bid].elements.size();
@@ -552,7 +611,9 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 				}
 			}
 		}
+//		printf("End Print\n");
 	}
+//	printf("End pack\n");
 	return result;
 }
 
@@ -562,15 +623,15 @@ SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 	SynAlltoallMsg* result = new SynAlltoallMsg;
 	//计算缓冲区总大小
-	total_size += numprocs * msg_pkg.second;
+	total_size = msg_pkg.second;
 	//分配结果桶空间
 	MPI_Unpack(msg_pkg.first, total_size, &position, &result->bucket_num, 1,
 			MPI_UNSIGNED, m_comm);
+	assert(result->bucket_num == m_responsible_cats.second);
 	result->buckets = new Bucket[result->bucket_num];
 	Bucket buckets[result->bucket_num][numprocs];
-
 	for (unsigned int i = 0; i < numprocs; i++) {
-		position = i * SYNATA_RECV_BUF_SIZE;
+		position = i * SYNATA_BUF_SIZE;
 		unsigned int bucket_num;
 		MPI_Unpack(msg_pkg.first, total_size, &position, &bucket_num, 1,
 				MPI_UNSIGNED, m_comm);
@@ -588,14 +649,14 @@ SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 				MPI_Unpack(msg_pkg.first, total_size, &position,
 						index_head->identifier, id_len, MPI_CHAR, m_comm);
 				MPI_Unpack(msg_pkg.first, total_size, &position,
-						&index_head->key_info, id_len, MPI_CHAR, m_comm);
+						&index_head->key_info, 1, MPI_UNSIGNED, m_comm);
 				MPI_Unpack(msg_pkg.first, total_size, &position,
-						&index_head->index_item_num, id_len, MPI_CHAR, m_comm);
+						&index_head->index_item_num, 1, MPI_UNSIGNED, m_comm);
 				IndexItem* p = NULL;
 				for (unsigned int t = 0; t < index_head->index_item_num; t++) {
 					IndexItem* index_item = new IndexItem();
 					MPI_Unpack(msg_pkg.first, total_size, &position,
-							&index_item->record_id, id_len, MPI_CHAR, m_comm);
+							&index_item->record_id, 1, MPI_UNSIGNED, m_comm);
 					if (p == NULL) {
 						index_head->inverted_index = index_item;
 					} else {
@@ -608,7 +669,6 @@ SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 			}
 		}
 	}
-
 	//合并桶
 	for (unsigned int i = 0; i < result->bucket_num; i++) {
 		union_bucket(result->buckets + i, buckets[i], numprocs);
@@ -619,15 +679,15 @@ SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 bool MPIDHashIndex::union_bucket(Bucket* out_bucket, Bucket* in_buckets,
 		unsigned int bucket_num) {
 	if (out_bucket == NULL) {
-		out_bucket = new Bucket[bucket_num];
+		out_bucket = new Bucket;
 	}
 	for (unsigned int i = 0; i < bucket_num; i++) {
 		for (unsigned int j = 0; j < in_buckets[i].elements.size(); j++) {
 			vector<IndexHead>::iterator iter = find(
-					out_bucket[i].elements.begin(),
-					out_bucket[i].elements.end(), in_buckets[i].elements[j]);
-			if (iter == out_bucket[i].elements.end()) { //找不到索引项
-				out_bucket[i].elements.push_back(*iter);
+					out_bucket->elements.begin(), out_bucket->elements.end(),
+					in_buckets[i].elements[j]);
+			if (iter == out_bucket->elements.end()) { //找不到索引项
+				out_bucket->elements.push_back(in_buckets[i].elements[j]);
 			} else {
 				iter->index_item_num +=
 						in_buckets[i].elements[j].index_item_num;
@@ -637,8 +697,9 @@ bool MPIDHashIndex::union_bucket(Bucket* out_bucket, Bucket* in_buckets,
 							in_buckets[i].elements[j].inverted_index;
 				} else {
 					IndexItem* prv = NULL;
-					while (p->record_id
-							>= in_buckets[i].elements[j].inverted_index->record_id) {
+					while (p != NULL
+							&& p->record_id
+									>= in_buckets[i].elements[j].inverted_index->record_id) {
 						prv = p;
 						p = p->next;
 					}
