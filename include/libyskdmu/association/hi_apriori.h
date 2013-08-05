@@ -16,11 +16,11 @@
 using namespace std;
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-class HiAPriori: public Apriori<ItemType, ItemDetail, RecordInfoType> {
+class HiApriori: public Apriori<ItemType, ItemDetail, RecordInfoType> {
 public:
-	HiAPriori();
-	HiAPriori(unsigned int hi_table_size);
-	virtual ~HiAPriori();
+	HiApriori();
+	HiApriori(unsigned int hi_table_size);
+	virtual ~HiApriori();
 	virtual bool init(unsigned int max_itemset_size, double minsup,
 			double minconf);
 
@@ -53,25 +53,25 @@ public:
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-HiAPriori<ItemType, ItemDetail, RecordInfoType>::HiAPriori() {
+HiApriori<ItemType, ItemDetail, RecordInfoType>::HiApriori() {
 	m_item_index = new OpenHashIndex();
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-HiAPriori<ItemType, ItemDetail, RecordInfoType>::HiAPriori(
+HiApriori<ItemType, ItemDetail, RecordInfoType>::HiApriori(
 		unsigned int hi_table_size) {
 	m_item_index = new OpenHashIndex(hi_table_size);
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-HiAPriori<ItemType, ItemDetail, RecordInfoType>::~HiAPriori() {
+HiApriori<ItemType, ItemDetail, RecordInfoType>::~HiApriori() {
 	if (m_item_index != NULL) {
 		delete m_item_index;
 	}
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::init(
+bool HiApriori<ItemType, ItemDetail, RecordInfoType>::init(
 		unsigned int max_itemset_size, double minsup, double minconf) {
 	this->m_max_itemset_size = max_itemset_size;
 	this->m_minsup = minsup;
@@ -81,7 +81,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::init(
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
+bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 	// 读取数据集
 	this->m_extractor->read_data(true);
 
@@ -138,7 +138,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
+bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
 		KItemsets& frq_itemset, KItemsets& prv_frq, KItemsets& frq_1) {
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets =
 			prv_frq.get_itemsets();
@@ -175,7 +175,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
+bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
 		vector<unsigned int>* k_itemset, unsigned int* support) {
 	char **keys = new char*[k_itemset->size()];
 	if (0 == this->m_minsup_count)
@@ -194,7 +194,7 @@ bool HiAPriori<ItemType, ItemDetail, RecordInfoType>::hi_filter(
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-void HiAPriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
+void HiApriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 		Extractor<ItemType, ItemDetail, RecordInfoType>* extractor) {
 	this->m_extractor = extractor;
 	this->m_extractor->set_record_infos(&this->m_record_infos);
@@ -205,7 +205,7 @@ void HiAPriori<ItemType, ItemDetail, RecordInfoType>::set_extractor(
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-unsigned int HiAPriori<ItemType, ItemDetail, RecordInfoType>::get_support_count(
+unsigned int HiApriori<ItemType, ItemDetail, RecordInfoType>::get_support_count(
 		const vector<unsigned int>& itemset) {
 	char **keys = new char*[itemset.size()];
 	unsigned int *result;

@@ -14,8 +14,6 @@ MPIDHashIndex::MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size,
 		unsigned int global_deep) :
 		DynamicHashIndex(bucket_size, global_deep) {
 	m_comm = comm;
-//	m_bucket_size = bucket_size;
-//	m_d = global_deep;
 	m_root_pid = 0;
 	m_responsible_cats.first = 0;
 	m_responsible_cats.second = 0;
@@ -37,10 +35,6 @@ bool MPIDHashIndex::synchronize() {
 	SynGatherMsg* syng_recv_msg = NULL;
 	syng_send_msg.global_deep = m_d;
 	syng_send_msg.statistics = gen_statistics();
-//	for (unsigned int i = 0; i < pow(2, m_d); i++) {
-//		printf("syng_send_msg.statistics[%i]:%i\n", i,
-//				syng_send_msg.statistics[i]);
-//	}
 	pair<void*, int> syng_recv_msg_pkg;
 	syng_recv_msg_pkg.first = NULL;
 	syng_recv_msg_pkg.second = 0;
@@ -98,27 +92,20 @@ bool MPIDHashIndex::synchronize() {
 						assert(cid < catalog_size);
 						counter[cid] += syng_recv_msg[i].statistics[j]
 								/ multiple;
-//						printf("syng_recv_msg[%i].statistics[%i]:%i\n", i, j,
-//								syng_recv_msg[i].statistics[j]);
 					}
 				}
 			} else {
 				for (unsigned int j = 0; j < catalog_size; j++) {
 					counter[j] += syng_recv_msg[i].statistics[j];
-//					printf("syng_recv_msg[%i].statistics[%i]:%i\n", i, j,
-//							syng_recv_msg[i].statistics[j]);
 				}
 			}
 		}
 
 		unsigned int sum = 0; //总和
 		for (unsigned int i = 0; i < catalog_size; i++) {
-//			printf("counter[i]:%i\n", counter[i]);
 			sum += counter[i];
 		}
-//		printf("Sum is: %u\n", sum);
 		unsigned int element_per_proc = sum / numprocs; //平均每个节点处理的索引项
-//		printf("Element per proc:%i\n", element_per_proc);
 
 		//准备Broadcast消息数据
 		synb_msg.global_deep = max_d;
@@ -161,10 +148,6 @@ bool MPIDHashIndex::synchronize() {
 				offset++;
 			}
 		}
-//		for (unsigned int i = 0; i < numprocs; i++) {
-//			printf("catalog offset, size:%i, %i\n", synb_msg.catalog_offset[i],
-//					synb_msg.catalog_size[i]);
-//		}
 	}
 
 	//打包Broadcast消息
@@ -181,12 +164,6 @@ bool MPIDHashIndex::synchronize() {
 		synb_msg.catalog_size = bcast_msg->catalog_size;
 		delete bcast_msg;
 	}
-
-//	unsigned int temp = 0;
-//	for (unsigned int i = 0; i < numprocs; i++) {
-//		temp += synb_msg.catalog_size[i];
-//	}
-//	printf("Summary size:%i\n", temp);
 
 	//处理统计数据
 	m_responsible_cats.first = synb_msg.catalog_offset[pid];
@@ -210,8 +187,6 @@ bool MPIDHashIndex::synchronize() {
 	int send_buf_offset[numprocs];
 	int send_buf_size[numprocs];
 	//打包Alltoall消息
-//	printf("catalogs_size:%i/%i\n", catalogs_size,
-//			(int) pow(2, synb_msg.global_deep));
 	pair<void*, int*> synata_send_msg_pkg = pack_synata_msg(synata_send_msg,
 			synb_msg.catalog_offset, synb_msg.catalog_size);
 	send_buf_offset[0] = 0;
@@ -331,6 +306,10 @@ unsigned int MPIDHashIndex::insert(const char *key, size_t key_length,
 	}
 }
 
+unsigned int MPIDHashIndex::size_of_index() {
+	return DynamicHashIndex::size_of_index();
+}
+
 unsigned int MPIDHashIndex::get_mark_record_num(const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
@@ -411,16 +390,13 @@ unsigned int* MPIDHashIndex::gen_statistics() {
 	memset(handled, 0, catalogs_size * sizeof(unsigned int));
 	for (unsigned int i = 0; i < catalogs_size; i++) {
 		if (handled[i] == 0) {
-//			printf("d:%i,l:%i,d-l:%i;in i:%i\n", m_d, m_catalogs[i].l, m_d - m_catalogs[i].l, i);
 			//如果有多个目录指向同一个桶则把平均值记入各个目录里
 			unsigned int element_avg_num = m_catalogs[i].bucket->elements.size()
 					/ (unsigned int) pow(2, m_d - m_catalogs[i].l);
-//			printf("element average num:%u\n", element_avg_num);
 			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
 					j++) {
 				unsigned int cid = i
 						+ j * (unsigned int) pow(2, m_catalogs[i].l);
-//				printf("Handle cid:%u\n", cid);
 				result[cid] = element_avg_num;
 				handled[cid] = 1;
 			}
@@ -446,17 +422,6 @@ pair<void*, int> MPIDHashIndex::pack_syng_msg(SynGatherMsg& msg) {
 			&position, m_comm);
 	MPI_Pack(msg.statistics, catalogs_size, MPI_UNSIGNED, result.first,
 			result.second, &position, m_comm);
-//	printf("Before Pack\n");
-//	for (unsigned int i = 0; i < catalogs_size; i++) {
-//		printf("msg.statistics[%i]:%i\n", i, msg.statistics[i]);
-//	}
-//	position = 0;
-//	MPI_Unpack(result.first, result.second, &position, msg.statistics,
-//			catalogs_size, MPI_UNSIGNED, m_comm);
-//	printf("After Pack\n");
-//	for (unsigned int i = 0; i < catalogs_size; i++) {
-//		printf("msg.statistics[%i]:%i\n", i, msg.statistics[i]);
-//	}
 
 	return result;
 }
@@ -469,16 +434,10 @@ SynGatherMsg* MPIDHashIndex::unpack_syng_msg(pair<void*, int> msg_pkg) {
 		position = i * SYNG_RECV_BUF_SIZE;
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
 				&result[i].global_deep, 1, MPI_UNSIGNED, m_comm);
-//		printf("unpack process[%i]'s global_deep:%i\n", i,
-//				result[i].global_deep);
 		unsigned int catalog_size = pow(2, result[i].global_deep);
 		result[i].statistics = new unsigned int[catalog_size];
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
 				result[i].statistics, catalog_size, MPI_UNSIGNED, m_comm);
-//		for (unsigned int j = 0; j < catalog_size; j++) {
-//			printf("unpack process[%i]'s statistics[%i]:%i\n", i, j,
-//					result[i].statistics[j]);
-//		}
 	}
 	return result;
 }
@@ -565,27 +524,16 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 		assert(result.second[i] <= SYNATA_BUF_SIZE); //断言打包的数据比设定的缓冲区小
 		result.second[i] = SYNATA_BUF_SIZE;
 	}
-//	int total_fixed_uint_size, total_dynamic_uint_size, total_dynamic_char_size;
-//	MPI_Pack_size(total_fixed_uint_num, MPI_UNSIGNED, m_comm,
-//			&total_fixed_uint_size);
-//	MPI_Pack_size(total_dynamic_uint_num, MPI_UNSIGNED, m_comm,
-//			&total_dynamic_uint_size);
-//	MPI_Pack_size(total_dynamic_char_num, MPI_CHAR, m_comm,
-//			&total_dynamic_char_size);
-//	int total_size = total_fixed_uint_size + total_dynamic_uint_size
-//			+ total_dynamic_char_size;
 	int total_size = numprocs * SYNATA_BUF_SIZE;
 
 	//分配缓冲区空间
 	result.first = malloc(total_size);
-//	printf("Start pack\n");
 	//开始打包
 	int position = 0;
 	for (unsigned int i = 0; i < numprocs; i++) {
 		position = i * SYNATA_BUF_SIZE;
 		MPI_Pack(catalog_size + i, 1, MPI_UNSIGNED, result.first, total_size,
 				&position, m_comm); //每个进程的桶数量
-//		printf("Start Print %i,%i\n", catalog_offset[i], catalog_size[i]);
 		for (unsigned int j = 0; j < catalog_size[i]; j++) {
 			unsigned int bid = catalog_offset[i] + j;
 			unsigned int element_num = msg.buckets[bid].elements.size();
@@ -611,9 +559,7 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 				}
 			}
 		}
-//		printf("End Print\n");
 	}
-//	printf("End pack\n");
 	return result;
 }
 
@@ -721,4 +667,8 @@ bool MPIDHashIndex::union_bucket(Bucket* out_bucket, Bucket* in_buckets,
 		}
 	}
 	return true;
+}
+
+unsigned int MPIDHashIndex::hashfunc(const char *str, size_t length) {
+	return DynamicHashIndex::hashfunc(str, length);
 }

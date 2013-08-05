@@ -40,6 +40,7 @@ public:
 
 	virtual unsigned int insert(const char *key, size_t key_length,
 			unsigned int& key_info, unsigned int record_id);
+	virtual unsigned int size_of_index();
 	virtual unsigned int get_mark_record_num(const char *key,
 			size_t key_length);
 	virtual unsigned int get_real_record_num(const char *key,
@@ -50,6 +51,16 @@ public:
 			size_t key_length);
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);
+#ifdef __DEBUG__
+	virtual unsigned int hashfunc(const char *str, size_t length);
+	virtual void* get_hash_table() {
+		return m_catalogs;
+	}
+#else
+
+protected:
+	virtual unsigned int hashfunc(const char *str, size_t length);
+#endif
 
 private:
 	/*

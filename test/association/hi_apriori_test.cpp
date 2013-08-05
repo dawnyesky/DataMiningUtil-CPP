@@ -35,7 +35,7 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	vector<AssociationRule<ItemDetail> > assoc_rules;
 	TradeXmlExtractor trade_x;
 
-	HiAPriori<Item, ItemDetail, RecordInfo> hi_apriori = HiAPriori<Item,
+	HiApriori<Item, ItemDetail, RecordInfo> hi_apriori = HiApriori<Item,
 			ItemDetail, RecordInfo>(1000);
 
 	hi_apriori.init(max_itemset_size, minsup, minconf);
@@ -155,7 +155,7 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	vector<AssociationRule<DocItemDetail> > assoc_rules;
 	DocTextExtractor doc_text;
 
-	HiAPriori<DocItem, DocItemDetail, DocTextRecordInfo> hi_apriori = HiAPriori<
+	HiApriori<DocItem, DocItemDetail, DocTextRecordInfo> hi_apriori = HiApriori<
 			DocItem, DocItemDetail, DocTextRecordInfo>(100000);
 
 	hi_apriori.init(max_itemset_size, minsup, minconf);
