@@ -10,7 +10,7 @@
 
 #include "libyskdmu/index/dynamic_hash_index.h"
 
-class DistributedHashIndex: public virtual HashIndex {
+class DistributedHashIndex {
 public:
 	virtual ~DistributedHashIndex() {
 	}

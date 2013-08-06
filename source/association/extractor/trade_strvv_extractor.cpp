@@ -6,6 +6,7 @@
  */
 
 #include <string.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskalgrthms/sort/quicksort_tmplt.h"
 #include "libyskdmu/util/search_util.h"
 #include "libyskdmu/association/extractor/trade_strvv_extractor.h"
@@ -119,22 +120,22 @@ bool TradeStrvvExtractor::hi_extract_record(void* data_addr) {
 	vector<Item>* items = record->second;
 	vector<Item> v_items;
 	for (unsigned int i = 0; i < items->size(); i++) {
-		unsigned int key_info = 0;
+		char* key_info = NULL; //此处key_info指向了NULL，传入函数时要用&key_info，否则返回仍然指向NULL
 		bool have_index = true;
 		size_t length = strlen(
 				m_data_details[items->at(i).m_index].m_identifier);
 		//抽取item_detail
-		if (!m_item_index->get_key_info(key_info,
+		if (!m_item_index->get_key_info(&key_info,
 				m_data_details[items->at(i).m_index].m_identifier, length)) {
 			m_item_details->push_back(
 					ItemDetail(
 							m_data_details[items->at(i).m_index].m_identifier));
-			key_info = m_item_details->size() - 1;
+			key_info = itoa(m_item_details->size() - 1);
 			have_index = false;
 		}
 
 		//抽取item
-		Item item = Item(key_info);
+		Item item = Item(ysk_atoi(key_info, strlen(key_info)));
 		pair<unsigned int, bool> bs_result = b_search<Item>(v_items, item);
 		if (bs_result.second) {
 			v_items[bs_result.first].increase();
@@ -148,6 +149,10 @@ bool TradeStrvvExtractor::hi_extract_record(void* data_addr) {
 			m_item_index->insert(
 					m_data_details[items->at(i).m_index].m_identifier, length,
 					key_info, m_record_infos->size() - 1);
+		}
+
+		if (key_info != NULL) {
+			delete[] key_info;
 		}
 	}
 	if (m_items != NULL) {

@@ -222,9 +222,11 @@ bool MPIDHashIndex::synchronize() {
 			for (vector<IndexHead>::iterator iter =
 					m_catalogs[cid].bucket->elements.begin();
 					iter != m_catalogs[cid].bucket->elements.end(); iter++) {
-				char *identifier = iter->identifier;
-				if (NULL != identifier) {
-					delete[] identifier;
+				if (NULL != iter->identifier) {
+					delete[] iter->identifier;
+				}
+				if (NULL != iter->key_info) {
+					delete[] iter->key_info;
 				}
 				IndexItem *p = iter->inverted_index;
 				IndexItem *q = NULL;
@@ -255,6 +257,7 @@ bool MPIDHashIndex::synchronize() {
 	delete[] synb_msg.catalog_size;
 	free(synb_msg_pkg.first);
 
+	delete[] synata_send_msg_pkg.second;
 	delete[] synata_recv_msg->buckets;
 	free(synata_send_msg_pkg.first);
 	free(synata_recv_msg_pkg.first);
@@ -292,7 +295,7 @@ unsigned int MPIDHashIndex::size_of_global_index() {
 }
 
 unsigned int MPIDHashIndex::insert(const char *key, size_t key_length,
-		unsigned int& key_info, unsigned int record_id) {
+		char* key_info, unsigned int record_id) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
 	if (!is_synchronized
@@ -351,7 +354,7 @@ unsigned int MPIDHashIndex::find_record(unsigned int *records, const char *key,
 	}
 }
 
-bool MPIDHashIndex::get_key_info(unsigned int& key_info, const char *key,
+bool MPIDHashIndex::get_key_info(char **key_info, const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
@@ -428,7 +431,7 @@ pair<void*, int> MPIDHashIndex::pack_syng_msg(SynGatherMsg& msg) {
 
 SynGatherMsg* MPIDHashIndex::unpack_syng_msg(pair<void*, int> msg_pkg) {
 	int numprocs, position = 0;
-	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	MPI_Comm_size(m_comm, &numprocs);
 	SynGatherMsg* result = new SynGatherMsg[numprocs];
 	for (unsigned int i = 0; i < numprocs; i++) {
 		position = i * SYNG_RECV_BUF_SIZE;
@@ -471,7 +474,7 @@ pair<void*, int> MPIDHashIndex::pack_synb_msg(SynBcastMsg& msg) {
 
 SynBcastMsg* MPIDHashIndex::unpack_synb_msg(pair<void*, int> msg_pkg) {
 	int numprocs, position = 0;
-	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	MPI_Comm_size(m_comm, &numprocs);
 	SynBcastMsg* result = new SynBcastMsg;
 	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &result->global_deep,
 			1, MPI_UNSIGNED, m_comm);
@@ -488,7 +491,7 @@ SynBcastMsg* MPIDHashIndex::unpack_synb_msg(pair<void*, int> msg_pkg) {
 pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 		unsigned int* catalog_offset, unsigned int* catalog_size) {
 	int numprocs;
-	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	MPI_Comm_size(m_comm, &numprocs);
 	pair<void*, int*> result;
 
 	//计算缓冲区大小
@@ -506,7 +509,8 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 			for (vector<IndexHead>::iterator iter =
 					msg.buckets[bid].elements.begin();
 					iter != msg.buckets[bid].elements.end(); iter++) {
-				dynamic_char_num += strlen(iter->identifier) + 1;
+				dynamic_char_num += (strlen(iter->identifier) + 1
+						+ strlen(iter->key_info) + 1);
 				dynamic_uint_num += iter->index_item_num;
 			}
 		}
@@ -517,8 +521,7 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 		MPI_Pack_size(fixed_uint_num, MPI_UNSIGNED, m_comm, &fixed_uint_size);
 		MPI_Pack_size(dynamic_uint_num, MPI_UNSIGNED, m_comm,
 				&dynamic_uint_size);
-		MPI_Pack_size(dynamic_char_num, MPI_UNSIGNED, m_comm,
-				&dynamic_char_size);
+		MPI_Pack_size(dynamic_char_num, MPI_CHAR, m_comm, &dynamic_char_size);
 		result.second[i] = fixed_uint_size + dynamic_uint_size
 				+ dynamic_char_size;
 		assert(result.second[i] <= SYNATA_BUF_SIZE); //断言打包的数据比设定的缓冲区小
@@ -543,11 +546,14 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 					msg.buckets[bid].elements.begin();
 					iter != msg.buckets[bid].elements.end(); iter++) {
 				unsigned int id_len = strlen(iter->identifier) + 1;
+				unsigned int info_len = strlen(iter->key_info) + 1;
 				MPI_Pack(&id_len, 1, MPI_UNSIGNED, result.first, total_size,
 						&position, m_comm); //索引标识长度
 				MPI_Pack(iter->identifier, id_len, MPI_CHAR, result.first,
 						total_size, &position, m_comm); //索引标识
-				MPI_Pack(&iter->key_info, 1, MPI_UNSIGNED, result.first,
+				MPI_Pack(&info_len, 1, MPI_UNSIGNED, result.first, total_size,
+						&position, m_comm); //索引标识相关信息长度
+				MPI_Pack(iter->key_info, info_len, MPI_CHAR, result.first,
 						total_size, &position, m_comm); //索引标识相关信息
 				MPI_Pack(&iter->index_item_num, 1, MPI_UNSIGNED, result.first,
 						total_size, &position, m_comm); //索引项数量
@@ -566,7 +572,7 @@ pair<void*, int*> MPIDHashIndex::pack_synata_msg(SynAlltoallMsg& msg,
 SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 	int numprocs, position = 0;
 	unsigned int total_size = 0;
-	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	MPI_Comm_size(m_comm, &numprocs);
 	SynAlltoallMsg* result = new SynAlltoallMsg;
 	//计算缓冲区总大小
 	total_size = msg_pkg.second;
@@ -588,14 +594,17 @@ SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 					MPI_UNSIGNED, m_comm);
 			for (unsigned int k = 0; k < element_num; k++) {
 				IndexHead* index_head = new IndexHead();
-				unsigned int id_len;
+				unsigned int id_len, info_len;
 				MPI_Unpack(msg_pkg.first, total_size, &position, &id_len, 1,
 						MPI_UNSIGNED, m_comm);
 				index_head->identifier = new char[id_len];
 				MPI_Unpack(msg_pkg.first, total_size, &position,
 						index_head->identifier, id_len, MPI_CHAR, m_comm);
+				MPI_Unpack(msg_pkg.first, total_size, &position, &info_len, 1,
+						MPI_UNSIGNED, m_comm);
+				index_head->key_info = new char[info_len];
 				MPI_Unpack(msg_pkg.first, total_size, &position,
-						&index_head->key_info, 1, MPI_UNSIGNED, m_comm);
+						index_head->key_info, info_len, MPI_CHAR, m_comm);
 				MPI_Unpack(msg_pkg.first, total_size, &position,
 						&index_head->index_item_num, 1, MPI_UNSIGNED, m_comm);
 				IndexItem* p = NULL;

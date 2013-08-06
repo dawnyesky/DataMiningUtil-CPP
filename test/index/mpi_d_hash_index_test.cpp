@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
 
 static clock_t start, finish;
@@ -42,9 +43,11 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 	for (unsigned int i = 0; i < record_num * term_num_per_record; i++) {
 		iden_index = rand() % 11;
 		identifier = identifiers[iden_index];
-		hashcode = index.insert(identifier, strlen(identifier), iden_index,
+		char* iden_index_str = itoa(iden_index);
+		hashcode = index.insert(identifier, strlen(identifier), iden_index_str,
 				pid * record_num * term_num_per_record
 						+ i / term_num_per_record);
+		delete[] iden_index_str;
 	}
 
 	if (print_index) {
@@ -55,7 +58,8 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 			if (catalogs[i].bucket != NULL) {
 				vector<IndexHead> elements = catalogs[i].bucket->elements;
 				for (unsigned int j = 0; j < elements.size(); j++) {
-					identifier = identifiers[elements[j].key_info];
+					identifier = identifiers[ysk_atoi(elements[j].key_info,
+							strlen(elements[j].key_info))];
 					printf(
 							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
 							i, index.hashfunc(identifier, strlen(identifier)),
@@ -84,7 +88,8 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 			if (catalogs[i].bucket != NULL) {
 				vector<IndexHead> elements = catalogs[i].bucket->elements;
 				for (unsigned int j = 0; j < elements.size(); j++) {
-					identifier = identifiers[elements[j].key_info];
+					identifier = identifiers[ysk_atoi(elements[j].key_info,
+							strlen(elements[j].key_info))];
 					printf(
 							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
 							i, index.hashfunc(identifier, strlen(identifier)),

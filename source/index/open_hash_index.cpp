@@ -6,6 +6,7 @@
  */
 
 #include <string.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/open_hash_index.h"
 
 unsigned int probe(const char *key, unsigned int length,
@@ -57,7 +58,12 @@ OpenHashIndex::OpenHashIndex(const OpenHashIndex& hash_index) {
 				strcpy(m_hash_table[i]->identifier,
 						hash_index.m_hash_table[i]->identifier);
 			}
-			m_hash_table[i]->key_info = hash_index.m_hash_table[i]->key_info;
+			size_t info_len = strlen(hash_index.m_hash_table[i]->key_info);
+			if (info_len > 0) {
+				m_hash_table[i]->key_info = new char[info_len + 1];
+				strcpy(m_hash_table[i]->key_info,
+						hash_index.m_hash_table[i]->key_info);
+			}
 			m_hash_table[i]->index_item_num =
 					hash_index.m_hash_table[i]->index_item_num;
 			IndexItem *p = hash_index.m_hash_table[i]->inverted_index;
@@ -88,9 +94,11 @@ OpenHashIndex::OpenHashIndex(const OpenHashIndex& hash_index) {
 OpenHashIndex::~OpenHashIndex() {
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		if (NULL != m_hash_table[i]) {
-			char *identifier = m_hash_table[i]->identifier;
-			if (NULL != identifier) {
-				delete[] identifier;
+			if (NULL != m_hash_table[i]->identifier) {
+				delete[] m_hash_table[i]->identifier;
+			}
+			if (NULL != m_hash_table[i]->key_info) {
+				delete[] m_hash_table[i]->key_info;
 			}
 			IndexItem *p = m_hash_table[i]->inverted_index;
 			IndexItem *q = NULL;
@@ -105,13 +113,14 @@ OpenHashIndex::~OpenHashIndex() {
 }
 
 unsigned int OpenHashIndex::insert(const char *key, size_t key_length,
-		unsigned int& key_info, unsigned int record_id) {
+		char *key_info, unsigned int record_id) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	if (NULL == m_hash_table[hashcode]) {
 		m_hash_table[hashcode] = new IndexHead;
 		m_hash_table[hashcode]->identifier = new char[key_length + 1];
 		strcpy(m_hash_table[hashcode]->identifier, key);
-		m_hash_table[hashcode]->key_info = key_info;
+		m_hash_table[hashcode]->key_info = new char[strlen(key_info) + 1];
+		strcpy(m_hash_table[hashcode]->key_info, key_info);
 		m_hash_table[hashcode]->index_item_num = 1;
 		m_hash_table[hashcode]->inverted_index = new IndexItem;
 		m_hash_table[hashcode]->inverted_index->record_id = record_id;
@@ -212,13 +221,14 @@ unsigned int OpenHashIndex::find_record(unsigned int *records, const char *key,
 	}
 }
 
-bool OpenHashIndex::get_key_info(unsigned int& key_info, const char *key,
+bool OpenHashIndex::get_key_info(char **key_info, const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	if (NULL == m_hash_table[hashcode]) {
 		return false;
 	} else {
-		key_info = m_hash_table[hashcode]->key_info;
+		*key_info = new char[strlen(m_hash_table[hashcode]->key_info) + 1];
+		strcpy(*key_info, m_hash_table[hashcode]->key_info);
 		return true;
 	}
 }

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/open_hash_index.h"
 
 using namespace std;
@@ -35,15 +36,18 @@ void test_open_hash_index() {
 	for (unsigned int i = 0; i < record_num * term_num_per_record; i++) {
 		iden_index = rand() % 11;
 		identifier = identifiers[iden_index];
-		hashcode = index.insert(identifier, strlen(identifier), iden_index,
+		char* iden_index_str = itoa(iden_index);
+		hashcode = index.insert(identifier, strlen(identifier), iden_index_str,
 				i / term_num_per_record);
+		delete[] iden_index_str;
 	}
 
 	if (print_index) {
 		IndexHead **hash_table = (IndexHead **) index.get_hash_table();
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
-				identifier = identifiers[hash_table[i]->key_info];
+				identifier = identifiers[ysk_atoi(hash_table[i]->key_info,
+						strlen(hash_table[i]->key_info))];
 				printf(
 						"slot: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
 						i, index.hashfunc(identifier, strlen(identifier)),

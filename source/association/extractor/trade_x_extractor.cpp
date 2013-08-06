@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <libxml/parser.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskalgrthms/sort/quicksort_tmplt.h"
 #include "libyskdmu/util/search_util.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
@@ -233,19 +234,19 @@ bool TradeXmlExtractor::hi_extract_record(void* data_addr) {
 			unsigned int items_num = result.second;
 			vector<Item> v_items;
 			for (unsigned int i = 0; i < items_num; i++) {
-				unsigned int key_info = 0;
+				char* key_info = NULL; //此处key_info指向了NULL，传入函数时要用&key_info，否则返回仍然指向NULL
 				bool have_index = true;
 				size_t length = strlen(items_str[i]);
 				//抽取item_detail
-				if (!m_item_index->get_key_info(key_info, items_str[i],
+				if (!m_item_index->get_key_info(&key_info, items_str[i],
 						length)) {
 					m_item_details->push_back(ItemDetail(items_str[i]));
-					key_info = m_item_details->size() - 1;
+					key_info = itoa(m_item_details->size() - 1);
 					have_index = false;
 				}
 
 				//抽取item
-				Item item = Item(key_info);
+				Item item = Item(ysk_atoi(key_info, strlen(key_info)));
 				pair<unsigned int, bool> bs_result = b_search<Item>(v_items,
 						item);
 				if (bs_result.second) {
@@ -259,6 +260,10 @@ bool TradeXmlExtractor::hi_extract_record(void* data_addr) {
 				if (!have_index) {
 					m_item_index->insert(items_str[i], length, key_info,
 							m_record_infos->size() - 1);
+				}
+
+				if (key_info != NULL) {
+					delete[] key_info;
 				}
 			}
 			if (m_items != NULL) {

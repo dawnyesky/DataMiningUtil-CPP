@@ -19,11 +19,12 @@ struct IndexItem {
 
 struct IndexHead {
 	char *identifier;
-	unsigned int key_info; //与identifier相关的信息
+	char* key_info; //与identifier相关的信息
 	unsigned int index_item_num; //索引项数量
 	IndexItem *inverted_index; //倒排索引链表，存储此item在哪些record中出现过
 
-	friend bool operator==(const IndexHead& operand1, const IndexHead& operand2);
+	friend bool operator==(const IndexHead& operand1,
+			const IndexHead& operand2);
 };
 
 class HashIndex {
@@ -40,7 +41,7 @@ public:
 	 *      return: 插入的槽对应的哈希值
 	 */
 	virtual unsigned int insert(const char *key, size_t key_length,
-			unsigned int& key_info, unsigned int record_id) = 0;
+			char *key_info, unsigned int record_id) = 0;
 	/*
 	 * description: 获取索引大小
 	 *      return: 索引所占内存大小，单位(byte)
@@ -78,7 +79,7 @@ public:
 	 *  					key_length:	关键字长度
 	 *      return: 关键字对应的关键字信息
 	 */
-	virtual bool get_key_info(unsigned int& key_info, const char *key,
+	virtual bool get_key_info(char **key_info, const char *key,
 			size_t key_length) = 0;
 	/*
 	 * description: 求记录索引项的交集函数(在保证索引链表有序的前提下用穿孔法)

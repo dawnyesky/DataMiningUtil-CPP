@@ -9,10 +9,11 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/index/open_hash_index.h"
-#include <libyskdmu/association/extractor/trade_x_extractor.h>
-#include <libyskdmu/association/extractor/doc_text_extractor.h>
+#include "libyskdmu/association/extractor/trade_x_extractor.h"
+#include "libyskdmu/association/extractor/doc_text_extractor.h"
 
 static clock_t start, finish;
 static float duration;
@@ -38,7 +39,8 @@ void test_trade_x_extractor() {
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
-				identifier = item_details[hash_table[i]->key_info].m_identifier;
+				identifier = item_details[ysk_atoi(hash_table[i]->key_info,
+						strlen(hash_table[i]->key_info))].m_identifier;
 				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
 						item_index->hashfunc(identifier, strlen(identifier)),
 						identifier);
@@ -102,7 +104,8 @@ void test_doc_text_extractor() {
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < table_size; i++) {
 			if (hash_table[i] != NULL) {
-				identifier = item_details[hash_table[i]->key_info].m_identifier;
+				identifier = item_details[ysk_atoi(hash_table[i]->key_info,
+						strlen(hash_table[i]->key_info))].m_identifier;
 				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
 						item_index.hashfunc(identifier, strlen(identifier)),
 						identifier);

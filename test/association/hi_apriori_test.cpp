@@ -7,7 +7,8 @@
 
 #include <time.h>
 #include <stdlib.h>
-#include <libyskalgrthms/math/digit_util.h>
+#include "libyskalgrthms/math/digit_util.h"
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 #include "libyskdmu/association/hi_apriori.h"
@@ -51,8 +52,9 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < 1000; i++) {
 			if (hash_table[i] != NULL) {
-				identifier =
-						hi_apriori.m_item_details[hash_table[i]->key_info].m_identifier;
+				identifier = hi_apriori.m_item_details[ysk_atoi(
+						hash_table[i]->key_info,
+						strlen(hash_table[i]->key_info))].m_identifier;
 				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
 						hi_apriori.m_item_index->hashfunc(identifier,
 								strlen(identifier)), identifier);
@@ -171,8 +173,9 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 		const char *identifier = NULL;
 		for (unsigned int i = 0; i < 1000; i++) {
 			if (hash_table[i] != NULL) {
-				identifier =
-						hi_apriori.m_item_details[hash_table[i]->key_info].m_identifier;
+				identifier = hi_apriori.m_item_details[ysk_atoi(
+						hash_table[i]->key_info,
+						strlen(hash_table[i]->key_info))].m_identifier;
 				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
 						hi_apriori.m_item_index->hashfunc(identifier,
 								strlen(identifier)), identifier);

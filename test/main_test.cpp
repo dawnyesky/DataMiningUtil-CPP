@@ -13,6 +13,7 @@ extern void test_triangle_matrix();
 extern void test_hash_table_counter();
 
 extern void test_open_hash_index();
+extern void test_dynamic_hash_index();
 extern void test_mpi_d_hash_index(int argc, char *argv[]);
 
 extern void test_trade_x_extractor();
@@ -65,6 +66,7 @@ int main(int argc, char *argv[]) {
 //	test_triangle_matrix();
 //	test_hash_table_counter();
 //	test_open_hash_index();
+//	test_dynamic_hash_index();
 	test_mpi_d_hash_index(argc, argv);
 //	test_trade_x_extractor();
 //	test_doc_text_extractor();

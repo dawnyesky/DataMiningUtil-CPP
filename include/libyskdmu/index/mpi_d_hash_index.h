@@ -29,7 +29,7 @@ struct SynAlltoallMsg {
 
 class MPIDHashIndex: public DynamicHashIndex, public DistributedHashIndex {
 public:
-	MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size = 10,
+	MPIDHashIndex(MPI_Comm comm = MPI_COMM_WORLD, unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
 	virtual ~MPIDHashIndex();
 
@@ -39,7 +39,7 @@ public:
 	virtual unsigned int size_of_global_index();
 
 	virtual unsigned int insert(const char *key, size_t key_length,
-			unsigned int& key_info, unsigned int record_id);
+			char* key_info, unsigned int record_id);
 	virtual unsigned int size_of_index();
 	virtual unsigned int get_mark_record_num(const char *key,
 			size_t key_length);
@@ -47,7 +47,7 @@ public:
 			size_t key_length);
 	virtual unsigned int find_record(unsigned int *records, const char *key,
 			size_t key_length);
-	virtual bool get_key_info(unsigned int& key_info, const char *key,
+	virtual bool get_key_info(char **key_info, const char *key,
 			size_t key_length);
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);

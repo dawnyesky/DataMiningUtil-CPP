@@ -16,7 +16,7 @@ struct Catalog {
 	Bucket* bucket;
 };
 
-class DynamicHashIndex: public virtual HashIndex {
+class DynamicHashIndex: public HashIndex {
 public:
 	DynamicHashIndex(unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
@@ -40,7 +40,7 @@ public:
 	virtual pair<unsigned int, int> locate_index(const char *key,
 			size_t key_length);
 	virtual unsigned int insert(const char *key, size_t key_length,
-			unsigned int& key_info, unsigned int record_id);
+			char *key_info, unsigned int record_id);
 
 	virtual bool split_bucket(unsigned int catalog_id, unsigned int local_deep =
 			0);
@@ -52,7 +52,7 @@ public:
 			size_t key_length);
 	virtual unsigned int find_record(unsigned int *records, const char *key,
 			size_t key_length);
-	virtual bool get_key_info(unsigned int& key_info, const char *key,
+	virtual bool get_key_info(char **key_info, const char *key,
 			size_t key_length);
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);

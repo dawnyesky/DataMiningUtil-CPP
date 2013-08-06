@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/util/charset_util.h"
 #include "libyskdmu/util/search_util.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
@@ -150,11 +151,10 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 					index.insert(
 							std::map<string, unsigned int>::value_type(word_str,
 									key_info));
-					m_counter.at(word_str)++;
+					m_counter.at(word_str)++;}
 				}
-			}
 
-			//抽取item
+				//抽取item
 			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,
 					parsed_words[i].iLength);
 			pair<unsigned int, bool> bs_result = b_search<DocItem>(v_items,
@@ -247,20 +247,20 @@ bool DocTextExtractor::hi_extract_record(void* data_addr) {
 				memset(word + parsed_words[i].iLength, 0, 1);
 			}
 
-			unsigned int key_info;
+			char* key_info = NULL; //此处key_info指向了NULL，传入函数时要用&key_info，否则返回仍然指向NULL
 			bool have_index = true;
 			size_t length = strlen(word);
 			//抽取item_detail
-			if (!m_item_index->get_key_info(key_info, word, length)) {
+			if (!m_item_index->get_key_info(&key_info, word, length)) {
 				m_item_details->push_back(
 						DocItemDetail(word, parsed_words[i].szPOS));
-				key_info = m_item_details->size() - 1;
+				key_info = itoa(m_item_details->size() - 1);
 				have_index = false;
 			}
 
 			//抽取item
-			DocItem item = DocItem(key_info, parsed_words[i].iStartPos,
-					parsed_words[i].iLength);
+			DocItem item = DocItem(ysk_atoi(key_info, strlen(key_info)),
+					parsed_words[i].iStartPos, parsed_words[i].iLength);
 			pair<unsigned int, bool> bs_result = b_search<DocItem>(v_items,
 					item);
 			if (bs_result.second) {
@@ -275,6 +275,10 @@ bool DocTextExtractor::hi_extract_record(void* data_addr) {
 			if (!have_index) {
 				m_item_index->insert(word, length, key_info,
 						m_record_infos->size() - 1);
+			}
+
+			if (key_info != NULL) {
+				delete[] key_info;
 			}
 		}
 	}

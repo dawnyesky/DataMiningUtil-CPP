@@ -28,7 +28,7 @@ KItemsets::KItemsets(const KItemsets& k_itemsets) :
 		m_itemsets(k_itemsets.m_itemsets) {
 	m_term_num = k_itemsets.m_term_num;
 	m_itemsets_index = new OpenHashIndex(
-			*(OpenHashIndex*) (void*) k_itemsets.m_itemsets_index);
+			*(OpenHashIndex*) k_itemsets.m_itemsets_index);
 }
 
 KItemsets::~KItemsets() {
@@ -91,15 +91,18 @@ bool KItemsets::has_itemset(vector<unsigned int>& itemset) {
 	if (itemset.size() == m_term_num
 			|| m_term_num == numeric_limits<unsigned int>::max()) {
 		sort(itemset.begin(), itemset.end());
-		unsigned int key_info;
+		char* key_info = NULL;
 		char *key = ivtoa((int*) itemset.data(), itemset.size(), ",", 10);
-		if (m_itemsets_index->get_key_info(key_info, key, strlen(key))) {
+		if (m_itemsets_index->get_key_info(&key_info, key, strlen(key))) {
 			if (key != NULL)
 				delete[] key;
 			return true;
 		}
 		if (key != NULL)
 			delete[] key;
+		if (key_info != NULL) {
+			delete[] key_info;
+		}
 		return false;
 	} else {
 		return false;
@@ -115,8 +118,8 @@ bool KItemsets::push(vector<unsigned int>& itemset, unsigned int support) {
 				pair<vector<unsigned int>, unsigned int>(itemset, support));
 		//添加索引用以去重
 		const char *key = ivtoa((int*) itemset.data(), itemset.size(), ",", 10);
-		unsigned int key_info;
-		m_itemsets_index->insert(key, strlen(key), key_info, 0);
+		char key_info = ' ';
+		m_itemsets_index->insert(key, strlen(key), &key_info, 0);
 		if (key != NULL)
 			delete[] key;
 		return true;

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/dynamic_hash_index.h"
 
 DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
@@ -44,9 +45,11 @@ DynamicHashIndex::~DynamicHashIndex() {
 			for (vector<IndexHead>::iterator iter =
 					m_catalogs[i].bucket->elements.begin();
 					iter != m_catalogs[i].bucket->elements.end(); iter++) {
-				char *identifier = iter->identifier;
-				if (NULL != identifier) {
-					delete[] identifier;
+				if (NULL != iter->identifier) {
+					delete[] iter->identifier;
+				}
+				if (NULL != iter->key_info) {
+					delete[] iter->key_info;
 				}
 				IndexItem *p = iter->inverted_index;
 				IndexItem *q = NULL;
@@ -101,7 +104,7 @@ pair<unsigned int, int> DynamicHashIndex::locate_index(const char *key,
 }
 
 unsigned int DynamicHashIndex::insert(const char *key, size_t key_length,
-		unsigned int& key_info, unsigned int record_id) {
+		char *key_info, unsigned int record_id) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
 	Bucket* bucket = m_catalogs[catalog_id].bucket;
@@ -132,7 +135,8 @@ unsigned int DynamicHashIndex::insert(const char *key, size_t key_length,
 		IndexHead index_head;
 		index_head.identifier = new char[key_length + 1];
 		strcpy(index_head.identifier, key);
-		index_head.key_info = key_info;
+		index_head.key_info = new char[strlen(key_info) + 1];
+		strcpy(index_head.key_info, key_info);
 		index_head.index_item_num = 1;
 		index_head.inverted_index = new IndexItem;
 		index_head.inverted_index->record_id = record_id;
@@ -314,14 +318,18 @@ unsigned int DynamicHashIndex::find_record(unsigned int *records,
 	}
 }
 
-bool DynamicHashIndex::get_key_info(unsigned int& key_info, const char *key,
+bool DynamicHashIndex::get_key_info(char **key_info, const char *key,
 		size_t key_length) {
 	pair<unsigned int, int> location = locate_index(key, key_length);
 	if (location.second == -1) {
 		return false;
 	} else {
-		key_info =
-				m_catalogs[location.first].bucket->elements[location.second].key_info;
+		*key_info =
+				new char[strlen(
+						m_catalogs[location.first].bucket->elements[location.second].key_info)
+						+ 1];
+		strcpy(*key_info,
+				m_catalogs[location.first].bucket->elements[location.second].key_info);
 		return true;
 	}
 }

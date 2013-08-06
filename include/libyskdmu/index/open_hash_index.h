@@ -27,7 +27,7 @@ unsigned int probe(const char *key, unsigned int length,
 		unsigned int table_size, unsigned int collision_key,
 		unsigned int probe_step);
 
-class OpenHashIndex: public virtual HashIndex {
+class OpenHashIndex: public HashIndex {
 public:
 	OpenHashIndex();
 	OpenHashIndex(unsigned int table_size);
@@ -44,7 +44,7 @@ public:
 	 *      return: 插入的槽对应的哈希值
 	 */
 	virtual unsigned int insert(const char *key, size_t key_length,
-			unsigned int& key_info, unsigned int record_id);
+			char *key_info, unsigned int record_id);
 	/*
 	 * description: 获取索引大小
 	 *      return: 索引所占内存大小，单位(byte)
@@ -82,7 +82,7 @@ public:
 	 *  				  	key_length:	关键字长度
 	 *      return: 关键字对应的关键字信息
 	 */
-	virtual bool get_key_info(unsigned int& key_info, const char *key,
+	virtual bool get_key_info(char **key_info, const char *key,
 			size_t key_length);
 	/*
 	 * description: 求记录索引项的交集函数(在保证索引链表有序的前提下用穿孔法)

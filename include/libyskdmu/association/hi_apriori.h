@@ -96,27 +96,25 @@ bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 		this->m_minsup_count = 1;
 	vector<unsigned int> itemset;
 	KItemsets *frq_itemsets;
-	char **keys = new char*[1];
 
 	/* F1 generation */
 	frq_itemsets = new KItemsets(1);
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
-		unsigned int *result;
-		keys[0] = this->m_item_details[i].m_identifier;
-		result = m_item_index->get_intersect_records((const char **) keys, 1);
-		if (result[0] >= this->m_minsup_count) {
+		unsigned int result;
+		result = m_item_index->get_mark_record_num(
+				this->m_item_details[i].m_identifier,
+				strlen(this->m_item_details[i].m_identifier));
+		if (result >= this->m_minsup_count) {
 			itemset.clear();
 			itemset.push_back(i);
-			frq_itemsets->push(itemset, result[0]);
-			this->logItemset("Frequent", 1, itemset, result[0]);
+			frq_itemsets->push(itemset, result);
+			this->logItemset("Frequent", 1, itemset, result);
 		}
-		delete[] result;
 	}
 	if (frq_itemsets->get_itemsets().size() == 0) { //frequent 1-itemsets is not found
 		return false;
 	}
 	this->m_frequent_itemsets->push_back(*frq_itemsets);
-	delete[] keys;
 	delete frq_itemsets;
 
 	/* F2~n generation */

@@ -7,7 +7,8 @@
 
 #include <time.h>
 #include <stdlib.h>
-#include <libyskalgrthms/math/digit_util.h>
+#include "libyskalgrthms/util/string.h"
+#include "libyskalgrthms/math/digit_util.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 #include "libyskdmu/association/extractor/trade_strvv_extractor.h"
@@ -274,15 +275,22 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		vector<Item> items;
 		vector<string>& items_data = data.second->at(i);
 		for (unsigned int j = 0; j < items_data.size(); j++) {
-			unsigned int key_info = 0;
-			if (hash_table.get_key_info(key_info, items_data[j].c_str(),
+			char* key_info = NULL;
+			if (hash_table.get_key_info(&key_info, items_data[j].c_str(),
 					items_data[j].length())) {
-				items.push_back(Item(key_info));
+				items.push_back(Item(ysk_atoi(key_info, strlen(key_info))));
 			} else {
 				ItemDetail item_detail = ItemDetail(items_data[j].c_str());
 				unsigned int item_id = trade_strvv.push_detail(item_detail);
+				char* item_id_str = itoa(item_id);
 				hash_table.insert(items_data[j].c_str(), items_data[j].length(),
-						item_id, item_id);
+						item_id_str, item_id);
+				items.push_back(
+						Item(ysk_atoi(item_id_str, strlen(item_id_str))));
+				delete[] item_id_str;
+			}
+			if (key_info != NULL) {
+				delete[] key_info;
 			}
 		}
 		RecordInfo record_info;

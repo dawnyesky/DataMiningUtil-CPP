@@ -24,5 +24,5 @@ IndexItem* HashIndex::min_record_id(IndexItem **ptr, unsigned int ptr_num) {
 
 bool operator==(const IndexHead& operand1, const IndexHead& operand2) {
 	return strcmp(operand1.identifier, operand2.identifier) == 0
-			&& operand1.key_info == operand2.key_info;
+			&& strcmp(operand1.key_info, operand2.key_info) == 0;
 }
