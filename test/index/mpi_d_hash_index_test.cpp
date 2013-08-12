@@ -17,9 +17,9 @@ static clock_t start, finish;
 static float duration;
 
 void test_mpi_d_hash_index(int argc, char *argv[]) {
-	int pid, numproc;
+	int pid, numprocs;
 	MPI_Init(&argc, &argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &numproc);
+	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 	MPI_Comm_rank(MPI_COMM_WORLD, &pid);
 	printf(
 			"**********MPIDistributedHashIndex start testing in processor%i**********\n",
@@ -79,6 +79,7 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 	}
 
 	index.synchronize();
+	index.consolidate();
 
 	if (print_index) {
 		printf("The index after synchronize:\n");

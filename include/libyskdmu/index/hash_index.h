@@ -90,6 +90,15 @@ public:
 	 */
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num) = 0;
+	/*
+	 * description: 修改关键字信息
+	 *  parameters: key:		关键字
+	 *  			key_length:	关键字长度
+	 *  			key_info:	详细项
+	 *      return: 修改是否成功
+	 */
+	virtual bool change_key_info(const char *key, size_t key_length,
+			const char* key_info) = 0;
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length) = 0;
 	virtual void* get_hash_table() = 0;

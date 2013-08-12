@@ -26,6 +26,9 @@ MPIDHashIndex::~MPIDHashIndex() {
 }
 
 bool MPIDHashIndex::synchronize() {
+	if (is_synchronized) {
+		return true;
+	}
 	int pid, numprocs;
 	MPI_Comm_rank(m_comm, &pid);
 	MPI_Comm_size(m_comm, &numprocs);
@@ -47,7 +50,7 @@ bool MPIDHashIndex::synchronize() {
 	pair<void*, int> syng_send_msg_pkg = pack_syng_msg(syng_send_msg);
 
 	//汇总
-	MPI_Barrier(m_comm);
+//	MPI_Barrier(m_comm);
 	MPI_Gather(syng_send_msg_pkg.first, syng_send_msg_pkg.second, MPI_PACKED,
 			syng_recv_msg_pkg.first, syng_recv_msg_pkg.second, MPI_PACKED,
 			m_root_pid, m_comm);
@@ -264,26 +267,159 @@ bool MPIDHashIndex::synchronize() {
 	return true;
 }
 
-Catalog* MPIDHashIndex::get_local_catalogs() {
-	Catalog* result = new Catalog[m_responsible_cats.second];
+bool MPIDHashIndex::consolidate() {
+	if (!is_synchronized) {
+		bool syn_completed = synchronize();
+		if (!syn_completed) {
+			return false;
+		}
+	}
+
+	int pid, numprocs;
+	MPI_Comm_rank(m_comm, &pid);
+	MPI_Comm_size(m_comm, &numprocs);
+
+	//准备Gather接收的数据缓冲区
+	pair<void*, int> cong_recv_msg_pkg;
+	cong_recv_msg_pkg.first = NULL;
+	cong_recv_msg_pkg.second = 0;
+	if (pid == m_root_pid) {
+		cong_recv_msg_pkg.first = malloc(numprocs * CONG_RECV_BUF_SIZE);
+		cong_recv_msg_pkg.second = CONG_RECV_BUF_SIZE;
+	}
+
+	//打包Gather数据
+	pair<void*, int> cong_send_msg_pkg = pack_cong_msg(m_responsible_cats.first,
+			m_responsible_cats.second);
+
+	MPI_Gather(cong_send_msg_pkg.first, cong_send_msg_pkg.second, MPI_PACKED,
+			cong_recv_msg_pkg.first, cong_recv_msg_pkg.second, MPI_PACKED,
+			m_root_pid, m_comm);
+
+	//声明Broadcast数据包
+	pair<void*, int> conb_msg_pkg;
+
+	if (pid == m_root_pid) {
+		//解包Gather数据
+		vector<pair<Catalog*, unsigned int*> > cong_recv_msg = unpack_cong_msg(
+				cong_recv_msg_pkg);
+
+		//处理Gather数据
+		for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
+			for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
+				unsigned int cid = cong_recv_msg[i].second[0] + j;
+				m_catalogs[cid].l = cong_recv_msg[i].first[j].l;
+				//先清除原有的数据
+				if (m_catalogs[cid].bucket != NULL) {
+					for (vector<IndexHead>::iterator iter =
+							m_catalogs[cid].bucket->elements.begin();
+							iter != m_catalogs[cid].bucket->elements.end();
+							iter++) {
+						if (NULL != iter->identifier) {
+							delete[] iter->identifier;
+						}
+						if (NULL != iter->key_info) {
+							delete[] iter->key_info;
+						}
+						IndexItem *p = iter->inverted_index;
+						IndexItem *q = NULL;
+						while (NULL != p) {
+							q = p->next;
+							delete p;
+							p = q;
+						}
+					}
+					delete m_catalogs[cid].bucket;
+				}
+				//把新数据加上
+				m_catalogs[cid].bucket = cong_recv_msg[i].first[j].bucket;
+			}
+			//清除接收数据
+			delete[] cong_recv_msg[i].first;
+			delete[] cong_recv_msg[i].second;
+		}
+
+		//打包Broadcast数据
+		conb_msg_pkg = pack_conb_msg(0, pow(2, m_d));
+	}
+
+	//打包Broadcast数据
+	conb_msg_pkg = pack_conb_msg(0, 0);
+
+	MPI_Bcast(conb_msg_pkg.first, conb_msg_pkg.second, MPI_PACKED, m_root_pid,
+			m_comm);
+
+	//解包Broadcast数据
+	pair<Catalog*, unsigned int*> conb_msg = unpack_conb_msg(conb_msg_pkg);
+
+	//处理Broadcast数据
+	if (pid != m_root_pid) {
+		for (unsigned int i = 0; i < conb_msg.second[1]; i++) {
+			unsigned int cid = conb_msg.second[0] + i;
+			m_catalogs[cid].l = conb_msg.first[i].l;
+			//先清除原有的数据
+			if (m_catalogs[cid].bucket != NULL) {
+				for (vector<IndexHead>::iterator iter =
+						m_catalogs[cid].bucket->elements.begin();
+						iter != m_catalogs[cid].bucket->elements.end();
+						iter++) {
+					if (NULL != iter->identifier) {
+						delete[] iter->identifier;
+					}
+					if (NULL != iter->key_info) {
+						delete[] iter->key_info;
+					}
+					IndexItem *p = iter->inverted_index;
+					IndexItem *q = NULL;
+					while (NULL != p) {
+						q = p->next;
+						delete p;
+						p = q;
+					}
+				}
+				delete m_catalogs[cid].bucket;
+			}
+			//把新数据加上
+			m_catalogs[cid].bucket = conb_msg.first[i].bucket;
+		}
+	}
+	is_consolidated = true;
+
+	//清除数据
+	free(cong_send_msg_pkg.first);
+	free(cong_recv_msg_pkg.first);
+
+	delete[] conb_msg.first;
+	delete[] conb_msg.second;
+	free(conb_msg_pkg.first);
+
+	return true;
+}
+
+pair<Catalog*, int> MPIDHashIndex::get_local_catalogs() {
+	pair<Catalog*, int> result;
+	result.first = new Catalog[m_responsible_cats.second];
+	result.second = m_responsible_cats.second;
 	for (unsigned int i = 0; i < m_responsible_cats.second; i++) {
-		result[i].l = m_catalogs[i + m_responsible_cats.first].l;
-		result[i].bucket = NULL;
+		result.first[i].l = m_catalogs[i + m_responsible_cats.first].l;
+		result.first[i].bucket = NULL;
 	}
 	return result;
 }
 
-IndexHead* MPIDHashIndex::get_local_index() {
+pair<IndexHead*, int> MPIDHashIndex::get_local_index() {
 	Bucket* buckets[m_responsible_cats.second];
 	unsigned int elements_sum = 0;
 	for (unsigned int i = 0; i < m_responsible_cats.second; i++) {
 		buckets[i] = m_catalogs[i + m_responsible_cats.first].bucket;
 		elements_sum += buckets[i]->elements.size();
 	}
-	IndexHead* result = new IndexHead[elements_sum];
+	pair<IndexHead*, int> result;
+	result.first = new IndexHead[elements_sum];
+	result.second = elements_sum;
 	for (unsigned int i = 0, index = 0; i < m_responsible_cats.second; i++) {
 		for (unsigned int j = 0; j < buckets[i]->elements.size(); j++) {
-			result[index] = buckets[i]->elements[j];
+			result.first[index] = buckets[i]->elements[j];
 			index++;
 		}
 	}
@@ -384,6 +520,11 @@ unsigned int* MPIDHashIndex::get_intersect_records(const char **keys,
 	} else { //远程访问
 		return NULL;
 	}
+}
+
+bool MPIDHashIndex::change_key_info(const char *key, size_t key_length,
+		const char* key_info) {
+	return DynamicHashIndex::change_key_info(key, key_length, key_info);
 }
 
 unsigned int* MPIDHashIndex::gen_statistics() {
@@ -627,6 +768,252 @@ SynAlltoallMsg* MPIDHashIndex::unpack_synata_msg(pair<void*, int> msg_pkg) {
 	//合并桶
 	for (unsigned int i = 0; i < result->bucket_num; i++) {
 		union_bucket(result->buckets + i, buckets[i], numprocs);
+	}
+	return result;
+}
+
+pair<void*, int> MPIDHashIndex::pack_cong_msg(unsigned int catalog_id,
+		unsigned int catalog_num) {
+	pair<void*, int> result;
+
+	//计算缓冲区大小
+	unsigned int total_fixed_uint_num = 0;
+	unsigned int total_dynamic_uint_num = 0;
+	unsigned int total_dynamic_char_num = 0;
+	total_fixed_uint_num += (2 + 2 * catalog_num); //目录的起始ID，目录数量，每个目录的局部深度和桶里的索引数量
+	for (unsigned int i = 0; i < catalog_num; i++) {
+		unsigned int cid = catalog_id + i;
+		int fixed_uint_num = 0;
+		int dynamic_uint_num = 0;
+		int dynamic_char_num = 0;
+		fixed_uint_num += 3 * m_catalogs[cid].bucket->elements.size();
+		for (vector<IndexHead>::iterator iter =
+				m_catalogs[cid].bucket->elements.begin();
+				iter != m_catalogs[cid].bucket->elements.end(); iter++) {
+			dynamic_char_num += (strlen(iter->identifier) + 1
+					+ strlen(iter->key_info) + 1);
+			dynamic_uint_num += iter->index_item_num;
+		}
+		total_fixed_uint_num += fixed_uint_num;
+		total_dynamic_uint_num += dynamic_uint_num;
+		total_dynamic_char_num += dynamic_char_num;
+	}
+	int total_fixed_uint_size, total_dynamic_uint_size, total_dynamic_char_size;
+	MPI_Pack_size(total_fixed_uint_num, MPI_UNSIGNED, m_comm,
+			&total_fixed_uint_size);
+	MPI_Pack_size(total_dynamic_uint_num, MPI_UNSIGNED, m_comm,
+			&total_dynamic_uint_size);
+	MPI_Pack_size(total_dynamic_char_num, MPI_CHAR, m_comm,
+			&total_dynamic_char_size);
+	result.second = total_fixed_uint_size + total_dynamic_uint_size
+			+ total_dynamic_char_size;
+
+	//分配缓冲区空间
+	result.first = malloc(result.second);
+	//开始打包
+	int position = 0;
+	MPI_Pack(&catalog_id, 1, MPI_UNSIGNED, result.first, result.second,
+			&position, m_comm); //目录起始ID
+	MPI_Pack(&catalog_num, 1, MPI_UNSIGNED, result.first, result.second,
+			&position, m_comm); //目录数量
+	for (unsigned int i = 0; i < catalog_num; i++) {
+		unsigned int cid = catalog_id + i;
+		unsigned int element_num = m_catalogs[cid].bucket->elements.size();
+		MPI_Pack(&m_catalogs[cid].l, 1, MPI_UNSIGNED, result.first,
+				result.second, &position, m_comm); //局部深度
+		MPI_Pack(&element_num, 1, MPI_UNSIGNED, result.first, result.second,
+				&position, m_comm); //每个桶里的索引数量
+		for (vector<IndexHead>::iterator iter =
+				m_catalogs[cid].bucket->elements.begin();
+				iter != m_catalogs[cid].bucket->elements.end(); iter++) {
+			unsigned int id_len = strlen(iter->identifier) + 1;
+			unsigned int info_len = strlen(iter->key_info) + 1;
+			MPI_Pack(&id_len, 1, MPI_UNSIGNED, result.first, result.second,
+					&position, m_comm); //索引标识长度
+			MPI_Pack(iter->identifier, id_len, MPI_CHAR, result.first,
+					result.second, &position, m_comm); //索引标识
+			MPI_Pack(&info_len, 1, MPI_UNSIGNED, result.first, result.second,
+					&position, m_comm); //索引标识相关信息长度
+			MPI_Pack(iter->key_info, info_len, MPI_CHAR, result.first,
+					result.second, &position, m_comm); //索引标识相关信息
+			MPI_Pack(&iter->index_item_num, 1, MPI_UNSIGNED, result.first,
+					result.second, &position, m_comm); //索引项数量
+			IndexItem* p = iter->inverted_index;
+			while (p != NULL) {
+				MPI_Pack(&p->record_id, 1, MPI_UNSIGNED, result.first,
+						result.second, &position, m_comm); //索引项
+				p = p->next;
+			}
+		}
+	}
+	return result;
+}
+
+vector<pair<Catalog*, unsigned int*> > MPIDHashIndex::unpack_cong_msg(
+		pair<void*, int> msg_pkg) {
+	int numprocs, position = 0;
+	MPI_Comm_size(m_comm, &numprocs);
+
+	vector<pair<Catalog*, unsigned int*> > result;
+
+	for (unsigned int i = 0; i < numprocs; i++) {
+		position = i * CONG_RECV_BUF_SIZE;
+		pair<Catalog*, unsigned int*> result_item;
+		result_item.second = new unsigned int[2];
+		//目录起始ID
+		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result_item.second,
+				1, MPI_UNSIGNED, m_comm);
+		//目录数量
+		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+				result_item.second + 1, 1, MPI_UNSIGNED, m_comm);
+		//分配结果目录空间
+		result_item.first = new Catalog[result_item.second[1]];
+
+		//开始解包
+		for (unsigned int j = 0; j < result_item.second[1]; j++) {
+			unsigned int element_num;
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+					&result_item.first[j].l, 1, MPI_UNSIGNED, m_comm);
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &element_num,
+					1, MPI_UNSIGNED, m_comm);
+			for (unsigned int k = 0; k < element_num; k++) {
+				IndexHead* index_head = new IndexHead();
+				unsigned int id_len, info_len;
+				MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &id_len, 1,
+						MPI_UNSIGNED, m_comm);
+				index_head->identifier = new char[id_len];
+				MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+						index_head->identifier, id_len, MPI_CHAR, m_comm);
+				MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &info_len,
+						1, MPI_UNSIGNED, m_comm);
+				index_head->key_info = new char[info_len];
+				MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+						index_head->key_info, info_len, MPI_CHAR, m_comm);
+				MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+						&index_head->index_item_num, 1, MPI_UNSIGNED, m_comm);
+				IndexItem* p = NULL;
+				for (unsigned int t = 0; t < index_head->index_item_num; t++) {
+					IndexItem* index_item = new IndexItem();
+					MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+							&index_item->record_id, 1, MPI_UNSIGNED, m_comm);
+					if (p == NULL) {
+						index_head->inverted_index = index_item;
+					} else {
+						p->next = index_item;
+					}
+					index_item->next = NULL;
+					p = index_item;
+				}
+				result_item.first[j].bucket->elements.push_back(*index_head);
+			}
+		}
+		result.push_back(result_item);
+	}
+	return result;
+}
+
+pair<void*, int> MPIDHashIndex::pack_conb_msg(unsigned int catalog_id,
+		unsigned int catalog_num) {
+	pair<void*, int> result;
+
+	//计算缓冲区大小
+	result.second = CONB_BUF_SIZE;
+
+	//分配缓冲区空间
+	result.first = malloc(result.second);
+
+	if (catalog_num > 0) {
+		//开始打包
+		int position = 0;
+		MPI_Pack(&catalog_id, 1, MPI_UNSIGNED, result.first, result.second,
+				&position, m_comm); //目录起始ID
+		MPI_Pack(&catalog_num, 1, MPI_UNSIGNED, result.first, result.second,
+				&position, m_comm); //目录数量
+		for (unsigned int i = 0; i < catalog_num; i++) {
+			unsigned int cid = catalog_id + i;
+			unsigned int element_num = m_catalogs[cid].bucket->elements.size();
+			MPI_Pack(&m_catalogs[cid].l, 1, MPI_UNSIGNED, result.first,
+					result.second, &position, m_comm); //局部深度
+			MPI_Pack(&element_num, 1, MPI_UNSIGNED, result.first, result.second,
+					&position, m_comm); //每个桶里的索引数量
+			for (vector<IndexHead>::iterator iter =
+					m_catalogs[cid].bucket->elements.begin();
+					iter != m_catalogs[cid].bucket->elements.end(); iter++) {
+				unsigned int id_len = strlen(iter->identifier) + 1;
+				unsigned int info_len = strlen(iter->key_info) + 1;
+				MPI_Pack(&id_len, 1, MPI_UNSIGNED, result.first, result.second,
+						&position, m_comm); //索引标识长度
+				MPI_Pack(iter->identifier, id_len, MPI_CHAR, result.first,
+						result.second, &position, m_comm); //索引标识
+				MPI_Pack(&info_len, 1, MPI_UNSIGNED, result.first,
+						result.second, &position, m_comm); //索引标识相关信息长度
+				MPI_Pack(iter->key_info, info_len, MPI_CHAR, result.first,
+						result.second, &position, m_comm); //索引标识相关信息
+				MPI_Pack(&iter->index_item_num, 1, MPI_UNSIGNED, result.first,
+						result.second, &position, m_comm); //索引项数量
+				IndexItem* p = iter->inverted_index;
+				while (p != NULL) {
+					MPI_Pack(&p->record_id, 1, MPI_UNSIGNED, result.first,
+							result.second, &position, m_comm); //索引项
+					p = p->next;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+pair<Catalog*, unsigned int*> MPIDHashIndex::unpack_conb_msg(
+		pair<void*, int> msg_pkg) {
+	int position = 0;
+	pair<Catalog*, unsigned int*> result;
+	result.second = new unsigned int[2];
+	//目录起始ID
+	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result.second, 1,
+			MPI_UNSIGNED, m_comm);
+	//目录数量
+	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result.second + 1, 1,
+			MPI_UNSIGNED, m_comm);
+	//分配结果目录空间
+	result.first = new Catalog[result.second[1]];
+
+	//开始解包
+	for (unsigned int i = 0; i < result.second[1]; i++) {
+		unsigned int element_num;
+		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &result.first[i].l,
+				1, MPI_UNSIGNED, m_comm);
+		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &element_num, 1,
+				MPI_UNSIGNED, m_comm);
+		for (unsigned int j = 0; j < element_num; j++) {
+			IndexHead* index_head = new IndexHead();
+			unsigned int id_len, info_len;
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &id_len, 1,
+					MPI_UNSIGNED, m_comm);
+			index_head->identifier = new char[id_len];
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+					index_head->identifier, id_len, MPI_CHAR, m_comm);
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &info_len, 1,
+					MPI_UNSIGNED, m_comm);
+			index_head->key_info = new char[info_len];
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+					index_head->key_info, info_len, MPI_CHAR, m_comm);
+			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+					&index_head->index_item_num, 1, MPI_UNSIGNED, m_comm);
+			IndexItem* p = NULL;
+			for (unsigned int t = 0; t < index_head->index_item_num; t++) {
+				IndexItem* index_item = new IndexItem();
+				MPI_Unpack(msg_pkg.first, msg_pkg.second, &position,
+						&index_item->record_id, 1, MPI_UNSIGNED, m_comm);
+				if (p == NULL) {
+					index_head->inverted_index = index_item;
+				} else {
+					p->next = index_item;
+				}
+				index_item->next = NULL;
+				p = index_item;
+			}
+			result.first[i].bucket->elements.push_back(*index_head);
+		}
 	}
 	return result;
 }

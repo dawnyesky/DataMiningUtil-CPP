@@ -426,6 +426,25 @@ unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 	}
 }
 
+bool DynamicHashIndex::change_key_info(const char *key, size_t key_length,
+		const char* key_info) {
+	pair<unsigned int, int> location = locate_index(key, key_length);
+	if (location.second == -1) {
+		return false;
+	} else {
+		if (m_catalogs[location.first].bucket->elements[location.second].key_info
+				!= NULL) {
+			delete[] m_catalogs[location.first].bucket->elements[location.second].key_info;
+		}
+		m_catalogs[location.first].bucket->elements[location.second].key_info =
+				new char[strlen(key_info) + 1];
+		strcpy(
+				m_catalogs[location.first].bucket->elements[location.second].key_info,
+				key_info);
+		return true;
+	}
+}
+
 unsigned int DynamicHashIndex::hashfunc(const char *str, size_t length) {
 	return m_hash_func(str, length, m_table_size);
 }

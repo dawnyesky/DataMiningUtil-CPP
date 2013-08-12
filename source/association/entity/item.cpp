@@ -12,10 +12,10 @@
 using namespace std;
 
 Item::Item() :
-	m_index(0), m_count(0) {
+		m_index(0), m_count(0) {
 }
 Item::Item(unsigned int index) :
-	m_index(index), m_count(1) {
+		m_index(index), m_count(1) {
 }
 
 Item::Item(const Item& item) {
@@ -41,12 +41,12 @@ Item& Item::increase(unsigned int count) {
 	return *this;
 }
 
-void Item::update(const Item& item) {
-
-}
-
 unsigned int Item::get_count() {
 	return m_count;
+}
+
+void Item::update(const Item& item) {
+
 }
 
 bool operator<(const Item& operand1, const Item& operand2) {
@@ -61,6 +61,10 @@ bool operator==(const Item& operand1, const Item& operand2) {
 	return operand1.m_index == operand2.m_index;
 }
 
+ItemDetail::ItemDetail() {
+	m_identifier = NULL;
+}
+
 ItemDetail::ItemDetail(const char *identifier) {
 	m_identifier = new char[strlen(identifier) + 1];
 	strcpy(m_identifier, identifier);
@@ -73,6 +77,42 @@ ItemDetail::ItemDetail(const ItemDetail& item_detail) {
 
 ItemDetail::~ItemDetail() {
 	if (m_identifier != NULL) {
-		delete m_identifier;
+		delete[] m_identifier;
 	}
+}
+
+int ItemDetail::get_mpi_pack_size(MPI_Comm comm) {
+	int result = 0;
+	MPI_Pack_size(1, MPI_UNSIGNED, comm, &result);
+	int id_mpi_pack_size = 0;
+	MPI_Pack_size(strlen(m_identifier) + 1, MPI_CHAR, comm, &id_mpi_pack_size);
+	result += id_mpi_pack_size;
+	return result;
+}
+
+pair<void*, int> ItemDetail::mpi_pack(MPI_Comm comm) {
+	pair<void*, int> result;
+
+	result.second = ItemDetail::get_mpi_pack_size(comm);
+	result.first = malloc(result.second);
+
+	int position = 0;
+	unsigned int id_len = strlen(m_identifier) + 1;
+	MPI_Pack(&id_len, 1, MPI_UNSIGNED, result.first, result.second, &position,
+			comm);
+	MPI_Pack(m_identifier, id_len, MPI_CHAR, result.first, result.second,
+			&position, comm);
+	return result;
+}
+
+bool ItemDetail::mpi_unpack(void *inbuf, int insize, int *position,
+		ItemDetail *outbuf, unsigned int outcount, MPI_Comm comm) {
+	for (unsigned int i = 0; i < outcount; i++) {
+		unsigned int id_len = 0;
+		MPI_Unpack(inbuf, insize, position, &id_len, 1, MPI_UNSIGNED, comm);
+		outbuf[i].m_identifier = new char[id_len];
+		MPI_Unpack(inbuf, insize, position, outbuf[i].m_identifier, id_len,
+				MPI_CHAR, comm);
+	}
+	return true;
 }

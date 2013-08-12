@@ -324,6 +324,11 @@ unsigned int* OpenHashIndex::get_intersect_records(const char **keys,
 	}
 }
 
+bool OpenHashIndex::change_key_info(const char *key, size_t key_length,
+		const char* key_info) {
+	return false;
+}
+
 unsigned int OpenHashIndex::hashfunc(const char *str, size_t length) {
 	unsigned int hashcode = m_hash_func(str, length, m_table_size);
 	if (NULL == m_hash_table[hashcode])

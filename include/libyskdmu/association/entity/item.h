@@ -8,6 +8,7 @@
 #ifndef ITEM_H_
 #define ITEM_H_
 
+#include <mpi.h>
 #include <vector>
 #include <set>
 
@@ -24,8 +25,9 @@ public:
 
 	Item& increase();
 	Item& increase(unsigned int count);
-	virtual void update(const Item& item);
 	unsigned int get_count();
+	virtual void update(const Item& item);
+
 	friend bool operator<(const Item& operand1, const Item& operand2); //在容器中按index排序
 	friend bool operator>(const Item& operand1, const Item& operand2);
 	friend bool operator==(const Item& operand1, const Item& operand2);
@@ -39,9 +41,15 @@ protected:
 
 class ItemDetail { //用来存储一个Item的特有信息
 public:
+	ItemDetail();
 	ItemDetail(const char *identifier);
 	ItemDetail(const ItemDetail& item_detail);
 	virtual ~ItemDetail();
+
+	virtual int get_mpi_pack_size(MPI_Comm comm);
+	virtual pair<void*, int> mpi_pack(MPI_Comm comm);
+	static bool mpi_unpack(void *inbuf, int insize, int *position,
+			ItemDetail *outbuf, unsigned int outcount, MPI_Comm comm);
 
 public:
 	char *m_identifier; //Item的标识符，唯一性标志，用作散列函数的关键字

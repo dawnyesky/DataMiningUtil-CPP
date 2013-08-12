@@ -93,6 +93,9 @@ public:
 	 */
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);
+
+	virtual bool change_key_info(const char *key, size_t key_length,
+			const char* key_info);
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length);
 	virtual unsigned int collision_handler(const char *str, size_t length,

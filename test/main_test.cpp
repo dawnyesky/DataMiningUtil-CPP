@@ -44,6 +44,10 @@ extern void test_dhp_doc(unsigned int max_itemset_size = 2,
 extern void test_combine_algorithms(unsigned int max_itemset_size = 2,
 		double minsup = 0.2, double minconf = 0.4);
 
+extern void test_phi_apriori_doc(int argc, char *argv[],
+		unsigned int max_itemset_size = 2, double minsup = 0.05,
+		double minconf = 0.4);
+
 extern void test_cf_ub();
 
 extern void test_cf_ub_wds();
@@ -80,6 +84,7 @@ int main(int argc, char *argv[]) {
 //	test_hi_apriori_xml();
 //	test_hi_apriori_doc();
 //	test_combine_algorithms();
+//	test_phi_apriori_doc(argc, argv);
 //	test_cf();
 //	test_cf_ub_wds();
 //	test_cf_ub(argc, argv);

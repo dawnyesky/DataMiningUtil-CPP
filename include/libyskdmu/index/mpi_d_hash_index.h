@@ -34,8 +34,9 @@ public:
 	virtual ~MPIDHashIndex();
 
 	virtual bool synchronize();
-	virtual Catalog* get_local_catalogs();
-	virtual IndexHead* get_local_index();
+	virtual bool consolidate();
+	virtual pair<Catalog*, int> get_local_catalogs();
+	virtual pair<IndexHead*, int> get_local_index();
 	virtual unsigned int size_of_global_index();
 
 	virtual unsigned int insert(const char *key, size_t key_length,
@@ -51,6 +52,8 @@ public:
 			size_t key_length);
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);
+	virtual bool change_key_info(const char *key, size_t key_length,
+			const char* key_info);
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length);
 	virtual void* get_hash_table() {
@@ -92,19 +95,23 @@ private:
 	pair<void*, int*> pack_synata_msg(SynAlltoallMsg& msg,
 			unsigned int* catalog_offset, unsigned int* catalog_size);
 	SynAlltoallMsg* unpack_synata_msg(pair<void*, int> msg_pkg);
+	pair<void*, int> pack_cong_msg(unsigned int catalog_id,
+			unsigned int catalog_num);
+	vector<pair<Catalog*, unsigned int*> > unpack_cong_msg(
+			pair<void*, int> msg_pkg);
+	pair<void*, int> pack_conb_msg(unsigned int catalog_id,
+			unsigned int catalog_num);
+	pair<Catalog*, unsigned int*> unpack_conb_msg(pair<void*, int> msg_pkg);
 	bool union_bucket(Bucket* out_bucket, Bucket* in_buckets,
 			unsigned int bucket_num);
 
-protected:
-	pair<unsigned int, unsigned int> m_responsible_cats; //负责的目录（起始索引，长度）
-
 private:
 	MPI_Comm m_comm;
-	int m_root_pid;
-	volatile bool is_synchronized;
 	const static unsigned int SYNG_RECV_BUF_SIZE = 4096;
 	const static unsigned int SYNB_BUF_SIZE = 4096;
 	const static unsigned int SYNATA_BUF_SIZE = 4096;
+	const static unsigned int CONG_RECV_BUF_SIZE = 4096;
+	const static unsigned int CONB_BUF_SIZE = 4096;
 };
 
 #endif /* MPI_D_HASH_INDEX_H_ */

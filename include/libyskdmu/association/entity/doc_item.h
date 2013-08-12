@@ -29,9 +29,15 @@ public:
 
 class DocItemDetail: public ItemDetail {
 public:
+	DocItemDetail();
 	DocItemDetail(char *identifier, char *type);
 	DocItemDetail(const DocItemDetail& item_detail);
 	virtual ~DocItemDetail();
+
+	virtual int get_mpi_pack_size(MPI_Comm comm);
+	virtual pair<void*, int> mpi_pack(MPI_Comm comm);
+	static bool mpi_unpack(void *inbuf, int insize, int *position,
+			DocItemDetail *outbuf, unsigned int outcount, MPI_Comm comm);
 
 public:
 	char *m_type; //词性

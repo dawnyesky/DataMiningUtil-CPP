@@ -22,23 +22,36 @@ public:
 	 */
 	virtual bool synchronize() = 0;
 	/*
+	 * description: 合并函数，把已同步的哈希表合并并广播给每个节点
+	 *  parameters:
+	 *      return: 同步是否完成
+	 */
+	virtual bool consolidate() = 0;
+	/*
 	 * description: 获取本节点负责的目录列表
 	 *  parameters:
 	 *      return: 本地目录列表
 	 */
-	virtual Catalog* get_local_catalogs() = 0;
+	virtual pair<Catalog*, int> get_local_catalogs() = 0;
 	/*
 	 * description: 获取本节点负责的所有索引项
 	 *  parameters:
 	 *      return: 本节点所有索引项
 	 */
-	virtual IndexHead* get_local_index() = 0;
+	virtual pair<IndexHead*, int> get_local_index() = 0;
 	/*
 	 * description: 获取全局索引大小
 	 *  parameters:
 	 *      return: 全局索引大小
 	 */
 	virtual unsigned int size_of_global_index() = 0;
+
+public:
+	int m_root_pid;
+	volatile bool is_synchronized;
+	volatile bool is_consolidated;
+protected:
+	pair<unsigned int, unsigned int> m_responsible_cats; //负责的目录（起始索引，长度）
 };
 
 #endif /* DISTRIBUTED_HASH_INDEX_H_ */
