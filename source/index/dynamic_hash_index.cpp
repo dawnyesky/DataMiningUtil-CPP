@@ -205,7 +205,7 @@ bool DynamicHashIndex::split_bucket(unsigned int catalog_id,
 				unsigned int cid = (catalog_id + i * (int) pow(2, old_deep)
 						+ j * (int) pow(2, local_deep)) % (int) pow(2, m_d);
 				m_catalogs[cid].bucket = new_bucket;
-				m_catalogs[cid].l += local_deep;
+				m_catalogs[cid].l = local_deep;
 			}
 		}
 	}
