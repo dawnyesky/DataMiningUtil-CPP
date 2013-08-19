@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
 //	test_hash_table_counter();
 //	test_open_hash_index();
 //	test_dynamic_hash_index();
-	test_mpi_d_hash_index(argc, argv);
+//	test_mpi_d_hash_index(argc, argv);
 //	test_trade_x_extractor();
 //	test_doc_text_extractor();
 //	test_apriori_xml();
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 //	test_hi_apriori_xml();
 //	test_hi_apriori_doc();
 //	test_combine_algorithms();
-//	test_phi_apriori_doc(argc, argv);
+	test_phi_apriori_doc(argc, argv);
 //	test_cf();
 //	test_cf_ub_wds();
 //	test_cf_ub(argc, argv);

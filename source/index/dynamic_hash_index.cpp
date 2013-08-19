@@ -13,6 +13,7 @@
 
 DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
 		unsigned int global_deep) {
+	m_hash_func = &simple_hash;
 	m_bucket_size = bucket_size;
 	m_d = global_deep;
 	m_catalogs = new Catalog[(int) pow(2, m_d)];
@@ -25,6 +26,7 @@ DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
 }
 
 DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
+	m_hash_func = &simple_hash;
 	m_bucket_size = dynamic_hash_index.m_bucket_size;
 	m_d = dynamic_hash_index.m_d;
 	m_retry_times = dynamic_hash_index.m_retry_times;
@@ -69,11 +71,6 @@ DynamicHashIndex::~DynamicHashIndex() {
 	if (m_catalogs != NULL) {
 		delete[] m_catalogs;
 	}
-}
-
-bool DynamicHashIndex::init(HashFunc hash_func) {
-	m_hash_func = hash_func;
-	return true;
 }
 
 unsigned int DynamicHashIndex::addressing(unsigned int hashcode) {
@@ -336,7 +333,14 @@ bool DynamicHashIndex::get_key_info(char **key_info, const char *key,
 
 unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 		unsigned int key_num) {
-	if (keys != NULL) {
+	if (key_num == 1) {
+		unsigned int record_num = get_mark_record_num(keys[0], strlen(keys[0]));
+		unsigned int *records = new unsigned int[1 + record_num];
+		records[0] = record_num;
+		find_record(records + 1, keys[0], strlen(keys[0]));
+		return records;
+	}
+	if (keys != NULL && key_num > 1) {
 		IndexItem **ptr = new IndexItem*[key_num];
 		IndexItem *cur_min = NULL;
 		unsigned int intersect_num = 0;
@@ -446,5 +450,5 @@ bool DynamicHashIndex::change_key_info(const char *key, size_t key_length,
 }
 
 unsigned int DynamicHashIndex::hashfunc(const char *str, size_t length) {
-	return m_hash_func(str, length, m_table_size);
+	return m_hash_func(str, length, pow(2, m_d));
 }

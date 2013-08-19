@@ -8,6 +8,7 @@
 #ifndef PHI_APRIORI_H_
 #define PHI_APRIORI_H_
 
+#include <math.h>
 #include <string.h>
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
@@ -70,8 +71,8 @@ private:
 	char** m_global_identifiers; //全局项目标识
 	KItemsets* m_itemset_send_buf;
 	KItemsets* m_itemset_recv_buf;
-	const static unsigned int PHIG_RECV_BUF_SIZE = 4096;
-	const static unsigned int PHIB_BUF_SIZE = 4096;
+	const static unsigned int PHIG_RECV_BUF_SIZE = 40960;
+	const static unsigned int PHIB_BUF_SIZE = 409600;
 	const static unsigned int PHIR_BUF_SIZE = 4096;
 	const static unsigned int GENG_RECV_BUF_SIZE = 4096;
 };
@@ -134,6 +135,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	if (!this->m_distributed_index->synchronize()) {
 		return false;
 	}
+
 	if (!this->m_distributed_index->consolidate()) {
 		return false;
 	}
@@ -295,7 +297,8 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 
 			//过滤并保存潜在频繁项集
 			unsigned int support;
-			if (this->hi_filter(k_itemset, &support)) {
+			if (k_itemset->size() == prv_frq1.get_term_num() + 1
+					&& this->hi_filter(k_itemset, &support)) {
 				frq_itemset.push(*k_itemset, support);
 				this->logItemset("Frequent", k_itemset->size(), *k_itemset,
 						support);
@@ -309,10 +312,16 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_genrules() {
-	AssocBase<ItemType, ItemDetail, RecordInfoType>::genrules();
+	bool gen_succeed =
+			AssocBase<ItemType, ItemDetail, RecordInfoType>::genrules();
+	if (!gen_succeed)
+		return false;
 	int pid, numprocs;
 	MPI_Comm_rank(m_comm, &pid);
 	MPI_Comm_size(m_comm, &numprocs);
+
+	if (numprocs == 1)
+		return true;
 
 	//打包Gather消息
 	pair<void*, int> geng_send_msg_pkg = pack_geng_msg(this->m_assoc_rules);
@@ -369,7 +378,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::syn_item_detail() 
 	pair<void*, int> phig_send_msg_pkg = pack_phig_msg(this->m_item_details);
 
 	MPI_Gather(phig_send_msg_pkg.first, phig_send_msg_pkg.second, MPI_PACKED,
-			phig_recv_msg_pkg.first, phig_send_msg_pkg.second, MPI_PACKED,
+			phig_recv_msg_pkg.first, phig_recv_msg_pkg.second, MPI_PACKED,
 			m_root_pid, m_comm);
 
 	//声明Broadcast数据包
@@ -390,6 +399,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::syn_item_detail() 
 					+ phig_recv_msg[i - 1].second;
 			item_num += phig_recv_msg[i].second;
 		}
+
 		char* old_item_identifiers[this->m_item_details.size()]; //根进程原有项目标识
 		unsigned int old_item_num = this->m_item_details.size();
 		//清空原有数据
@@ -422,40 +432,50 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::syn_item_detail() 
 		for (unsigned int i = 0, index = 0; i < phig_recv_msg.size(); i++) {
 			for (unsigned int j = 0; j < phig_recv_msg[i].second; j++) {
 				this->m_item_details.push_back(phig_recv_msg[i].first[j]); //加入新数据
-				item_identifiers[index] =
-						this->m_item_details[index].m_identifier; //准备Broadcast数据
-				index++;
+				/*这样赋值会导致
+				 item_identifiers[index] =
+				 this->m_item_details[index].m_identifier;
+				 index++;
+				 */
 			}
 			delete[] phig_recv_msg[i].first; //清除接收数据
+		}
+		for (unsigned int i = 0; i < item_num; i++) {
+			item_identifiers[i] = this->m_item_details[i].m_identifier; //准备Broadcast数据
 		}
 
 		//打包Broadcast数据
 		phib_msg_pkg = pack_phib_msg(item_identifiers, item_num,
 				item_detail_offset);
+	} else {
+		phib_msg_pkg = pack_phib_msg(NULL, 0, NULL);
 	}
-
-	//打包Broadcast数据
-	phib_msg_pkg = pack_phib_msg(NULL, 0, NULL);
 
 	MPI_Bcast(phib_msg_pkg.first, phib_msg_pkg.second, MPI_PACKED, m_root_pid,
 			m_comm);
 
 	//解包Broadcast数据
-	pair<char**, unsigned int*> phib_msg = unpack_phib_msg(phib_msg_pkg);
+	pair<char**, unsigned int*> phib_msg;
 
 	//处理Broadcast数据
 	if (pid != m_root_pid) {
+//		printf("\n\nProcess %i Start unpack b\n", pid);
+		phib_msg = unpack_phib_msg(phib_msg_pkg);
+//		printf("\n\nProcess %i Finish unpack b\n", pid);
 		this->m_global_item_num = phib_msg.second[0];
 		this->m_global_identifiers = new char*[m_global_item_num];
 		for (unsigned int i = 0; i < phib_msg.second[0]; i++) {
 			//写入全局项目标识列表方便查询
 			this->m_global_identifiers[i] = phib_msg.first[i];
+//			printf("global_id:%s", this->m_global_identifiers[i]);
 		}
 
 		//更新索引的key_info为全局信息
 		for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 			unsigned int gid = *(phib_msg.second + pid + 1) + i;
+//			printf("gid:%u\t", gid);
 			char* gid_str = itoa(gid);
+//			printf("gid_str:%s\t", gid_str);
 			assert(
 					strcmp(this->m_item_details[i].m_identifier,
 							phib_msg.first[gid]) == 0);
@@ -473,6 +493,8 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::syn_item_detail() 
 			delete[] new_key_info;
 		}
 	}
+
+	MPI_Barrier(m_comm);
 
 	free(phig_send_msg_pkg.first);
 	free(phig_recv_msg_pkg.first);
@@ -493,6 +515,7 @@ pair<void*, int> ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::pack_p
 	for (unsigned int i = 0; i < item_detail.size(); i++) {
 		result.second += item_detail[i].get_mpi_pack_size(m_comm);
 	}
+	assert(result.second <= PHIG_RECV_BUF_SIZE);
 
 	//分配缓冲区空间
 	result.first = malloc(result.second);
@@ -542,16 +565,19 @@ pair<void*, int> ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::pack_p
 	pair<void*, int> result;
 
 	//计算缓冲区大小：
-	int fixed_uint_num = 1 + item_id_num + numprocs; //项目标识数量，每个项目标识的长度，每个项目详情ID的偏移
-	int dynamic_char_num = 0;
-	for (unsigned int i = 0; i < item_id_num; i++) {
-		dynamic_char_num += strlen(item_identifiers[i]) + 1; //每个项目标识
+	if (item_identifiers != NULL && item_detail_offset != NULL
+			&& item_id_num != 0) {
+		int fixed_uint_num = 1 + item_id_num + numprocs; //项目标识数量，每个项目标识的长度，每个项目详情ID的偏移
+		int dynamic_char_num = 0;
+		for (unsigned int i = 0; i < item_id_num; i++) {
+			dynamic_char_num += strlen(item_identifiers[i]) + 1; //每个项目标识
+		}
+		int fixed_uint_size, dynamic_char_size;
+		MPI_Pack_size(fixed_uint_num, MPI_UNSIGNED, m_comm, &fixed_uint_size);
+		MPI_Pack_size(dynamic_char_num, MPI_CHAR, m_comm, &dynamic_char_size);
+		result.second = fixed_uint_size + dynamic_char_size;
+		assert(result.second <= PHIB_BUF_SIZE); //断言打包的数据比设定的缓冲区小
 	}
-	int fixed_uint_size, dynamic_char_size;
-	MPI_Pack_size(fixed_uint_num, MPI_UNSIGNED, m_comm, &fixed_uint_size);
-	MPI_Pack_size(dynamic_char_num, MPI_CHAR, m_comm, &dynamic_char_size);
-	result.second = fixed_uint_size + dynamic_char_size;
-	assert(result.second <= PHIB_BUF_SIZE); //断言打包的数据比设定的缓冲区小
 	result.second = PHIB_BUF_SIZE;
 
 	//分配缓冲区空间
@@ -567,8 +593,10 @@ pair<void*, int> ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::pack_p
 			unsigned int item_id_len = strlen(item_identifiers[i]) + 1;
 			MPI_Pack(&item_id_len, 1, MPI_UNSIGNED, result.first, result.second,
 					&position, m_comm);
-			MPI_Pack(item_identifiers + i, item_id_len, MPI_CHAR, result.first,
+//			printf("item_len:%u\t", item_id_len);
+			MPI_Pack(item_identifiers[i], item_id_len, MPI_CHAR, result.first,
 					result.second, &position, m_comm);
+//			printf("pack %s[%u]\t", item_identifiers[i], item_id_len);
 		}
 		MPI_Pack(item_detail_offset, numprocs, MPI_UNSIGNED, result.first,
 				result.second, &position, m_comm);
@@ -595,10 +623,16 @@ pair<char**, unsigned int*> ParallelHiApriori<ItemType, ItemDetail,
 		unsigned int item_id_len = 0;
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &item_id_len, 1,
 				MPI_UNSIGNED, m_comm);
+//		printf("item_len:%u\t", item_id_len);
 		result.first[i] = new char[item_id_len];
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result.first[i],
 				item_id_len, MPI_CHAR, m_comm);
+//		printf("Item:%s\t", result.first[i]);
 	}
+//	printf("Print done!\n");
+//	for (unsigned int i = 0; i < item_id_num; i++) {
+//		printf("Item:%s[%i/%i]\n", result.first[i], i, item_id_num);
+//	}
 	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result.second + 1,
 			numprocs, MPI_UNSIGNED, m_comm);
 	return result;

@@ -23,8 +23,6 @@ public:
 	DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index);
 	virtual ~DynamicHashIndex();
 
-	bool init(HashFunc hash_func = simple_hash);
-
 	/*
 	 * description: 寻址函数
 	 *  parameters: hashcode:	哈希值

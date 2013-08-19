@@ -27,7 +27,7 @@ struct SynAlltoallMsg {
 	Bucket* buckets; //哈希表中的桶列表
 };
 
-class MPIDHashIndex: public DynamicHashIndex, public DistributedHashIndex {
+class MPIDHashIndex: public DistributedHashIndex {
 public:
 	MPIDHashIndex(MPI_Comm comm = MPI_COMM_WORLD, unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
@@ -108,10 +108,10 @@ private:
 private:
 	MPI_Comm m_comm;
 	const static unsigned int SYNG_RECV_BUF_SIZE = 4096;
-	const static unsigned int SYNB_BUF_SIZE = 4096;
-	const static unsigned int SYNATA_BUF_SIZE = 4096;
-	const static unsigned int CONG_RECV_BUF_SIZE = 4096;
-	const static unsigned int CONB_BUF_SIZE = 4096;
+	const static unsigned int SYNB_BUF_SIZE = 40960;
+	const static unsigned int SYNATA_BUF_SIZE = 40960;
+	const static unsigned int CONG_RECV_BUF_SIZE = 40960;
+	const static unsigned int CONB_BUF_SIZE = 40960;
 };
 
 #endif /* MPI_D_HASH_INDEX_H_ */

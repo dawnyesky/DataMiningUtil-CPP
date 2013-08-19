@@ -39,7 +39,6 @@ void test_dynamic_hash_index() {
 			"T-Pat" };
 	srand((unsigned int) time(NULL));
 	DynamicHashIndex index = DynamicHashIndex(2, 1);
-	index.init();
 	const char *identifier = NULL;
 	unsigned int iden_index, hashcode;
 	for (unsigned int i = 0; i < record_num * term_num_per_record; i++) {

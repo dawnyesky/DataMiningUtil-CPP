@@ -12,13 +12,14 @@
 
 MPIDHashIndex::MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size,
 		unsigned int global_deep) :
-		DynamicHashIndex(bucket_size, global_deep) {
+		DistributedHashIndex(bucket_size, global_deep) {
 	m_comm = comm;
 	m_root_pid = 0;
 	m_responsible_cats.first = 0;
 	m_responsible_cats.second = 0;
 	m_log_fp = LogUtil::get_instance()->get_log_instance("mpiDHashIndex");
 	is_synchronized = false;
+	is_consolidated = false;
 }
 
 MPIDHashIndex::~MPIDHashIndex() {
@@ -50,7 +51,6 @@ bool MPIDHashIndex::synchronize() {
 	pair<void*, int> syng_send_msg_pkg = pack_syng_msg(syng_send_msg);
 
 	//汇总
-//	MPI_Barrier(m_comm);
 	MPI_Gather(syng_send_msg_pkg.first, syng_send_msg_pkg.second, MPI_PACKED,
 			syng_recv_msg_pkg.first, syng_recv_msg_pkg.second, MPI_PACKED,
 			m_root_pid, m_comm);
@@ -244,6 +244,8 @@ bool MPIDHashIndex::synchronize() {
 		m_catalogs[cid].bucket = new Bucket;
 		m_catalogs[cid].bucket->elements = synata_recv_msg->buckets[i].elements;
 	}
+
+	MPI_Barrier(m_comm);
 	is_synchronized = true;
 
 	delete[] syng_send_msg.statistics;
@@ -291,23 +293,56 @@ bool MPIDHashIndex::consolidate() {
 	//打包Gather数据
 	pair<void*, int> cong_send_msg_pkg = pack_cong_msg(m_responsible_cats.first,
 			m_responsible_cats.second);
+	assert(cong_recv_msg_pkg.second <= CONG_RECV_BUF_SIZE);
 
 	MPI_Gather(cong_send_msg_pkg.first, cong_send_msg_pkg.second, MPI_PACKED,
 			cong_recv_msg_pkg.first, cong_recv_msg_pkg.second, MPI_PACKED,
 			m_root_pid, m_comm);
+
+	//声明Gather接收消息
+	vector<pair<Catalog*, unsigned int*> > cong_recv_msg;
 
 	//声明Broadcast数据包
 	pair<void*, int> conb_msg_pkg;
 
 	if (pid == m_root_pid) {
 		//解包Gather数据
-		vector<pair<Catalog*, unsigned int*> > cong_recv_msg = unpack_cong_msg(
-				cong_recv_msg_pkg);
+		cong_recv_msg = unpack_cong_msg(cong_recv_msg_pkg);
+
+//		for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
+//			for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
+//				unsigned int cid = cong_recv_msg[i].second[0] + j;
+//				printf("cid:%u\n", cid);
+//				printf("Bucket size:%u\n",
+//						cong_recv_msg[i].first[j].bucket->elements.size());
+//				for (vector<IndexHead>::iterator iter =
+//						cong_recv_msg[i].first[j].bucket->elements.begin();
+//						iter != cong_recv_msg[i].first[j].bucket->elements.end();
+//						iter++) {
+//					printf(
+//							"catalog: %u\tkey: %s------Record numbers: %u------Record index: ",
+//							cid, iter->identifier, iter->index_item_num);
+//					IndexItem* p = iter->inverted_index;
+//					while (p != NULL) {
+//						printf("%u, ", p->record_id);
+//						p = p->next;
+//					}
+//					printf("\n");
+//				}
+//			}
+//		}
 
 		//处理Gather数据
 		for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
 			for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
 				unsigned int cid = cong_recv_msg[i].second[0] + j;
+				//如果是自己负责的部分在同步的时候已经填充完毕，不需要再修改
+				if (cid >= m_responsible_cats.first
+						&& cid
+								< m_responsible_cats.first
+										+ m_responsible_cats.second) {
+					continue;
+				}
 				m_catalogs[cid].l = cong_recv_msg[i].first[j].l;
 				//先清除原有的数据
 				if (m_catalogs[cid].bucket != NULL) {
@@ -341,21 +376,29 @@ bool MPIDHashIndex::consolidate() {
 
 		//打包Broadcast数据
 		conb_msg_pkg = pack_conb_msg(0, pow(2, m_d));
+	} else {
+		//打包Broadcast数据
+		conb_msg_pkg = pack_conb_msg(0, 0);
 	}
-
-	//打包Broadcast数据
-	conb_msg_pkg = pack_conb_msg(0, 0);
 
 	MPI_Bcast(conb_msg_pkg.first, conb_msg_pkg.second, MPI_PACKED, m_root_pid,
 			m_comm);
 
-	//解包Broadcast数据
-	pair<Catalog*, unsigned int*> conb_msg = unpack_conb_msg(conb_msg_pkg);
+	pair<Catalog*, unsigned int*> conb_msg;
 
 	//处理Broadcast数据
 	if (pid != m_root_pid) {
+		//解包Broadcast数据
+		conb_msg = unpack_conb_msg(conb_msg_pkg);
 		for (unsigned int i = 0; i < conb_msg.second[1]; i++) {
 			unsigned int cid = conb_msg.second[0] + i;
+			//如果是自己负责的部分在同步的时候已经填充完毕，不需要再修改
+			if (cid >= m_responsible_cats.first
+					&& cid
+							< m_responsible_cats.first
+									+ m_responsible_cats.second) {
+				continue;
+			}
 			m_catalogs[cid].l = conb_msg.first[i].l;
 			//先清除原有的数据
 			if (m_catalogs[cid].bucket != NULL) {
@@ -383,14 +426,18 @@ bool MPIDHashIndex::consolidate() {
 			m_catalogs[cid].bucket = conb_msg.first[i].bucket;
 		}
 	}
+
+	MPI_Barrier(m_comm);
 	is_consolidated = true;
 
 	//清除数据
 	free(cong_send_msg_pkg.first);
 	free(cong_recv_msg_pkg.first);
 
-	delete[] conb_msg.first;
-	delete[] conb_msg.second;
+	if (pid != m_root_pid) {
+		delete[] conb_msg.first;
+		delete[] conb_msg.second;
+	}
 	free(conb_msg_pkg.first);
 
 	return true;
@@ -434,11 +481,11 @@ unsigned int MPIDHashIndex::insert(const char *key, size_t key_length,
 		char* key_info, unsigned int record_id) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (!is_synchronized
-			|| (catalog_id >= m_responsible_cats.first
+	if (is_consolidated || !is_synchronized
+			|| ((catalog_id >= m_responsible_cats.first
 					&& catalog_id
 							< m_responsible_cats.first
-									+ m_responsible_cats.second)) { //本地访问
+									+ m_responsible_cats.second))) { //本地访问
 		return DynamicHashIndex::insert(key, key_length, key_info, record_id);
 	} else { //远程访问
 		return 0;
@@ -453,9 +500,11 @@ unsigned int MPIDHashIndex::get_mark_record_num(const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (catalog_id >= m_responsible_cats.first
-			&& catalog_id
-					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+	if (is_consolidated || !is_synchronized
+			|| (catalog_id >= m_responsible_cats.first
+					&& catalog_id
+							< m_responsible_cats.first
+									+ m_responsible_cats.second)) { //本地访问
 		return DynamicHashIndex::get_mark_record_num(key, key_length);
 	} else { //远程访问
 		return 0;
@@ -466,9 +515,11 @@ unsigned int MPIDHashIndex::get_real_record_num(const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (catalog_id >= m_responsible_cats.first
-			&& catalog_id
-					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+	if (is_consolidated || !is_synchronized
+			|| (catalog_id >= m_responsible_cats.first
+					&& catalog_id
+							< m_responsible_cats.first
+									+ m_responsible_cats.second)) { //本地访问
 		return DynamicHashIndex::get_real_record_num(key, key_length);
 	} else { //远程访问
 		return 0;
@@ -479,7 +530,7 @@ unsigned int MPIDHashIndex::find_record(unsigned int *records, const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (!is_synchronized
+	if (is_consolidated || !is_synchronized
 			|| (catalog_id >= m_responsible_cats.first
 					&& catalog_id
 							< m_responsible_cats.first
@@ -494,9 +545,11 @@ bool MPIDHashIndex::get_key_info(char **key_info, const char *key,
 		size_t key_length) {
 	unsigned int hashcode = hashfunc(key, key_length);
 	unsigned int catalog_id = addressing(hashcode);
-	if (catalog_id >= m_responsible_cats.first
-			&& catalog_id
-					< m_responsible_cats.first + m_responsible_cats.second) { //本地访问
+	if (is_consolidated || !is_synchronized
+			|| (catalog_id >= m_responsible_cats.first
+					&& catalog_id
+							< m_responsible_cats.first
+									+ m_responsible_cats.second)) { //本地访问
 		return DynamicHashIndex::get_key_info(key_info, key, key_length);
 	} else { //远程访问
 		return false;
@@ -506,14 +559,16 @@ bool MPIDHashIndex::get_key_info(char **key_info, const char *key,
 unsigned int* MPIDHashIndex::get_intersect_records(const char **keys,
 		unsigned int key_num) {
 	bool local_accessible = true;
-	bool local_accessibles[key_num];
-	for (unsigned int i = 0; i < key_num; i++) {
-		unsigned int hashcode = hashfunc(keys[i], strlen(keys[i]));
-		unsigned int catalog_id = addressing(hashcode);
-		local_accessibles[i] = catalog_id >= m_responsible_cats.first
-				&& catalog_id
-						< m_responsible_cats.first + m_responsible_cats.second;
-		local_accessible &= local_accessibles[i];
+	if (!is_consolidated) {
+		bool local_accessibles[key_num];
+		for (unsigned int i = 0; i < key_num; i++) {
+			unsigned int hashcode = hashfunc(keys[i], strlen(keys[i]));
+			unsigned int catalog_id = addressing(hashcode);
+			local_accessibles[i] = catalog_id >= m_responsible_cats.first
+					&& catalog_id
+							< m_responsible_cats.first + m_responsible_cats.second;
+			local_accessible &= local_accessibles[i];
+		}
 	}
 	if (local_accessible) { //本地访问
 		return DynamicHashIndex::get_intersect_records(keys, key_num);
@@ -876,6 +931,7 @@ vector<pair<Catalog*, unsigned int*> > MPIDHashIndex::unpack_cong_msg(
 					&result_item.first[j].l, 1, MPI_UNSIGNED, m_comm);
 			MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &element_num,
 					1, MPI_UNSIGNED, m_comm);
+			result_item.first[j].bucket = new Bucket;
 			for (unsigned int k = 0; k < element_num; k++) {
 				IndexHead* index_head = new IndexHead();
 				unsigned int id_len, info_len;
@@ -904,11 +960,16 @@ vector<pair<Catalog*, unsigned int*> > MPIDHashIndex::unpack_cong_msg(
 					index_item->next = NULL;
 					p = index_item;
 				}
+				p = index_head->inverted_index;
+				while (p != NULL) {
+					p = p->next;
+				}
 				result_item.first[j].bucket->elements.push_back(*index_head);
 			}
 		}
 		result.push_back(result_item);
 	}
+
 	return result;
 }
 
@@ -974,6 +1035,7 @@ pair<Catalog*, unsigned int*> MPIDHashIndex::unpack_conb_msg(
 	//目录数量
 	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result.second + 1, 1,
 			MPI_UNSIGNED, m_comm);
+
 	//分配结果目录空间
 	result.first = new Catalog[result.second[1]];
 
@@ -984,6 +1046,7 @@ pair<Catalog*, unsigned int*> MPIDHashIndex::unpack_conb_msg(
 				1, MPI_UNSIGNED, m_comm);
 		MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &element_num, 1,
 				MPI_UNSIGNED, m_comm);
+		result.first[i].bucket = new Bucket();
 		for (unsigned int j = 0; j < element_num; j++) {
 			IndexHead* index_head = new IndexHead();
 			unsigned int id_len, info_len;

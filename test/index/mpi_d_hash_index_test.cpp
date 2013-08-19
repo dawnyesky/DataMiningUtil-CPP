@@ -27,15 +27,14 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 	start = clock();
 	unsigned int record_num = 15;
 	unsigned int term_num_per_record = 5;
-//	unsigned int intersect_iden_num = 2;
+	unsigned int intersect_iden_num = 2;
 	bool print_index = true;
-//	bool print_inteFrsect_record_num = true;
+	bool print_intersect_record_num = false;
 	const char* identifiers[11] = { "chicken", "dog", "bumblebee", "cat",
 			"hello kitty", "snoopy", "sheldon", "penny", "saber", "archer",
 			"T-Pat" };
 
 	MPIDHashIndex index = MPIDHashIndex(MPI_COMM_WORLD );
-	index.init();
 
 	const char *identifier = NULL;
 	unsigned int iden_index, hashcode;
@@ -79,7 +78,6 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 	}
 
 	index.synchronize();
-	index.consolidate();
 
 	if (print_index) {
 		printf("The index after synchronize:\n");
@@ -108,20 +106,60 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 		}
 	}
 
-//	if (print_intersect_record_num) {
-//		printf("Intersect record id of ");
-//		for (unsigned int i = 0; i < intersect_iden_num; i++) {
-//			printf("%s, ", identifiers[i]);
-//		}
-//		printf("is: ");
-//		unsigned int *records = index.get_intersect_records(identifiers,
-//				intersect_iden_num);
-//		for (unsigned int i = 1; i <= records[0]; i++) {
-//			printf("%u, ", records[i]);
-//		}
-//		printf("\n");
-//		delete[] records;
-//	}
+	index.consolidate();
+
+	if (print_index) {
+		printf("The index after consolidate:\n");
+		Catalog* catalogs = (Catalog*) index.get_hash_table();
+		for (unsigned int i = 0;
+				i < (unsigned int) pow(2, index.get_global_deep()); i++) {
+			if (catalogs[i].bucket != NULL) {
+				vector<IndexHead> elements = catalogs[i].bucket->elements;
+				for (unsigned int j = 0; j < elements.size(); j++) {
+//					if (i == 2 && j == 1) {
+//						printf("Here!\n");
+//						for (unsigned int i = 0; i < 11; i++) {
+//							printf("const id:%u;%s\n", i, identifiers[i]);
+//						}
+//						printf("index:%i!\n",
+//								ysk_atoi(elements[j].key_info,
+//										strlen(elements[j].key_info)));
+//						printf("id:%s\n", identifiers[1]);
+//					}
+//					identifier = identifiers[ysk_atoi(elements[j].key_info,
+//							strlen(elements[j].key_info))];
+					identifier = elements[j].identifier;
+					printf(
+							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
+							i, index.hashfunc(identifier, strlen(identifier)),
+							identifier, elements[j].index_item_num);
+					unsigned int records[index.get_mark_record_num(identifier,
+							strlen(identifier))];
+					unsigned int num = index.find_record(records, identifier,
+							strlen(identifier));
+					for (unsigned int j = 0; j < num; j++) {
+						printf("%u, ", records[j]);
+					}
+					printf("\n");
+				}
+			}
+		}
+	}
+
+	if (print_intersect_record_num && pid == 0) {
+		printf("Intersect record id of ");
+		for (unsigned int i = 0; i < intersect_iden_num; i++) {
+			printf("%s, ", identifiers[i]);
+		}
+		printf("is: ");
+		unsigned int *records = index.get_intersect_records(identifiers,
+				intersect_iden_num);
+		for (unsigned int i = 1; i <= records[0]; i++) {
+			printf("%u, ", records[i]);
+		}
+		printf("\n");
+		delete[] records;
+	}
 
 	finish = clock();
 	duration = (float) (finish - start) / (CLOCKS_PER_SEC);

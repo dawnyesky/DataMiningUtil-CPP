@@ -115,7 +115,8 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	//处理发散数据，读取本进程负责的资源
 	m_record_offset = scafile_recv_msg.second;
 	for (unsigned int i = 0; i < scafile_recv_msg.first->size(); i++) {
-		hi_extract_record(strcat(fpath, scafile_recv_msg.first->at(i))); //item,record的索引都要改
+		strcpy(fpath, INPUT_DIR);
+		hi_extract_record(strcat(fpath, scafile_recv_msg.first->at(i)));
 	}
 
 	if (pid == m_root_pid) {
@@ -153,7 +154,7 @@ bool MPIDocTextExtractor::hi_extract_record(void* data_addr) {
 		}
 		return false;
 	}
-
+//	printf("Process %i is reading:%s\n", pid, file_path);
 	//抽取record_info
 	DocTextRecordInfo record_info = DocTextRecordInfo(file_path);
 	m_record_infos->push_back(record_info);
@@ -228,7 +229,7 @@ bool MPIDocTextExtractor::hi_extract_record(void* data_addr) {
 				strcpy(global_key_info, pid_str);
 				strcat(global_key_info, "#");
 				strcat(global_key_info, key_info);
-				printf("Global key_info:%s\n", global_key_info);
+//				printf("Global key_info:%s\n", global_key_info);
 				m_item_index->insert(word, length, global_key_info,
 						m_record_offset + m_record_infos->size() - 1);
 			}

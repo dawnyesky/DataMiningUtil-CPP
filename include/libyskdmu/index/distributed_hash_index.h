@@ -10,8 +10,12 @@
 
 #include "libyskdmu/index/dynamic_hash_index.h"
 
-class DistributedHashIndex {
+class DistributedHashIndex: public DynamicHashIndex {
 public:
+	DistributedHashIndex(unsigned int bucket_size, unsigned int global_deep) :
+			DynamicHashIndex(bucket_size, global_deep) {
+		m_root_pid = 0;
+	}
 	virtual ~DistributedHashIndex() {
 	}
 
