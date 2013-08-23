@@ -31,7 +31,7 @@ private:
 	int m_root_pid;
 	unsigned int m_record_offset;
 	unsigned int m_item_detail_offset;
-	const static unsigned int SCAFILE_BUF_SIZE = 4096;
+	const static unsigned int SCAFILE_BUF_SIZE = 409600;
 };
 
 #endif /* MPI_DOC_TEXT_EXTRACTOR_H_ */

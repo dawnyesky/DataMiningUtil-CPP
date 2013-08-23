@@ -43,12 +43,17 @@ public:
 	char *m_type; //词性
 };
 
-class DocTextRecordInfo {
+class DocTextRecordInfo: public RecordInfo {
 public:
-	DocTextRecordInfo(char* doc_name);
+	DocTextRecordInfo();
+	DocTextRecordInfo(char* doc_name, unsigned long long int tid = 0);
 	DocTextRecordInfo(const DocTextRecordInfo& record_info);
 	virtual ~DocTextRecordInfo();
 
+	virtual int get_mpi_pack_size(MPI_Comm comm);
+	virtual pair<void*, int> mpi_pack(MPI_Comm comm);
+	static bool mpi_unpack(void *inbuf, int insize, int *position,
+			DocTextRecordInfo *outbuf, unsigned int outcount, MPI_Comm comm);
 public:
 	char *m_doc_name;
 };

@@ -111,7 +111,7 @@ bool TradeXmlExtractor::extract_record(void* data_addr) {
 			//抽取record_info
 			if (m_record_infos != NULL) {
 				RecordInfo record_info;
-				record_info.tid = atoi((char*) tid_str);
+				record_info.m_tid = atoi((char*) tid_str);
 				m_record_infos->push_back(record_info);
 			}
 
@@ -224,7 +224,7 @@ bool TradeXmlExtractor::hi_extract_record(void* data_addr) {
 
 			//抽取record_info
 			RecordInfo record_info;
-			record_info.tid = atoi((char*) tid_str);
+			record_info.m_tid = atoi((char*) tid_str);
 			m_record_infos->push_back(record_info);
 
 			//抽取data

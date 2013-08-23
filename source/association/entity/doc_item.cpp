@@ -108,20 +108,67 @@ bool DocItemDetail::mpi_unpack(void *inbuf, int insize, int *position,
 	return true;
 }
 
-DocTextRecordInfo::DocTextRecordInfo(char* doc_name) {
+DocTextRecordInfo::DocTextRecordInfo() {
+	m_doc_name = NULL;
+	m_tid = 0;
+}
+
+DocTextRecordInfo::DocTextRecordInfo(char* doc_name,
+		unsigned long long int tid) {
 	if (doc_name != NULL) {
 		m_doc_name = new char[strlen(doc_name) + 1];
 		strcpy(m_doc_name, doc_name);
 	}
+	m_tid = tid;
 }
 DocTextRecordInfo::DocTextRecordInfo(const DocTextRecordInfo& record_info) {
 	if (record_info.m_doc_name != NULL) {
 		m_doc_name = new char[strlen(record_info.m_doc_name) + 1];
 		strcpy(m_doc_name, record_info.m_doc_name);
 	}
+	m_tid = record_info.m_tid;
 }
 DocTextRecordInfo::~DocTextRecordInfo() {
 	if (m_doc_name != NULL) {
 		delete[] m_doc_name;
 	}
+}
+
+int DocTextRecordInfo::get_mpi_pack_size(MPI_Comm comm) {
+	int uint_mpi_pack_size, docname_mpi_pack_size, result = 0;
+	MPI_Pack_size(2, MPI_UNSIGNED, comm, &uint_mpi_pack_size); //tid和docname长度
+	MPI_Pack_size(strlen(m_doc_name) + 1, MPI_CHAR, comm,
+			&docname_mpi_pack_size);
+	result = uint_mpi_pack_size + docname_mpi_pack_size;
+	return result;
+}
+pair<void*, int> DocTextRecordInfo::mpi_pack(MPI_Comm comm) {
+	pair<void*, int> result;
+
+	result.second = get_mpi_pack_size(comm);
+	result.first = malloc(result.second);
+
+	int position = 0;
+	MPI_Pack(&m_tid, 1, MPI_UNSIGNED, result.first, result.second, &position,
+			comm);
+	unsigned int docname_len = strlen(m_doc_name) + 1;
+	MPI_Pack(&docname_len, 1, MPI_UNSIGNED, result.first, result.second,
+			&position, comm);
+	MPI_Pack(m_doc_name, docname_len, MPI_CHAR, result.first, result.second,
+			&position, comm);
+	return result;
+}
+bool DocTextRecordInfo::mpi_unpack(void *inbuf, int insize, int *position,
+		DocTextRecordInfo *outbuf, unsigned int outcount, MPI_Comm comm) {
+	for (unsigned int i = 0; i < outcount; i++) {
+		unsigned int tid, docname_len;
+		MPI_Unpack(inbuf, insize, position, &tid, 1, MPI_UNSIGNED, comm);
+		outbuf[i].m_tid = tid;
+		MPI_Unpack(inbuf, insize, position, &docname_len, 1, MPI_UNSIGNED,
+				comm);
+		outbuf[i].m_doc_name = new char[docname_len];
+		MPI_Unpack(inbuf, insize, position, outbuf[i].m_doc_name, docname_len,
+				MPI_CHAR, comm);
+	}
+	return true;
 }

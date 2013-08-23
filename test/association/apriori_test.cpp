@@ -294,7 +294,7 @@ void test_apriori_strvv(unsigned int max_itemset_size = 3, double minsup = 0.6,
 			}
 		}
 		RecordInfo record_info;
-		record_info.tid = i;
+		record_info.m_tid = i;
 		trade_strvv.push_record(record_info, items);
 	}
 

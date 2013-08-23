@@ -63,10 +63,12 @@ void test_phi_apriori_doc(int argc, char *argv[],
 	for (unsigned int i = 0; i < frequent_itemsets.size(); i++) {
 		unsigned int frq_itemset_num =
 				frequent_itemsets[i].get_itemsets().size();
-		unsigned int total_frq_itemset_num;
+		unsigned int total_frq_itemset_num = 0;
 		MPI_Reduce(&frq_itemset_num, &total_frq_itemset_num, 1, MPI_UNSIGNED,
 				MPI_SUM, root_pid, MPI_COMM_WORLD );
-		frq_itemset_nums[i] = total_frq_itemset_num;
+		if (pid == root_pid) {
+			frq_itemset_nums[i] = total_frq_itemset_num;
+		}
 	}
 
 	if (pid == root_pid) {

@@ -58,7 +58,7 @@ void test_trade_x_extractor() {
 	if (print_record) {
 		printf("Record:\n");
 		for (unsigned int i = 0; i < record_infos.size(); i++) {
-			printf("ID: %u\tTid: %llu\tIterms: ", i, record_infos[i].tid);
+			printf("ID: %u\tTid: %llu\tIterms: ", i, record_infos[i].m_tid);
 			for (unsigned int j = 0; j < items[i].size(); j++) {
 				printf("%s[%u], ",
 						item_details[items[i][j].m_index].m_identifier,

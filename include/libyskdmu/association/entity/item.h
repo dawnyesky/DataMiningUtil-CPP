@@ -55,8 +55,20 @@ public:
 	char *m_identifier; //Item的标识符，唯一性标志，用作散列函数的关键字
 };
 
-struct RecordInfo {
-	unsigned long long int tid;
+class RecordInfo {
+public:
+	RecordInfo();
+	RecordInfo(const unsigned long long int tid);
+	RecordInfo(const RecordInfo& record_info);
+	virtual ~RecordInfo();
+
+	virtual int get_mpi_pack_size(MPI_Comm comm);
+	virtual pair<void*, int> mpi_pack(MPI_Comm comm);
+	static bool mpi_unpack(void *inbuf, int insize, int *position,
+			RecordInfo *outbuf, unsigned int outcount, MPI_Comm comm);
+
+public:
+	unsigned long long int m_tid;
 };
 
 #endif /* ITEM_H_ */

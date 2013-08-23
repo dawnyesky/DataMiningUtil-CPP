@@ -46,6 +46,7 @@ void DocTextExtractor::read_data(bool with_hi) {
 	char fpath[strlen(INPUT_DIR) + 256];
 	m_index.clear();
 	m_counter.clear();
+	unsigned long long int tid = 0;
 	while (NULL != (entry = readdir(pDir))) {
 		if (entry->d_type == 8) {
 			//普通文件
@@ -55,6 +56,7 @@ void DocTextExtractor::read_data(bool with_hi) {
 			} else {
 				extract_record(strcat(fpath, entry->d_name));
 			}
+			m_record_infos->at(tid).m_tid = tid++;
 		} else {
 			//目录
 		}

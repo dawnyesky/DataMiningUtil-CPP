@@ -29,6 +29,11 @@ public:
 	 *      return: 生成频繁项集是否成功
 	 */
 	bool hi_apriori();
+	void set_extractor(
+			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor);
+	virtual unsigned int get_support_count(const vector<unsigned int>& itemset);
+
+protected:
 	/*
 	 * description: 频繁项集生成函数 	F(k-1)xF(1)Method
 	 *  parameters: frq_itemset：	频繁项集容器
@@ -36,17 +41,14 @@ public:
 	 *  			  frq_1：			1项频繁项集
 	 *      return: 生成频繁项集是否成功
 	 */
-	bool hi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq,
-			KItemsets& frq_1);
+	bool hi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq1,
+			KItemsets& prv_frq2);
 	/*
 	 * description: HI-Apriori算法频繁项集过滤器
 	 *  parameters: k_itemset：	需要检查的k项频繁项集
 	 *      return: 是否是频繁项集
 	 */
 	bool hi_filter(vector<unsigned int>* k_itemset, unsigned int* support);
-	void set_extractor(
-			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor);
-	virtual unsigned int get_support_count(const vector<unsigned int>& itemset);
 
 public:
 	HashIndex* m_item_index; //以m_item_details的索引作为KeyInfo
@@ -137,29 +139,30 @@ bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
-		KItemsets& frq_itemset, KItemsets& prv_frq, KItemsets& frq_1) {
-	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets =
-			prv_frq.get_itemsets();
-	const map<vector<unsigned int>, unsigned int>& frq_1_itemsets =
-			frq_1.get_itemsets();
+		KItemsets& frq_itemset, KItemsets& prv_frq1, KItemsets& prv_frq2) {
+	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
+			prv_frq1.get_itemsets();
+	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
+			prv_frq2.get_itemsets();
 	vector<unsigned int>* k_itemset = NULL;
 
 	/* 潜在频繁项集生成 */
-	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter =
-			prv_frq_itemsets.begin(); prv_frq_iter != prv_frq_itemsets.end();
-			prv_frq_iter++) {
-		for (map<vector<unsigned int>, unsigned int>::const_iterator frq_1_iter =
-				frq_1_itemsets.begin(); frq_1_iter != frq_1_itemsets.end();
-				frq_1_iter++) {
+	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq1_iter =
+			prv_frq_itemsets1.begin(); prv_frq1_iter != prv_frq_itemsets1.end();
+			prv_frq1_iter++) {
+		for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq2_iter =
+				prv_frq_itemsets2.begin();
+				prv_frq2_iter != prv_frq_itemsets2.end(); prv_frq2_iter++) {
 
 			/************************** 项目集连接与过滤 **************************/
 			//求并集
-			k_itemset = KItemsets::union_set(prv_frq_iter->first,
-					frq_1_iter->first);
+			k_itemset = KItemsets::union_set(prv_frq1_iter->first,
+					prv_frq2_iter->first);
 
 			//过滤并保存潜在频繁项集
 			unsigned int support;
-			if (this->filter(frq_itemset, prv_frq, k_itemset)
+			if (k_itemset->size() == prv_frq1.get_term_num() + 1
+					&& this->filter(frq_itemset, prv_frq1, k_itemset)
 					&& hi_filter(k_itemset, &support)) {
 				frq_itemset.push(*k_itemset, support);
 				this->logItemset("Frequent", k_itemset->size(), *k_itemset,

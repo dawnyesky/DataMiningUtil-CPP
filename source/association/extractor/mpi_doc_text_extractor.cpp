@@ -79,6 +79,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		closedir(pDir);
 
 		//准备Scatter数据
+		assert(files.size() >= numprocs);
 		unsigned int file_per_proc = files.size() / numprocs;
 		vector<vector<char*> > v_files;
 		vector<char*>::iterator iter = files.begin();
@@ -92,7 +93,9 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		v_files.push_back(files_per_proc);
 
 		//打包Scatter消息
+		printf("start pack scafile msg\n");
 		scafile_send_msg_pkg = pack_scafile_msg(v_files);
+		printf("end pack scafile msg\n");
 		displs[0] = 0;
 		for (unsigned int i = 1; i < numprocs; i++) {
 			displs[i] = displs[i - 1] + scafile_send_msg_pkg.second[i - 1];
@@ -117,6 +120,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	for (unsigned int i = 0; i < scafile_recv_msg.first->size(); i++) {
 		strcpy(fpath, INPUT_DIR);
 		hi_extract_record(strcat(fpath, scafile_recv_msg.first->at(i)));
+		m_record_infos->at(m_record_infos->size() - 1).m_tid = i;
 	}
 
 	if (pid == m_root_pid) {

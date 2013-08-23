@@ -79,7 +79,7 @@ bool TradeTextExtractor::extract_record(void* data_addr) {
 		//抽取record_info
 		if (m_record_infos != NULL) {
 			RecordInfo record_info;
-			record_info.tid = iter->first;
+			record_info.m_tid = iter->first;
 			m_record_infos->push_back(record_info);
 		}
 

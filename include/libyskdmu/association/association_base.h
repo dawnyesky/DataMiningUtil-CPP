@@ -16,6 +16,12 @@
 #include "libyskdmu/counter/hash_table_counter.h"
 #include "libyskdmu/association/extractor/extractor_interface.h"
 
+struct AssocBaseRule {
+	vector<unsigned int> condition;
+	vector<unsigned int> consequent;
+	double confidence;
+};
+
 template<typename ItemDetail>
 struct AssociationRule {
 	vector<ItemDetail> condition;
@@ -34,15 +40,15 @@ public:
 	void set_assoc_rules(vector<AssociationRule<ItemDetail> >* assoc_rules);
 	virtual void set_extractor(
 			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor) = 0;
-	virtual unsigned int get_support_count(
-			const vector<unsigned int>& itemset) = 0;
 	void enable_log(bool enabled);
 
 	bool genrules();
-	void rec_genrules(vector<unsigned int>& frq_itemset,
-			vector<vector<unsigned int> >& consequents);
 
 protected:
+	virtual unsigned int get_support_count(
+			const vector<unsigned int>& itemset) = 0;
+	void rec_genrules(vector<unsigned int>& frq_itemset,
+			vector<vector<unsigned int> >& consequents);
 	void logItemset(const char* type, unsigned int k,
 			vector<unsigned int>& itemset, unsigned int support);
 	char* print_itemset(vector<unsigned int>& itemset);
@@ -58,6 +64,7 @@ public:
 	KItemsets* m_current_itemsets;
 
 protected:
+	vector<AssocBaseRule> m_assoc_base_rules;
 	LogInstance* log; //日志指针
 	unsigned int m_max_itemset_size; //频繁项集的最大次数
 	double m_minsup; //最小支持度
@@ -154,16 +161,22 @@ void AssocBase<ItemType, ItemDetail, RecordInfoType>::rec_genrules(
 					*subtract_itemset);
 			double confidence = (double) frequent_sup / (double) condition_sup;
 			if (confidence >= m_minconf) {
+				AssocBaseRule assoc_base_rule;
 				AssociationRule<ItemDetail> assoc_rule;
 				for (unsigned int i = 0; i < subtract_itemset->size(); i++) {
+					assoc_base_rule.condition.push_back(
+							subtract_itemset->at(i));
 					assoc_rule.condition.push_back(
 							m_item_details[subtract_itemset->at(i)]);
 				}
 				for (unsigned int i = 0; i < iter->size(); i++) {
+					assoc_base_rule.consequent.push_back(iter->at(i));
 					assoc_rule.consequent.push_back(
 							m_item_details[iter->at(i)]);
 				}
+				assoc_base_rule.confidence = confidence;
 				assoc_rule.confidence = confidence;
+				this->m_assoc_base_rules.push_back(assoc_base_rule);
 				this->m_assoc_rules->push_back(assoc_rule);
 				iter++;
 			} else {
@@ -207,13 +220,13 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void AssocBase<ItemType, ItemDetail, RecordInfoType>::logItemset(
 		const char* type, unsigned int k, vector<unsigned int>& itemset,
 		unsigned int support) {
-	if (this->enable_log_itemsets && log->isDebugEnabled()) {
-		char* itemset_str = print_itemset(itemset);
+	if (this->enable_log_itemsets && this->log->isDebugEnabled()) {
+		char* itemset_str = this->print_itemset(itemset);
 		if (support > 0) {
-			log->debug("%s %u-itemsets: { %s }, support count: %u", type, k,
-					itemset_str, support);
+			this->log->debug("%s %u-itemsets: { %s }, support count: %u", type,
+					k, itemset_str, support);
 		} else {
-			log->debug("%s %u-itemsets: { %s }", type, k, itemset_str);
+			this->log->debug("%s %u-itemsets: { %s }", type, k, itemset_str);
 		}
 		delete itemset_str;
 	}

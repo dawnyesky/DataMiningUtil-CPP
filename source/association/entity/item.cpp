@@ -116,3 +116,43 @@ bool ItemDetail::mpi_unpack(void *inbuf, int insize, int *position,
 	}
 	return true;
 }
+
+RecordInfo::RecordInfo() {
+	m_tid = 0;
+}
+RecordInfo::RecordInfo(const unsigned long long int tid) {
+	m_tid = tid;
+}
+RecordInfo::RecordInfo(const RecordInfo& record_info) {
+	m_tid = record_info.m_tid;
+}
+RecordInfo::~RecordInfo() {
+
+}
+
+int RecordInfo::get_mpi_pack_size(MPI_Comm comm) {
+	int tid_mpi_pack_size, result = 0;
+	MPI_Pack_size(1, MPI_UNSIGNED, comm, &tid_mpi_pack_size);
+	result = tid_mpi_pack_size;
+	return result;
+}
+pair<void*, int> RecordInfo::mpi_pack(MPI_Comm comm) {
+	pair<void*, int> result;
+
+	result.second = get_mpi_pack_size(comm);
+	result.first = malloc(result.second);
+
+	int position = 0;
+	MPI_Pack(&m_tid, 1, MPI_UNSIGNED, result.first, result.second, &position,
+			comm);
+	return result;
+}
+bool RecordInfo::mpi_unpack(void *inbuf, int insize, int *position,
+		RecordInfo *outbuf, unsigned int outcount, MPI_Comm comm) {
+	for (unsigned int i = 0; i < outcount; i++) {
+		unsigned int tid = 0;
+		MPI_Unpack(inbuf, insize, position, &tid, 1, MPI_UNSIGNED, comm);
+		outbuf[i].m_tid = tid;
+	}
+	return true;
+}
