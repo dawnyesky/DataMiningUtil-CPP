@@ -15,8 +15,6 @@
 
 using namespace std;
 
-static const char ICTCLAS_INIT_DIR[] = "/home/caspar/workspace/eclipse/DataMiningUtil/shared/ICTCLAS";
-static const char INPUT_DIR[] = "/home/caspar/workspace/eclipse/DataMiningUtil/shared/GoalFiles/";
 static const eCodeType CODETYPE = CODE_TYPE_GB;
 
 class DocTextExtractor: public Extractor<DocItem, DocItemDetail,

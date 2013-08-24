@@ -13,6 +13,7 @@
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/util/charset_util.h"
 #include "libyskdmu/util/search_util.h"
+#include "libyskdmu/util/conf_util.h"
 #include "libyskdmu/association/extractor/mpi_doc_text_extractor.h"
 
 MPIDocTextExtractor::MPIDocTextExtractor(MPI_Comm comm, int root_pid) {
@@ -20,6 +21,7 @@ MPIDocTextExtractor::MPIDocTextExtractor(MPI_Comm comm, int root_pid) {
 	m_root_pid = root_pid;
 	m_record_offset = 0;
 	m_item_detail_offset = 0;
+	this->init();
 }
 
 MPIDocTextExtractor::MPIDocTextExtractor(
@@ -43,14 +45,29 @@ MPIDocTextExtractor::~MPIDocTextExtractor() {
 
 void MPIDocTextExtractor::read_data(bool with_hi) {
 #ifndef __MINGW32__
-	if (!ICTCLAS_Init(ICTCLAS_INIT_DIR)) {
+	ConfInstance* conf_instance = ConfUtil::get_instance()->get_conf_instance(
+			"global");
+	const char* conf_root_dir = conf_instance->get_configuration("ROOT_DIR");
+	const char* ictclas_init_short_dir = conf_instance->get_configuration(
+			"ICTCLAS_INIT_DIR");
+	char ictclas_init_dir[strlen(conf_root_dir) + strlen(ictclas_init_short_dir)
+			+ 1];
+	strcpy(ictclas_init_dir, conf_root_dir);
+	strcat(ictclas_init_dir, ictclas_init_short_dir);
+	if (!ICTCLAS_Init(ictclas_init_dir)) {
 		log->error("ICTCLAS Init Failed.\n");
 		return;
 	}
 	ICTCLAS_SetPOSmap(ICT_POS_MAP_SECOND);
 
-	char fpath[strlen(INPUT_DIR) + 256];
-	strcpy(fpath, INPUT_DIR);
+	const char* input_short_dir = conf_instance->get_configuration("INPUT_DIR");
+	char input_dir[strlen(conf_root_dir) + strlen(input_short_dir) + 2];
+	strcpy(input_dir, conf_root_dir);
+	strcat(input_dir, input_short_dir);
+	strcat(input_dir, "/");
+
+	char fpath[strlen(input_dir) + 256];
+	strcpy(fpath, input_dir);
 
 	int pid, numprocs;
 	MPI_Comm_rank(m_comm, &pid);
@@ -62,7 +79,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 
 	if (pid == m_root_pid) {
 		dirent *entry = NULL;
-		DIR *pDir = opendir(INPUT_DIR);
+		DIR *pDir = opendir(input_dir);
 		m_index.clear();
 		m_counter.clear();
 
@@ -93,9 +110,9 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		v_files.push_back(files_per_proc);
 
 		//打包Scatter消息
-		printf("start pack scafile msg\n");
+//		printf("start pack scafile msg\n");
 		scafile_send_msg_pkg = pack_scafile_msg(v_files);
-		printf("end pack scafile msg\n");
+//		printf("end pack scafile msg\n");
 		displs[0] = 0;
 		for (unsigned int i = 1; i < numprocs; i++) {
 			displs[i] = displs[i - 1] + scafile_send_msg_pkg.second[i - 1];
@@ -118,9 +135,10 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	//处理发散数据，读取本进程负责的资源
 	m_record_offset = scafile_recv_msg.second;
 	for (unsigned int i = 0; i < scafile_recv_msg.first->size(); i++) {
-		strcpy(fpath, INPUT_DIR);
-		hi_extract_record(strcat(fpath, scafile_recv_msg.first->at(i)));
-		m_record_infos->at(m_record_infos->size() - 1).m_tid = i;
+		strcpy(fpath, input_dir);
+		if (hi_extract_record(strcat(fpath, scafile_recv_msg.first->at(i)))) {
+			m_record_infos->at(m_record_infos->size() - 1).m_tid = i;
+		}
 	}
 
 	if (pid == m_root_pid) {

@@ -7,7 +7,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
+#include "libyskdmu/util/conf_util.h"
 #include "libyskdmu/util/log_util.h"
 
 LogUtil* LogUtil::m_instance = NULL;
@@ -16,7 +18,16 @@ bool LogUtil::is_configured = false;
 LogUtil::LogUtil() {
 #ifndef __MINGW32__
 	try {
-		log4cpp::PropertyConfigurator::configure("./shared/log4cpp.conf");
+		ConfUtil* conf_util = ConfUtil::get_instance();
+		ConfInstance* conf_instance = conf_util->get_conf_instance("global");
+		const char* conf_root_dir = conf_instance->get_configuration(
+				"ROOT_DIR");
+		const char* log4cpp_conf_path = conf_instance->get_configuration(
+				"LOG4CPP_CONF_PATH");
+		char log4cpp_conf[strlen(conf_root_dir) + strlen(log4cpp_conf_path) + 1];
+		strcpy(log4cpp_conf, conf_root_dir);
+		strcat(log4cpp_conf, log4cpp_conf_path);
+		log4cpp::PropertyConfigurator::configure(log4cpp_conf);
 		is_configured = true;
 	} catch (log4cpp::ConfigureFailure& f) {
 		printf("Configure Problem: %s\n", f.what());
@@ -49,16 +60,16 @@ void LogUtil::destroy_instance() {
 }
 
 LogInstance* LogUtil::get_log_instance(const char* identifier) {
-	map<const char*, LogInstance*>::const_iterator log_instance =
-			m_log_instances.find(identifier);
-	if (log_instance != m_log_instances.end()) {
-		return log_instance->second;
-	} else {
-		LogInstance* log_ptr = new LogInstance(identifier);
-		m_log_instances.insert(
-				pair<const char*, LogInstance*>(identifier, log_ptr));
-		return log_ptr;
+	for (map<const char*, LogInstance*>::const_iterator iter =
+			m_log_instances.begin(); iter != m_log_instances.end(); iter++) {
+		if (strcmp(iter->first, identifier) == 0) {
+			return iter->second;
+		}
 	}
+	LogInstance* log_ptr = new LogInstance(identifier);
+	m_log_instances.insert(
+			pair<const char*, LogInstance*>(identifier, log_ptr));
+	return log_ptr;
 }
 
 LogInstance::LogInstance(const char* identifier) {

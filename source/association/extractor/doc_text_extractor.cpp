@@ -12,6 +12,7 @@
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/util/charset_util.h"
 #include "libyskdmu/util/search_util.h"
+#include "libyskdmu/util/conf_util.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 
 DocTextExtractor::DocTextExtractor() {
@@ -35,28 +36,46 @@ DocTextExtractor::~DocTextExtractor() {
 //做成守护进程，遇到新文件就调用extract_records()
 void DocTextExtractor::read_data(bool with_hi) {
 #ifndef __MINGW32__
-	if (!ICTCLAS_Init(ICTCLAS_INIT_DIR)) {
+	ConfInstance* conf_instance = ConfUtil::get_instance()->get_conf_instance(
+			"global");
+	const char* conf_root_dir = conf_instance->get_configuration("ROOT_DIR");
+	const char* ictclas_init_short_dir = conf_instance->get_configuration(
+			"ICTCLAS_INIT_DIR");
+	char ictclas_init_dir[strlen(conf_root_dir) + strlen(ictclas_init_short_dir)
+			+ 1];
+	strcpy(ictclas_init_dir, conf_root_dir);
+	strcat(ictclas_init_dir, ictclas_init_short_dir);
+	if (!ICTCLAS_Init(ictclas_init_dir)) {
 		log->error("ICTCLAS Init Failed.\n");
 		return;
 	}
 	ICTCLAS_SetPOSmap(ICT_POS_MAP_SECOND);
 
+	const char* input_short_dir = conf_instance->get_configuration("INPUT_DIR");
+	char input_dir[strlen(conf_root_dir) + strlen(input_short_dir) + 2];
+	strcpy(input_dir, conf_root_dir);
+	strcat(input_dir, input_short_dir);
+	strcat(input_dir, "/");
+
 	dirent *entry = NULL;
-	DIR *pDir = opendir(INPUT_DIR);
-	char fpath[strlen(INPUT_DIR) + 256];
+	DIR *pDir = opendir(input_dir);
+	char fpath[strlen(input_dir) + 256];
 	m_index.clear();
 	m_counter.clear();
 	unsigned long long int tid = 0;
 	while (NULL != (entry = readdir(pDir))) {
 		if (entry->d_type == 8) {
 			//普通文件
-			strcpy(fpath, INPUT_DIR);
+			strcpy(fpath, input_dir);
+			bool succeed = false;
 			if (with_hi) {
-				hi_extract_record(strcat(fpath, entry->d_name));
+				succeed = hi_extract_record(strcat(fpath, entry->d_name));
 			} else {
-				extract_record(strcat(fpath, entry->d_name));
+				succeed = extract_record(strcat(fpath, entry->d_name));
 			}
-			m_record_infos->at(tid).m_tid = tid++;
+			if (succeed && m_record_infos != NULL) {
+				m_record_infos->at(tid).m_tid = tid++;
+			}
 		} else {
 			//目录
 		}
