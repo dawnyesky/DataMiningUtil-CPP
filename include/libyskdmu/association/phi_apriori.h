@@ -193,7 +193,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	/* F2~n generation */
 	for (unsigned int i = 0; i + 1 < this->m_max_itemset_size; i++) {
 		frq_itemsets = new KItemsets(i + 2,
-				2.5 * combine(this->m_item_details.size(), i + 2));
+				1.5 * combine(this->m_item_details.size(), i + 2));
 
 		//复制当前(k-1)频繁项集到接收缓冲区
 		this->m_itemset_recv_buf = new KItemsets(

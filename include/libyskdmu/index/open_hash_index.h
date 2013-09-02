@@ -129,6 +129,8 @@ protected:
 protected:
 	IndexHead **m_hash_table; //哈系表
 	ProbeFunc m_probe_func; //探查序列函数指针
+
+	const static unsigned int MAX_TABLE_SIZE = 134217728;
 };
 
 #endif /* OPEN_HASH_INDEX_H_ */

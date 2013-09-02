@@ -124,7 +124,7 @@ bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_apriori() {
 			this->m_frequent_itemsets->size() == i + 1
 					&& i + 1 < this->m_max_itemset_size; i++) {
 		frq_itemsets = new KItemsets(i + 2,
-				2.5 * combine(this->m_item_details.size(), i + 2));
+				1.5 * combine(this->m_item_details.size(), i + 2));
 		if (!hi_frq_gen(*frq_itemsets, this->m_frequent_itemsets->at(i),
 				this->m_frequent_itemsets->at(0))) {
 			return false;

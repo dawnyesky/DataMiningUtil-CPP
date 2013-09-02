@@ -191,7 +191,7 @@ void AssocBase<ItemType, ItemDetail, RecordInfoType>::rec_genrules(
 			vector<vector<unsigned int> > next_consequent;
 			KItemsets indefinite_size_itemset = KItemsets(
 					consequents[0].size() + 1,
-					2 * combine(consequents.size(), 2));
+					1.5 * combine(consequents.size(), 2));
 			for (unsigned int i = 0; i < consequents.size() - 1; i++) {
 				for (unsigned int j = i + 1; j < consequents.size(); j++) {
 					vector<unsigned int>* union_itemset = KItemsets::union_set(

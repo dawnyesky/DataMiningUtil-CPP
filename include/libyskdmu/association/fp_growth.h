@@ -238,10 +238,10 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	//对FP-Tree进行挖掘，找出所有频繁项集
 	vector<KItemsets> k_itemsets;
 	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
-		//初始化KItemsets需要谨慎，这里取的是平均值的两倍，太大会占用过多内存
+		//初始化KItemsets需要谨慎，这里取的是平均值的1.5倍，太大会占用过多内存
 		k_itemsets.push_back(
 				KItemsets(i + 1,
-						2.5 * combine(this->m_item_details.size(), i + 1)));
+						1.5 * combine(this->m_item_details.size(), i + 1)));
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		m_pattern_base.push_back(k_itemsets);

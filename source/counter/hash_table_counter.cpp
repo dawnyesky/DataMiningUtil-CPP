@@ -29,43 +29,55 @@ unsigned int probe(const unsigned int *key, unsigned int length,
 HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension) {
 	m_dimension = dimension;
 	m_size = size;
-	m_table_size = combine(m_size, m_dimension) * 2.5; //哈希表大小
+	m_table_size = combine(m_size, m_dimension) * 1.5; //哈希表大小
 	if (0 == m_table_size)
 		m_table_size = 100;
+	if (m_table_size > MAX_TABLE_SIZE) {
+		m_table_size = MAX_TABLE_SIZE;
+	}
 	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		m_hash_table[i] = NULL;
 	}
 	m_hash_func = &hash;
 	m_probe_func = &probe;
-	this->m_log_fp = LogUtil::get_instance()->get_log_instance("hashTableCounter");
+	this->m_log_fp = LogUtil::get_instance()->get_log_instance(
+			"hashTableCounter");
 }
 
 HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
 		IHashFunc hash_func, IProbeFunc probe_func) {
 	m_dimension = dimension;
 	m_size = size;
-	m_table_size = combine(m_size, m_dimension) * 2.5; //哈希表大小
+	m_table_size = combine(m_size, m_dimension) * 1.5; //哈希表大小
+	if (m_table_size > MAX_TABLE_SIZE) {
+		m_table_size = MAX_TABLE_SIZE;
+	}
 	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		m_hash_table[i] = NULL;
 	}
 	m_hash_func = (NULL == hash_func ? &hash : hash_func);
 	m_probe_func = (NULL == probe_func ? &probe : probe_func);
-	this->m_log_fp = LogUtil::get_instance()->get_log_instance("hashTableCounter");
+	this->m_log_fp = LogUtil::get_instance()->get_log_instance(
+			"hashTableCounter");
 }
 
 HashTableCounter::HashTableCounter(const HashTableCounter& counter) {
 	m_dimension = counter.m_dimension;
 	m_size = counter.m_size;
-	m_table_size = combine(m_size, m_dimension) * 2.5; //哈希表大小
+	m_table_size = combine(m_size, m_dimension) * 1.5; //哈希表大小
+	if (m_table_size > MAX_TABLE_SIZE) {
+		m_table_size = MAX_TABLE_SIZE;
+	}
 	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		m_hash_table[i] = NULL;
 	}
 	m_hash_func = counter.m_hash_func;
 	m_probe_func = counter.m_probe_func;
-	this->m_log_fp = LogUtil::get_instance()->get_log_instance("hashTableCounter");
+	this->m_log_fp = LogUtil::get_instance()->get_log_instance(
+			"hashTableCounter");
 }
 
 HashTableCounter::~HashTableCounter() {

@@ -27,6 +27,9 @@ OpenHashIndex::OpenHashIndex() {
 
 OpenHashIndex::OpenHashIndex(unsigned int table_size) {
 	m_table_size = table_size;
+	if (m_table_size > MAX_TABLE_SIZE) {
+		m_table_size = MAX_TABLE_SIZE;
+	}
 	m_hash_table = new IndexHead*[m_table_size];
 	for (unsigned int i = 0; i < m_table_size; i++)
 		m_hash_table[i] = NULL;
@@ -38,6 +41,9 @@ OpenHashIndex::OpenHashIndex(unsigned int table_size) {
 OpenHashIndex::OpenHashIndex(unsigned int table_size, HashFunc hash_func,
 		ProbeFunc probe_func) {
 	m_table_size = table_size;
+	if (m_table_size > MAX_TABLE_SIZE) {
+		m_table_size = MAX_TABLE_SIZE;
+	}
 	m_hash_table = new IndexHead*[m_table_size];
 	for (unsigned int i = 0; i < m_table_size; i++)
 		m_hash_table[i] = NULL;
@@ -48,6 +54,9 @@ OpenHashIndex::OpenHashIndex(unsigned int table_size, HashFunc hash_func,
 
 OpenHashIndex::OpenHashIndex(const OpenHashIndex& hash_index) {
 	m_table_size = hash_index.m_table_size;
+	if (m_table_size > MAX_TABLE_SIZE) {
+		m_table_size = MAX_TABLE_SIZE;
+	}
 	m_hash_table = new IndexHead*[hash_index.m_table_size];
 	for (unsigned int i = 0; i < hash_index.m_table_size; i++) {
 		if (NULL != hash_index.m_hash_table[i]) {

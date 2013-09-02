@@ -142,7 +142,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 					&& i + 1 < this->m_max_itemset_size; i++) {
 
 		KItemsets candidate_itemsets = KItemsets(i + 2,
-				2.5 * combine(this->m_item_details.size(), i + 2));
+				1.5 * combine(this->m_item_details.size(), i + 2));
 		if (!candidate_gen(candidate_itemsets, this->m_frequent_itemsets->at(i),
 				this->m_frequent_itemsets->at(0))) {
 			return false;
@@ -150,7 +150,7 @@ bool Apriori<ItemType, ItemDetail, RecordInfoType>::apriori() {
 
 		this->m_current_itemsets = &candidate_itemsets;
 		frq_itemsets = new KItemsets(i + 2,
-				2.5 * combine(this->m_item_details.size(), i + 2));
+				1.5 * combine(this->m_item_details.size(), i + 2));
 
 		//扫描数据集检查是否频繁
 		//没有存储结构start

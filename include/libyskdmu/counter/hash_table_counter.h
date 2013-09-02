@@ -75,6 +75,8 @@ private:
 	IHashFunc m_hash_func; //哈希函数指针
 	IProbeFunc m_probe_func; //探查序列函数指针
 	LogInstance* m_log_fp; //日志文件指针
+
+	const static unsigned int MAX_TABLE_SIZE = 134217728; //哈希表最大的大小，索引数组占用了512M内存
 };
 
 #endif /* HASH_TABLE_COUNTER_H_ */
