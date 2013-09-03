@@ -46,7 +46,7 @@ void test_fp_growth_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	bool succeed = true;
 	succeed &= fp_growth.fp_growth();
 	succeed &= fp_growth.genrules();
-	printf(succeed ? "FP-Growth Succeed!\n" : "Growth Faild!\n");
+	printf(succeed ? "FP-Growth Succeed!\n" : "FP-Growth Faild!\n");
 
 	if (print_item_detial) {
 		printf("ItemDetail:\n{ ");

@@ -89,7 +89,7 @@ public:
 	virtual ~FpGrowth();
 	bool init(unsigned int max_itemset_size, double minsup, double minconf);
 	bool fp_growth();
-	void rec_fp_growth(FpTreeNode* sub_tree, vector<KItemsets> pattern_base);
+	void rec_fp_growth(FpTreeNode* sub_tree, vector<KItemsets*> pattern_base);
 	virtual void set_extractor(
 			Extractor<ItemType, ItemDetail, RecordInfoType>* extractor);
 	void bind_call_back();
@@ -104,8 +104,8 @@ public:
 
 protected:
 	vector<unsigned int> m_sorted_item_index;
-	vector<vector<KItemsets> > m_pattern_base;
-	vector<vector<HashTableCounter> > m_pattern_counter;
+	vector<vector<KItemsets*> > m_pattern_base;
+	vector<vector<HashTableCounter*> > m_pattern_counter;
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -172,7 +172,20 @@ FpGrowth<ItemType, ItemDetail, RecordInfoType>::FpGrowth() {
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 FpGrowth<ItemType, ItemDetail, RecordInfoType>::~FpGrowth() {
-
+	for (unsigned int i = 0; i < m_pattern_base.size(); i++) {
+		for (unsigned int j = 0; j < m_pattern_base[i].size(); j++) {
+			if (m_pattern_base[i][j] != NULL) {
+				delete m_pattern_base[i][j];
+			}
+		}
+	}
+	for (unsigned int i = 0; i < m_pattern_counter.size(); i++) {
+		for (unsigned int j = 0; j < m_pattern_counter[i].size(); j++) {
+			if (m_pattern_counter[i][j] != NULL) {
+				delete m_pattern_counter[i][j];
+			}
+		}
+	}
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -236,20 +249,20 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	this->m_extractor->read_data(false);
 
 	//对FP-Tree进行挖掘，找出所有频繁项集
-	vector<KItemsets> k_itemsets;
+	vector<KItemsets*> k_itemsets;
 	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
 		//初始化KItemsets需要谨慎，这里取的是平均值的1.5倍，太大会占用过多内存
 		k_itemsets.push_back(
-				KItemsets(i + 1,
+				new KItemsets(i + 1,
 						1.5 * combine(this->m_item_details.size(), i + 1)));
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		m_pattern_base.push_back(k_itemsets);
 	}
-	vector<HashTableCounter> pattern_counter;
+	vector<HashTableCounter*> pattern_counter;
 	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
 		pattern_counter.push_back(
-				HashTableCounter(this->m_item_details.size(), i + 1));
+				new HashTableCounter(this->m_item_details.size(), i + 1));
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		m_pattern_counter.push_back(pattern_counter);
@@ -266,17 +279,19 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 			vector<unsigned int> current;
 			current.push_back(j);
 			map<vector<unsigned int>, unsigned int> pattern_base =
-					m_pattern_base[j][i].get_itemsets();
+					m_pattern_base[j][i]->get_itemsets();
 			for (map<vector<unsigned int>, unsigned int>::const_iterator iter =
 					pattern_base.begin(); iter != pattern_base.end(); iter++) {
-				unsigned int support = m_pattern_counter[j][i].get_count(
+				unsigned int support = m_pattern_counter[j][i]->get_count(
 						iter->first.data());
 				if (support >= this->m_minsup_count) {
 					vector<unsigned int>* union_itemset = KItemsets::union_set(
 							iter->first, current);
-					itemsets->push(*union_itemset, support);
-					this->logItemset("Frequent", i + 2, *union_itemset,
-							support);
+					if (union_itemset->size() == i + 2) {
+						itemsets->push(*union_itemset, support);
+						this->logItemset("Frequent", i + 2, *union_itemset,
+								support);
+					}
 				}
 			}
 		}
@@ -290,23 +305,23 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
-		FpTreeNode* sub_tree, vector<KItemsets> pattern_base) {
+		FpTreeNode* sub_tree, vector<KItemsets*> pattern_base) {
 	if (sub_tree->m_key != NULL) {
 		// 把pattern_base加入当前节点的频繁模式基中
 		vector<unsigned int> current = vector<unsigned int>(sub_tree->m_key,
 				sub_tree->m_key + 1);
 		for (unsigned int i = 0; i < pattern_base.size(); i++) {
 			map<vector<unsigned int>, unsigned int> itemsets =
-					pattern_base[i].get_itemsets();
+					pattern_base[i]->get_itemsets();
 			for (map<vector<unsigned int>, unsigned int>::const_iterator iter =
 					itemsets.begin(); iter != itemsets.end(); iter++) {
 				vector<unsigned int> current_itemset = iter->first;
-				if (!m_pattern_base[*(sub_tree->m_key)][i].has_itemset(
+				if (!m_pattern_base[*(sub_tree->m_key)][i]->has_itemset(
 						current_itemset)) {
-					m_pattern_base[*(sub_tree->m_key)][i].push(current_itemset,
+					m_pattern_base[*(sub_tree->m_key)][i]->push(current_itemset,
 							0);
 				}
-				m_pattern_counter[*(sub_tree->m_key)][i].count(
+				m_pattern_counter[*(sub_tree->m_key)][i]->count(
 						current_itemset.data(), sub_tree->m_count);
 			}
 		}
@@ -314,22 +329,22 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 		// 把当前节点与pattern_base(除了最后一维)里的每个元素进行连接合并
 		for (unsigned int i = 0; i < pattern_base.size() - 1; i++) {
 			map<vector<unsigned int>, unsigned int> itemsets =
-					pattern_base[i].get_itemsets();
+					pattern_base[i]->get_itemsets();
 			for (map<vector<unsigned int>, unsigned int>::const_iterator iter =
 					itemsets.begin(); iter != itemsets.end(); iter++) {
 				vector<unsigned int>* union_itemset = KItemsets::union_set(
 						iter->first, current);
-				if (!pattern_base[union_itemset->size() - 1].has_itemset(
+				if (!pattern_base[union_itemset->size() - 1]->has_itemset(
 						current)) {
-					pattern_base[union_itemset->size() - 1].push(*union_itemset,
-							0); //此处的0不代表任何意义，只是不需要这个参数
+					pattern_base[union_itemset->size() - 1]->push(
+							*union_itemset, 0); //此处的0不代表任何意义，只是不需要这个参数
 				}
 				delete union_itemset;
 			}
 		}
 		// 把当前节点并入pattern_base
-		if (!pattern_base[0].has_itemset(current)) {
-			pattern_base[0].push(current, 0);
+		if (!pattern_base[0]->has_itemset(current)) {
+			pattern_base[0]->push(current, 0);
 		}
 	}
 
@@ -363,7 +378,7 @@ unsigned int FpGrowth<ItemType, ItemDetail, RecordInfoType>::get_support_count(
 	} else {
 		vector<unsigned int> pattern_base = vector<unsigned int>(
 				itemset.begin(), itemset.end() - 1);
-		return m_pattern_counter[itemset.back()][itemset.size() - 2].get_count(
+		return m_pattern_counter[itemset.back()][itemset.size() - 2]->get_count(
 				pattern_base.data());
 	}
 }
