@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "libyskalgrthms/math/digit_util.h"
 #include "libyskalgrthms/util/string.h"
+#include "libyskdmu/util/sysinfo_util.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 #include "libyskdmu/association/hi_apriori.h"
@@ -133,8 +134,8 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", hi_apriori.m_record_infos.size());
 	printf(
-			"HI-Apriori with XML Data testing duaration: %f(seconds) or %f(seconds)\n",
-			duration, duration_t);
+			"HI-Apriori with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********HI-Apriori with XML Data finish testing**********\n\n");
 }
 
@@ -254,7 +255,7 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", hi_apriori.m_record_infos.size());
 	printf(
-			"HI-Apriori with Doc Data testing duaration: %f(seconds) or %f(seconds)\n",
-			duration, duration_t);
+			"HI-Apriori with Doc Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********HI-Apriori with Doc Data finish testing**********\n\n");
 }

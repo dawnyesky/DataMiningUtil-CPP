@@ -7,7 +7,8 @@
 
 #include <time.h>
 #include <stdlib.h>
-#include <libyskalgrthms/math/digit_util.h>
+#include "libyskalgrthms/math/digit_util.h"
+#include "libyskdmu/util/sysinfo_util.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 #include "libyskdmu/association/dhp.h"
@@ -104,8 +105,9 @@ void test_dhp_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	duration = (double) (finish - start) / (CLOCKS_PER_SEC);
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", dhp.m_record_infos.size());
-	printf("DHP with XML Data testing duaration: %f(seconds) or %f(seconds)\n",
-			duration, duration_t);
+	printf(
+			"DHP with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********DHP with XML Data finish testing**********\n\n");
 }
 
@@ -197,7 +199,8 @@ void test_dhp_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	duration = (double) (finish - start) / (CLOCKS_PER_SEC);
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", dhp.m_record_infos.size());
-	printf("DHP with Doc Data testing duaration: %f(seconds) or %f(seconds)\n",
-			duration, duration_t);
+	printf(
+			"DHP with Doc Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********DHP with Doc Data finish testing**********\n\n");
 }

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "libyskalgrthms/math/digit_util.h"
 #include "libyskalgrthms/util/string.h"
+#include "libyskdmu/util/sysinfo_util.h"
 #include "libyskdmu/association/extractor/mpi_doc_text_extractor.h"
 #include "libyskdmu/association/phi_apriori.h"
 
@@ -161,8 +162,8 @@ void test_phi_apriori_doc(int argc, char *argv[],
 		duration_t = difftime(finish_t, start_t);
 		printf("Record amount: %u\n", phi_apriori.m_record_infos.size());
 		printf(
-				"PHI-Apriori with Doc Data testing duaration: %f(seconds) or %f(seconds)\n",
-				duration, duration_t);
+				"PHI-Apriori with Doc Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+				duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 		printf(
 				"**********PHI-Apriori with Doc Data finish testing**********\n\n");
 	}

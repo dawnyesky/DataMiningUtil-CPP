@@ -7,7 +7,10 @@
 
 #include <time.h>
 #include <stdlib.h>
-#include <libyskalgrthms/math/digit_util.h>
+#include <linux/unistd.h>
+#include <linux/kernel.h>
+#include "libyskalgrthms/math/digit_util.h"
+#include "libyskdmu/util/sysinfo_util.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
 #include "libyskdmu/association/extractor/doc_text_extractor.h"
 #include "libyskdmu/association/fp_growth.h"
@@ -112,8 +115,8 @@ void test_fp_growth_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", fp_growth.m_record_infos.size());
 	printf(
-			"FP-Growth with XML Data testing duaration: %f(seconds) or %f(seconds)\n",
-			duration, duration_t);
+			"FP-Growth with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********FP-Growth with XML Data finish testing**********\n\n");
 }
 
@@ -213,7 +216,7 @@ void test_fp_growth_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", fp_growth.m_record_infos.size());
 	printf(
-			"FP-Growth with Doc Data testing duaration: %f(seconds) or %f(seconds)\n",
-			duration, duration_t);
+			"FP-Growth with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********FP-Growth with Doc Data finish testing**********\n\n");
 }

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "libyskalgrthms/util/string.h"
+#include "libyskdmu/util/sysinfo_util.h"
 #include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/index/open_hash_index.h"
 #include "libyskdmu/association/extractor/trade_x_extractor.h"
@@ -70,7 +71,9 @@ void test_trade_x_extractor() {
 
 	finish = clock();
 	duration = (float) (finish - start) / (CLOCKS_PER_SEC);
-	printf("TradeXmlExtractor testing duaration: %f(secs)\n", duration);
+	printf(
+			"TradeXmlExtractor testing duaration: %f(secs), memory occupation: %u(kb)\n",
+			duration, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********TradeXmlExtractor finish testing**********\n\n");
 }
 
@@ -144,6 +147,8 @@ void test_doc_text_extractor() {
 			item_index.size_of_index() / (1024.0 * 1024));
 	finish = clock();
 	duration = (float) (finish - start) / (CLOCKS_PER_SEC);
-	printf("DocTextExtractor testing duaration: %f(secs)\n", duration);
+	printf(
+			"DocTextExtractor testing duaration: %f(secs), memory occupation: %u(kb)\n",
+			duration, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********DocTextExtractor finish testing**********\n\n");
 }
