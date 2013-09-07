@@ -93,7 +93,6 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 				//目录
 			}
 		}
-		closedir(pDir);
 
 		//准备Scatter数据
 		assert(files.size() >= numprocs);
@@ -117,6 +116,8 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		for (unsigned int i = 1; i < numprocs; i++) {
 			displs[i] = displs[i - 1] + scafile_send_msg_pkg.second[i - 1];
 		}
+
+		closedir(pDir);
 	}
 
 	//准备Scatter接收的数据缓冲区
