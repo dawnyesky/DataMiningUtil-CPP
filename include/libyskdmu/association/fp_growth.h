@@ -249,23 +249,30 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	this->m_extractor->read_data(false);
 
 	//对FP-Tree进行挖掘，找出所有频繁项集
+	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
+		vector<KItemsets*> k_itemsets;
+		for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
+			//初始化KItemsets需要谨慎，这里取的是平均值的1.5倍，太大会占用过多内存
+			k_itemsets.push_back(
+					new KItemsets(i + 1,
+							1.5 * combine(this->m_item_details.size(), i + 1)));
+		}
+		m_pattern_base.push_back(k_itemsets);
+	}
+	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
+		vector<HashTableCounter*> pattern_counter;
+		for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
+			pattern_counter.push_back(
+					new HashTableCounter(this->m_item_details.size(), i + 1));
+		}
+		m_pattern_counter.push_back(pattern_counter);
+	}
+
 	vector<KItemsets*> k_itemsets;
 	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
-		//初始化KItemsets需要谨慎，这里取的是平均值的1.5倍，太大会占用过多内存
 		k_itemsets.push_back(
 				new KItemsets(i + 1,
 						1.5 * combine(this->m_item_details.size(), i + 1)));
-	}
-	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
-		m_pattern_base.push_back(k_itemsets);
-	}
-	vector<HashTableCounter*> pattern_counter;
-	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
-		pattern_counter.push_back(
-				new HashTableCounter(this->m_item_details.size(), i + 1));
-	}
-	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
-		m_pattern_counter.push_back(pattern_counter);
 	}
 
 	//此处的k_itemsets代表父/祖父节点排列组合成的频繁模式基

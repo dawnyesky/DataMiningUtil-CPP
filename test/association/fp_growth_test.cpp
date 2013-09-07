@@ -216,7 +216,7 @@ void test_fp_growth_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,
 	duration_t = difftime(finish_t, start_t);
 	printf("Record amount: %u\n", fp_growth.m_record_infos.size());
 	printf(
-			"FP-Growth with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
+			"FP-Growth with Doc Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
 			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********FP-Growth with Doc Data finish testing**********\n\n");
 }
