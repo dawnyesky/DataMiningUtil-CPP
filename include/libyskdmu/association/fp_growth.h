@@ -104,7 +104,7 @@ public:
 
 protected:
 	vector<unsigned int> m_sorted_item_index;
-	vector<vector<KItemsets*> > m_pattern_base;
+	vector<vector<KItemsets*> > m_pattern_base; //频繁模式基矩阵，行代表后缀，列代表的1..k-1次频繁模式基
 	vector<vector<HashTableCounter*> > m_pattern_counter;
 };
 
@@ -142,15 +142,17 @@ void fp_call_back(
 		vector<unsigned int>& record) {
 	FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth = (FpGrowth<
 			ItemType, ItemDetail, RecordInfoType>*) assoc_instance;
-	unsigned int record_array[record.size()];
+	unsigned int record_array[record.size()]; //记录数组，记录一条记录里的项目索引
 	for (unsigned int j = 0; j < record.size(); j++) {
 		record_array[j] = record.at(j);
 	}
-	vector<unsigned int> sorted_index = fp_growth->get_sorted_index();
-	unsigned int count_array[sorted_index.size()];
+	vector<unsigned int> sorted_index = fp_growth->get_sorted_index(); //按频繁程度降序排列的所有项目索引
+	unsigned int count_array[sorted_index.size()]; //虚拟的项目计数，只是为了标识降序排列的所有项目索引的排位
+	//按照项目详情的顺序设置虚拟项目计数
 	for (unsigned int k = 0; k < sorted_index.size(); k++) {
 		count_array[sorted_index[k]] = sorted_index.size() - k;
 	}
+	//按照当前记录的项目顺序设置虚拟项目计数
 	unsigned int counts[record.size()];
 	for (unsigned int l = 0; l < record.size(); l++) {
 		counts[l] = count_array[record_array[l]];
@@ -251,32 +253,34 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 	//对FP-Tree进行挖掘，找出所有频繁项集
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		vector<KItemsets*> k_itemsets;
-		for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
+		for (unsigned int j = 0; j < this->m_max_itemset_size - 1; j++) {
 			//初始化KItemsets需要谨慎，这里取的是平均值的1.5倍，太大会占用过多内存
 			k_itemsets.push_back(
-					new KItemsets(i + 1,
-							1.5 * combine(this->m_item_details.size(), i + 1)));
+					new KItemsets(j + 1,
+							1.5 * combine(this->m_item_details.size(), j + 1)));
 		}
 		m_pattern_base.push_back(k_itemsets);
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
 		vector<HashTableCounter*> pattern_counter;
-		for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
+		for (unsigned int j = 0; j < this->m_max_itemset_size - 1; j++) {
 			pattern_counter.push_back(
-					new HashTableCounter(this->m_item_details.size(), i + 1));
+					new HashTableCounter(this->m_item_details.size(), j + 1));
 		}
 		m_pattern_counter.push_back(pattern_counter);
 	}
 
-	vector<KItemsets*> k_itemsets;
+	//此处的k_itemsets代表父/祖父节点排列组合成的频繁模式基
+	vector<KItemsets*> pattern_base;
 	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
-		k_itemsets.push_back(
+		pattern_base.push_back(
 				new KItemsets(i + 1,
 						1.5 * combine(this->m_item_details.size(), i + 1)));
 	}
-
-	//此处的k_itemsets代表父/祖父节点排列组合成的频繁模式基
-	rec_fp_growth(m_fp_tree, k_itemsets);
+	rec_fp_growth(m_fp_tree, pattern_base);
+	for (unsigned int i = 0; i < pattern_base.size(); i++) {
+		delete pattern_base[i];
+	}
 
 	KItemsets* itemsets = NULL;
 	//遍历频繁模式基表，把每个频繁模式基与后缀连接。
@@ -333,7 +337,7 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 			}
 		}
 
-		// 把当前节点与pattern_base(除了最后一维)里的每个元素进行连接合并
+		// 把当前节点与pattern_base(除了最后一维，假设记录没有重复)里的每个元素进行连接合并
 		for (unsigned int i = 0; i < pattern_base.size() - 1; i++) {
 			map<vector<unsigned int>, unsigned int> itemsets =
 					pattern_base[i]->get_itemsets();
@@ -355,9 +359,16 @@ void FpGrowth<ItemType, ItemDetail, RecordInfoType>::rec_fp_growth(
 		}
 	}
 
-// 对每个子节点递归进行挖掘
+	//对每个子节点递归进行挖掘
 	for (unsigned int i = 0; i < sub_tree->m_child.size(); i++) {
-		rec_fp_growth(sub_tree->m_child[i], pattern_base);
+		vector<KItemsets*> new_pattern_base;
+		for (unsigned int j = 0; j < pattern_base.size(); j++) {
+			new_pattern_base.push_back(new KItemsets(*pattern_base[j]));
+		}
+		rec_fp_growth(sub_tree->m_child[i], new_pattern_base);
+		for (unsigned int j = 0; j < pattern_base.size(); j++) {
+			delete new_pattern_base[j];
+		}
 	}
 }
 
