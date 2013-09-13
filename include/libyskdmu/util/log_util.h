@@ -38,16 +38,26 @@ private:
 
 class LogUtil {
 public:
-	LogUtil();
 	virtual ~LogUtil();
 	static LogUtil* get_instance();
 	static void destroy_instance();
 	LogInstance* get_log_instance(const char* identifier);
 
 private:
+	LogUtil();
+
+private:
 	static LogUtil* m_instance;
 	static bool is_configured;
 	map<const char*, LogInstance*> m_log_instances;
+
+	class __Garbage__ {
+	public:
+		~__Garbage__() {
+			LogUtil::destroy_instance();
+		}
+	};
+	static __Garbage__ m_garbage;
 };
 
 #endif /* LOG_UTIL_H_ */

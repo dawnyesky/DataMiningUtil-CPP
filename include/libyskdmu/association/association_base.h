@@ -136,6 +136,8 @@ bool AssocBase<ItemType, ItemDetail, RecordInfoType>::genrules() {
 			vector<unsigned int> frq_itemset = vector<unsigned int>(
 					iter->first);
 			this->rec_genrules(frq_itemset, *consequents);
+
+			delete consequents;
 		}
 	}
 	return true;
@@ -188,7 +190,8 @@ void AssocBase<ItemType, ItemDetail, RecordInfoType>::rec_genrules(
 
 		//使用自然连接生成下一个结果项集集合
 		if (consequents.size() > 0) {
-			vector<vector<unsigned int> > next_consequent;
+			vector<vector<unsigned int> >* next_consequent = new vector<
+					vector<unsigned int> >();
 			KItemsets indefinite_size_itemset = KItemsets(
 					consequents[0].size() + 1,
 					1.5 * combine(consequents.size(), 2));
@@ -207,11 +210,13 @@ void AssocBase<ItemType, ItemDetail, RecordInfoType>::rec_genrules(
 					indefinite_size_itemset.get_itemsets();
 			for (map<vector<unsigned int>, unsigned int>::const_iterator iter =
 					itemsets.begin(); iter != itemsets.end(); iter++) {
-				next_consequent.push_back(iter->first);
+				next_consequent->push_back(iter->first);
 			}
 
 			//递归生成规则
-			rec_genrules(frq_itemset, next_consequent);
+			rec_genrules(frq_itemset, *next_consequent);
+
+			delete next_consequent;
 		}
 	}
 }

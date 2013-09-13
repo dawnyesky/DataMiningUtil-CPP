@@ -459,6 +459,8 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::syn_item_detail() 
 					index->insert(synidg_recv_msg[i].first[j].m_identifier,
 							strlen(synidg_recv_msg[i].first[j].m_identifier),
 							"null", 0);
+				} else {
+					delete[] key_info;
 				}
 			}
 			delete[] synidg_recv_msg[i].first; //清除接收数据

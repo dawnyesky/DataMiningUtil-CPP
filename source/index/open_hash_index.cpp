@@ -116,6 +116,7 @@ OpenHashIndex::~OpenHashIndex() {
 				delete p;
 				p = q;
 			}
+			delete m_hash_table[i];
 		}
 	}
 	delete[] m_hash_table;
