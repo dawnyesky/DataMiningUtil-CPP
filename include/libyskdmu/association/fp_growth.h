@@ -137,6 +137,25 @@ void insert_tree(FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth,
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+void rec_destroy_tree(FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth,
+		FpTreeNode* fp_tree) {
+	if (NULL == fp_tree) {
+		return;
+	}
+	for (unsigned int i = 0; i < fp_tree->m_child.size(); i++) {
+		rec_destroy_tree(fp_growth, fp_tree->m_child[i]);
+	}
+	delete fp_tree->m_key;
+	delete fp_tree;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+void destroy_tree(FpGrowth<ItemType, ItemDetail, RecordInfoType>* fp_growth,
+		FpTreeNode* fp_tree) {
+	rec_destroy_tree(fp_growth, fp_tree);
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void fp_call_back(
 		AssocBase<ItemType, ItemDetail, RecordInfoType>* assoc_instance,
 		vector<unsigned int>& record) {
@@ -174,6 +193,8 @@ FpGrowth<ItemType, ItemDetail, RecordInfoType>::FpGrowth() {
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 FpGrowth<ItemType, ItemDetail, RecordInfoType>::~FpGrowth() {
+	destroy_tree(this, m_fp_tree);
+
 	for (unsigned int i = 0; i < m_pattern_base.size(); i++) {
 		for (unsigned int j = 0; j < m_pattern_base[i].size(); j++) {
 			if (m_pattern_base[i][j] != NULL) {
@@ -303,6 +324,7 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 						this->logItemset("Frequent", i + 2, *union_itemset,
 								support);
 					}
+					delete union_itemset;
 				}
 			}
 		}
