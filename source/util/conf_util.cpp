@@ -13,6 +13,7 @@
 #include "libyskdmu/util/conf_util.h"
 
 ConfUtil* ConfUtil::m_instance = NULL;
+ConfUtil::__Garbage__ ConfUtil::m_garbage;
 
 ConfUtil::ConfUtil() {
 
@@ -39,6 +40,7 @@ ConfUtil* ConfUtil::get_instance() {
 void ConfUtil::destroy_instance() {
 	if (m_instance != NULL) {
 		delete m_instance;
+		m_instance = NULL;
 	}
 }
 

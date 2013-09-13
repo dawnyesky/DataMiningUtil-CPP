@@ -13,6 +13,7 @@
 #include "libyskdmu/util/log_util.h"
 
 LogUtil* LogUtil::m_instance = NULL;
+LogUtil::__Garbage__ LogUtil::m_garbage;
 bool LogUtil::is_configured = false;
 
 LogUtil::LogUtil() {
@@ -56,6 +57,7 @@ LogUtil* LogUtil::get_instance() {
 void LogUtil::destroy_instance() {
 	if (m_instance != NULL) {
 		delete m_instance;
+		m_instance = NULL;
 	}
 }
 
