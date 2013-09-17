@@ -77,28 +77,32 @@ void test_phi_apriori_doc(int argc, char *argv[],
 
 		if (print_index) {
 			printf("Index:\n");
-			IndexHead **hash_table =
-					(IndexHead **) phi_apriori.m_item_index->get_hash_table();
-			const char *identifier = NULL;
-			for (unsigned int i = 0; i < 1000; i++) {
-				if (hash_table[i] != NULL) {
-					identifier = phi_apriori.m_item_details[ysk_atoi(
-							hash_table[i]->key_info,
-							strlen(hash_table[i]->key_info))].m_identifier;
-					printf(
-							"slot: %u\thashcode: %u\tkey: %s------Record index: ",
-							i,
-							phi_apriori.m_item_index->hashfunc(identifier,
-									strlen(identifier)), identifier);
-					IndexItem *p = hash_table[i]->inverted_index;
-					while (p != NULL) {
-						printf("%u, ", p->record_id);
-						p = p->next;
+			MPIDHashIndex& index =
+					*(MPIDHashIndex*) phi_apriori.m_distributed_index;
+			char* identifier = NULL;
+			Catalog* catalogs = (Catalog*) index.get_hash_table();
+			for (unsigned int i = 0;
+					i < (unsigned int) pow(2, index.get_global_deep()); i++) {
+				if (catalogs[i].bucket != NULL) {
+					vector<IndexHead> elements = catalogs[i].bucket->elements;
+					for (unsigned int j = 0; j < elements.size(); j++) {
+						identifier = elements[j].identifier;
+						printf(
+								"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
+								i,
+								index.hashfunc(identifier, strlen(identifier)),
+								identifier, elements[j].index_item_num);
+						unsigned int records[index.get_mark_record_num(
+								identifier, strlen(identifier))];
+						unsigned int num = index.find_record(records,
+								identifier, strlen(identifier));
+						for (unsigned int j = 0; j < num; j++) {
+							printf("%u, ", records[j]);
+						}
+						printf("\n");
 					}
-					printf("\n");
 				}
 			}
-			printf("\n");
 		}
 
 		if (print_item_detial) {
