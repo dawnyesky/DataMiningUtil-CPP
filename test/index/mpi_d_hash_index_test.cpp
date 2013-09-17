@@ -51,29 +51,7 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 
 	if (print_index) {
 		printf("Start to print the index before synchronize:\n");
-		Catalog* catalogs = (Catalog*) index.get_hash_table();
-		for (unsigned int i = 0;
-				i < (unsigned int) pow(2, index.get_global_deep()); i++) {
-			if (catalogs[i].bucket != NULL) {
-				vector<IndexHead> elements = catalogs[i].bucket->elements;
-				for (unsigned int j = 0; j < elements.size(); j++) {
-					identifier = identifiers[ysk_atoi(elements[j].key_info,
-							strlen(elements[j].key_info))];
-					printf(
-							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
-							i, index.hashfunc(identifier, strlen(identifier)),
-							identifier, elements[j].index_item_num);
-					unsigned int records[index.get_mark_record_num(identifier,
-							strlen(identifier))];
-					unsigned int num = index.find_record(records, identifier,
-							strlen(identifier));
-					for (unsigned int j = 0; j < num; j++) {
-						printf("%u, ", records[j]);
-					}
-					printf("\n");
-				}
-			}
-		}
+		index.print_index();
 		printf("End to print the index before synchronize:\n");
 	}
 
@@ -81,69 +59,14 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 
 	if (print_index) {
 		printf("The index after synchronize:\n");
-		Catalog* catalogs = (Catalog*) index.get_hash_table();
-		for (unsigned int i = 0;
-				i < (unsigned int) pow(2, index.get_global_deep()); i++) {
-			if (catalogs[i].bucket != NULL) {
-				vector<IndexHead> elements = catalogs[i].bucket->elements;
-				for (unsigned int j = 0; j < elements.size(); j++) {
-					identifier = identifiers[ysk_atoi(elements[j].key_info,
-							strlen(elements[j].key_info))];
-					printf(
-							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
-							i, index.hashfunc(identifier, strlen(identifier)),
-							identifier, elements[j].index_item_num);
-					unsigned int records[index.get_mark_record_num(identifier,
-							strlen(identifier))];
-					unsigned int num = index.find_record(records, identifier,
-							strlen(identifier));
-					for (unsigned int j = 0; j < num; j++) {
-						printf("%u, ", records[j]);
-					}
-					printf("\n");
-				}
-			}
-		}
+		index.print_index();
 	}
 
 	index.consolidate();
 
 	if (print_index) {
 		printf("The index after consolidate:\n");
-		Catalog* catalogs = (Catalog*) index.get_hash_table();
-		for (unsigned int i = 0;
-				i < (unsigned int) pow(2, index.get_global_deep()); i++) {
-			if (catalogs[i].bucket != NULL) {
-				vector<IndexHead> elements = catalogs[i].bucket->elements;
-				for (unsigned int j = 0; j < elements.size(); j++) {
-//					if (i == 2 && j == 1) {
-//						printf("Here!\n");
-//						for (unsigned int i = 0; i < 11; i++) {
-//							printf("const id:%u;%s\n", i, identifiers[i]);
-//						}
-//						printf("index:%i!\n",
-//								ysk_atoi(elements[j].key_info,
-//										strlen(elements[j].key_info)));
-//						printf("id:%s\n", identifiers[1]);
-//					}
-//					identifier = identifiers[ysk_atoi(elements[j].key_info,
-//							strlen(elements[j].key_info))];
-					identifier = elements[j].identifier;
-					printf(
-							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
-							i, index.hashfunc(identifier, strlen(identifier)),
-							identifier, elements[j].index_item_num);
-					unsigned int records[index.get_mark_record_num(identifier,
-							strlen(identifier))];
-					unsigned int num = index.find_record(records, identifier,
-							strlen(identifier));
-					for (unsigned int j = 0; j < num; j++) {
-						printf("%u, ", records[j]);
-					}
-					printf("\n");
-				}
-			}
-		}
+		index.print_index();
 	}
 
 	if (print_intersect_record_num && pid == 0) {

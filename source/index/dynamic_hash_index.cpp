@@ -452,3 +452,38 @@ bool DynamicHashIndex::change_key_info(const char *key, size_t key_length,
 unsigned int DynamicHashIndex::hashfunc(const char *str, size_t length) {
 	return m_hash_func(str, length, pow(2, m_d));
 }
+
+#ifdef __DEBUG__
+void DynamicHashIndex::print_index(const char** identifiers) {
+	const char* identifier = NULL;
+	DynamicHashIndex& index = *this;
+	Catalog* catalogs = (Catalog*) index.get_hash_table();
+	for (unsigned int i = 0; i < (unsigned int) pow(2, index.get_global_deep());
+			i++) {
+		if (catalogs[i].bucket != NULL) {
+			vector<IndexHead> elements = catalogs[i].bucket->elements;
+			for (unsigned int j = 0; j < elements.size(); j++) {
+				if (identifiers != NULL) {
+					identifier = identifiers[ysk_atoi(elements[j].key_info,
+							strlen(elements[j].key_info))];
+				} else {
+					identifier = elements[j].identifier;
+				}
+				printf(
+						"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
+						i, index.hashfunc(identifier, strlen(identifier)),
+						identifier, elements[j].index_item_num);
+				unsigned int records[index.get_mark_record_num(identifier,
+						strlen(identifier))];
+				unsigned int num = index.find_record(records, identifier,
+						strlen(identifier));
+				for (unsigned int j = 0; j < num; j++) {
+					printf("%u, ", records[j]);
+				}
+
+				printf("\n");
+			}
+		}
+	}
+}
+#endif

@@ -103,6 +103,7 @@ public:
 	void* get_hash_table() {
 		return m_hash_table;
 	}
+	virtual void print_index(const char** identifiers = NULL);
 #else
 
 protected:

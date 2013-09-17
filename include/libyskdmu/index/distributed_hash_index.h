@@ -54,7 +54,9 @@ public:
 	int m_root_pid;
 	volatile bool is_synchronized;
 	volatile bool is_consolidated;
+#ifndef __DEBUG__
 protected:
+#endif
 	pair<unsigned int, unsigned int> m_responsible_cats; //负责的目录（起始索引，长度）
 };
 

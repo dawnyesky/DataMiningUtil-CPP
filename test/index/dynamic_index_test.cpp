@@ -51,30 +51,7 @@ void test_dynamic_hash_index() {
 	}
 
 	if (print_index) {
-		Catalog* catalogs = (Catalog*) index.get_hash_table();
-		for (unsigned int i = 0;
-				i < (unsigned int) pow(2, index.get_global_deep()); i++) {
-			if (catalogs[i].bucket != NULL) {
-				vector<IndexHead> elements = catalogs[i].bucket->elements;
-				for (unsigned int j = 0; j < elements.size(); j++) {
-					identifier = identifiers[ysk_atoi(elements[j].key_info,
-							strlen(elements[j].key_info))];
-					printf(
-							"catalog: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
-							i, index.hashfunc(identifier, strlen(identifier)),
-							identifier, elements[j].index_item_num);
-					unsigned int records[index.get_mark_record_num(identifier,
-							strlen(identifier))];
-					unsigned int num = index.find_record(records, identifier,
-							strlen(identifier));
-					for (unsigned int j = 0; j < num; j++) {
-						printf("%u, ", records[j]);
-					}
-
-					printf("\n");
-				}
-			}
-		}
+		index.print_index();
 	}
 
 	if (print_intersect_record_num) {

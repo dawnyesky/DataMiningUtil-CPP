@@ -43,33 +43,7 @@ void test_open_hash_index() {
 	}
 
 	if (print_index) {
-		IndexHead **hash_table = (IndexHead **) index.get_hash_table();
-		for (unsigned int i = 0; i < table_size; i++) {
-			if (hash_table[i] != NULL) {
-				identifier = identifiers[ysk_atoi(hash_table[i]->key_info,
-						strlen(hash_table[i]->key_info))];
-				printf(
-						"slot: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
-						i, index.hashfunc(identifier, strlen(identifier)),
-						identifier, hash_table[i]->index_item_num);
-
-				//				IndexItem *p = hash_table[i]->inverted_index;
-				//				while (p != NULL) {
-				//					printf("%u, ", p->record_id);
-				//					p = p->next;
-				//				}
-
-				unsigned int records[index.get_mark_record_num(identifier,
-						strlen(identifier))];
-				unsigned int num = index.find_record(records, identifier,
-						strlen(identifier));
-				for (unsigned int j = 0; j < num; j++) {
-					printf("%u, ", records[j]);
-				}
-
-				printf("\n");
-			}
-		}
+		index.print_index(identifiers);
 	}
 
 	if (print_intersect_record_num) {

@@ -378,3 +378,30 @@ unsigned int OpenHashIndex::collision_handler(const char *str, size_t length,
 //	}
 	return collision_key;
 }
+
+#ifdef __DEBUG__
+void OpenHashIndex::print_index(const char** identifiers) {
+	const char* identifier = NULL;
+	OpenHashIndex& index = *this;
+	IndexHead **hash_table = (IndexHead **) index.get_hash_table();
+	for (unsigned int i = 0; i < index.m_table_size; i++) {
+		if (hash_table[i] != NULL) {
+			identifier = identifiers[ysk_atoi(hash_table[i]->key_info,
+					strlen(hash_table[i]->key_info))];
+			printf(
+					"slot: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
+					i, index.hashfunc(identifier, strlen(identifier)),
+					identifier, hash_table[i]->index_item_num);
+			unsigned int records[index.get_mark_record_num(identifier,
+					strlen(identifier))];
+			unsigned int num = index.find_record(records, identifier,
+					strlen(identifier));
+			for (unsigned int j = 0; j < num; j++) {
+				printf("%u, ", records[j]);
+			}
+
+			printf("\n");
+		}
+	}
+}
+#endif

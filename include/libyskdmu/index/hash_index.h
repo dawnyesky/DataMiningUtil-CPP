@@ -102,6 +102,7 @@ public:
 #ifdef __DEBUG__
 	virtual unsigned int hashfunc(const char *str, size_t length) = 0;
 	virtual void* get_hash_table() = 0;
+	virtual void print_index(const char** identifiers = NULL) = 0;
 #else
 
 protected:

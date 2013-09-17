@@ -64,6 +64,7 @@ public:
 	unsigned int get_global_deep() {
 		return m_d;
 	}
+	virtual void print_index(const char** identifiers = NULL);
 #else
 
 protected:
