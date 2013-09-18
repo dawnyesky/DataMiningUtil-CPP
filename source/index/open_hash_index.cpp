@@ -386,8 +386,12 @@ void OpenHashIndex::print_index(const char** identifiers) {
 	IndexHead **hash_table = (IndexHead **) index.get_hash_table();
 	for (unsigned int i = 0; i < index.m_table_size; i++) {
 		if (hash_table[i] != NULL) {
-			identifier = identifiers[ysk_atoi(hash_table[i]->key_info,
-					strlen(hash_table[i]->key_info))];
+			if (identifiers != NULL) {
+				identifier = identifiers[ysk_atoi(hash_table[i]->key_info,
+						strlen(hash_table[i]->key_info))];
+			} else {
+				identifier = hash_table[i]->identifier;
+			}
 			printf(
 					"slot: %u\thashcode: %u\tkey: %s------Record numbers: %u------Record index: ",
 					i, index.hashfunc(identifier, strlen(identifier)),

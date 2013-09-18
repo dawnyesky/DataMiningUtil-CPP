@@ -149,7 +149,7 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	start = clock();
 	start_t = time(NULL);
 	bool print_item_detial = false;
-	bool print_index = false;
+	bool print_index = true;
 	bool print_itemset = false;
 	bool print_frequent_itemsets = false;
 	bool print_assoc_rules = false;
@@ -167,34 +167,15 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	hi_apriori.set_extractor(&doc_text);
 	hi_apriori.enable_log(print_frequent_itemsets);
 
-	if (print_index) {
-		printf("Index:\n");
-		IndexHead **hash_table =
-				(IndexHead **) hi_apriori.m_item_index->get_hash_table();
-		const char *identifier = NULL;
-		for (unsigned int i = 0; i < 1000; i++) {
-			if (hash_table[i] != NULL) {
-				identifier = hi_apriori.m_item_details[ysk_atoi(
-						hash_table[i]->key_info,
-						strlen(hash_table[i]->key_info))].m_identifier;
-				printf("slot: %u\thashcode: %u\tkey: %s------Record index: ", i,
-						hi_apriori.m_item_index->hashfunc(identifier,
-								strlen(identifier)), identifier);
-				IndexItem *p = hash_table[i]->inverted_index;
-				while (p != NULL) {
-					printf("%u, ", p->record_id);
-					p = p->next;
-				}
-				printf("\n");
-			}
-		}
-		printf("\n");
-	}
-
 	bool succeed = true;
 	succeed &= hi_apriori.hi_apriori();
 	succeed &= hi_apriori.genrules();
 	printf(succeed ? "HI-Apriori Succeed!\n" : "HI-Apriori Faild!\n");
+
+	if (print_index) {
+		printf("Index:\n");
+		hi_apriori.m_item_index->print_index(NULL);
+	}
 
 	if (print_item_detial) {
 		printf("ItemDetail:\n{ ");
