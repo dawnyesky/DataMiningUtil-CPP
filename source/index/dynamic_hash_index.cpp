@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <limits.h>
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/dynamic_hash_index.h"
 
@@ -450,7 +451,7 @@ bool DynamicHashIndex::change_key_info(const char *key, size_t key_length,
 }
 
 unsigned int DynamicHashIndex::hashfunc(const char *str, size_t length) {
-	return m_hash_func(str, length, pow(2, m_d));
+	return m_hash_func(str, length, UINT_MAX);
 }
 
 #ifdef __DEBUG__
