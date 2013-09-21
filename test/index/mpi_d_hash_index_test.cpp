@@ -44,8 +44,7 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 		identifier = identifiers[iden_index];
 		char* iden_index_str = itoa(iden_index);
 		hashcode = index.insert(identifier, strlen(identifier), iden_index_str,
-				pid * record_num * term_num_per_record
-						+ i / term_num_per_record);
+				pid * record_num + i / term_num_per_record);
 		delete[] iden_index_str;
 	}
 

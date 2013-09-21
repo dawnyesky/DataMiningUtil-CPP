@@ -53,11 +53,11 @@ bool MPIDHashIndex::synchronize() {
 	//汇总
 //	printf("process %u start syn gather\n", pid);
 	MPI_Gather(syng_send_msg_pkg.first, syng_send_msg_pkg.second, MPI_PACKED,
-			syng_recv_msg_pkg.first, SYNG_RECV_BUF_SIZE, MPI_PACKED,
-			m_root_pid, m_comm);
+			syng_recv_msg_pkg.first, SYNG_RECV_BUF_SIZE, MPI_PACKED, m_root_pid,
+			m_comm);
 //	printf("process %u end syn gather\n", pid);
 
-	//声明和准备Broadcast消息数据
+//声明和准备Broadcast消息数据
 	SynBcastMsg synb_msg;
 	synb_msg.global_deep = 0;
 	synb_msg.catalog_offset = NULL;
@@ -119,12 +119,15 @@ bool MPIDHashIndex::synchronize() {
 				i++) {
 			accumulation += counter[i];
 			if (accumulation < element_per_proc) {
-				continue;
+				//如果累加到最后一个Catalog也比预期的少，证明此时分配的进程已是最后一个有任务的，必须赋予负责的大小
+				if (i < catalog_size - 1) {
+					continue;
+				}
 			}
 			synb_msg.catalog_size[pid] = i - synb_msg.catalog_offset[pid] + 1;
 			accumulation = 0;
 			pid++;
-			if (pid < numprocs) { //正常情况
+			if (pid < numprocs && i + 1 < catalog_size) { //正常情况（超过Catalog范围的一律忽略）
 				synb_msg.catalog_offset[pid] = i + 1;
 			} else { //计算误差
 				if (i < catalog_size) { //还有目录没有分配完
@@ -134,25 +137,32 @@ bool MPIDHashIndex::synchronize() {
 				break;
 			}
 		}
+
 		//调整分配末尾的几个节点，负载均衡
 		if (synb_msg.catalog_size[numprocs - 1] == 0) {
 			unsigned int last_pid = numprocs - 1;
 			unsigned int accumulation = synb_msg.catalog_size[last_pid];
-			while (accumulation < numprocs - last_pid) {
+			while (accumulation < numprocs - last_pid && last_pid > 0) {
 				last_pid--;
 				accumulation += synb_msg.catalog_size[last_pid];
 			}
-			unsigned int offset = synb_msg.catalog_offset[last_pid];
-			for (unsigned int i = last_pid; i < numprocs; i++, offset++) {
-				synb_msg.catalog_offset[i] = offset;
-				synb_msg.catalog_size[i] = 1;
-			}
-			//最后一个节点负责剩余的1～2个
-			while (offset != catalog_size) {
-				synb_msg.catalog_size[numprocs - 1]++;
-				offset++;
+			if (last_pid > 0) {
+				unsigned int offset = synb_msg.catalog_offset[last_pid];
+				for (unsigned int i = last_pid; i < numprocs; i++, offset++) {
+					synb_msg.catalog_offset[i] = offset;
+					synb_msg.catalog_size[i] = 1;
+				}
+				//最后一个节点负责剩余的1～2个
+				while (offset != catalog_size) {
+					synb_msg.catalog_size[numprocs - 1]++;
+					offset++;
+				}
 			}
 		}
+//		for (unsigned int i = 0; i < numprocs; i++) {
+//			printf("synb offset:%u, size:%u\n", synb_msg.catalog_offset[i],
+//					synb_msg.catalog_size[i]);
+//		}
 	}
 
 	//打包Broadcast消息
@@ -193,9 +203,15 @@ bool MPIDHashIndex::synchronize() {
 	synata_send_msg.bucket_num = catalogs_size;
 	int send_buf_offset[numprocs];
 	int send_buf_size[numprocs];
+
 	//打包Alltoall消息
+//	for (unsigned int i = 0; i < numprocs; i++) {
+//		printf("process %u synb offset:%u, size:%u\n", pid,
+//				synb_msg.catalog_offset[i], synb_msg.catalog_size[i]);
+//	}
 //	printf("global_deep:%u, m_d:%u, cat_size:%u\n", synb_msg.global_deep, m_d,
 //			catalogs_size);
+//	MPI_Barrier(m_comm);
 	pair<void*, int*> synata_send_msg_pkg = pack_synata_msg(synata_send_msg,
 			synb_msg.catalog_offset, synb_msg.catalog_size);
 	send_buf_offset[0] = 0;
@@ -253,6 +269,7 @@ bool MPIDHashIndex::synchronize() {
 		m_catalogs[cid].bucket->elements = synata_recv_msg->buckets[i].elements;
 	}
 
+	//栅栏同步
 	MPI_Barrier(m_comm);
 	is_synchronized = true;
 
@@ -304,8 +321,8 @@ bool MPIDHashIndex::consolidate() {
 
 //	printf("process %u start cong\n", pid);
 	MPI_Gather(cong_send_msg_pkg.first, cong_send_msg_pkg.second, MPI_PACKED,
-			cong_recv_msg_pkg.first, CONG_RECV_BUF_SIZE, MPI_PACKED,
-			m_root_pid, m_comm);
+			cong_recv_msg_pkg.first, CONG_RECV_BUF_SIZE, MPI_PACKED, m_root_pid,
+			m_comm);
 //	printf("process %u end cong\n", pid);
 
 	//声明Gather接收消息
@@ -655,11 +672,12 @@ SynGatherMsg* MPIDHashIndex::unpack_syng_msg(pair<void*, int> msg_pkg) {
 
 pair<void*, int> MPIDHashIndex::pack_synb_msg(SynBcastMsg& msg) {
 	pair<void*, int> result;
-	unsigned int catalogs_size = pow(2, msg.global_deep);
+	int numprocs = 0;
+	MPI_Comm_size(m_comm, &numprocs);
 
 	//计算缓冲区大小：
 	result.second = 0;
-	MPI_Pack_size(1 + 2 * catalogs_size, MPI_UNSIGNED, m_comm, &result.second);
+	MPI_Pack_size(1 + 2 * numprocs, MPI_UNSIGNED, m_comm, &result.second);
 	assert(result.second <= SYNB_BUF_SIZE); //断言打包的数据比设定的缓冲区小
 	result.second = SYNB_BUF_SIZE;
 
@@ -672,9 +690,9 @@ pair<void*, int> MPIDHashIndex::pack_synb_msg(SynBcastMsg& msg) {
 		int position = 0;
 		MPI_Pack(&msg.global_deep, 1, MPI_UNSIGNED, result.first, result.second,
 				&position, m_comm);
-		MPI_Pack(msg.catalog_offset, catalogs_size, MPI_UNSIGNED, result.first,
+		MPI_Pack(msg.catalog_offset, numprocs, MPI_UNSIGNED, result.first,
 				result.second, &position, m_comm);
-		MPI_Pack(msg.catalog_size, catalogs_size, MPI_UNSIGNED, result.first,
+		MPI_Pack(msg.catalog_size, numprocs, MPI_UNSIGNED, result.first,
 				result.second, &position, m_comm);
 	}
 	return result;
@@ -686,13 +704,12 @@ SynBcastMsg* MPIDHashIndex::unpack_synb_msg(pair<void*, int> msg_pkg) {
 	SynBcastMsg* result = new SynBcastMsg;
 	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, &result->global_deep,
 			1, MPI_UNSIGNED, m_comm);
-	unsigned int catalog_size = pow(2, result->global_deep);
-	result->catalog_offset = new unsigned int[catalog_size];
-	result->catalog_size = new unsigned int[catalog_size];
+	result->catalog_offset = new unsigned int[numprocs];
+	result->catalog_size = new unsigned int[numprocs];
 	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result->catalog_offset,
-			catalog_size, MPI_UNSIGNED, m_comm);
+			numprocs, MPI_UNSIGNED, m_comm);
 	MPI_Unpack(msg_pkg.first, msg_pkg.second, &position, result->catalog_size,
-			catalog_size, MPI_UNSIGNED, m_comm);
+			numprocs, MPI_UNSIGNED, m_comm);
 	return result;
 }
 

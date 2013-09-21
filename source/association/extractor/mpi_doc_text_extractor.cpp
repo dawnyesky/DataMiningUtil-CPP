@@ -316,7 +316,7 @@ pair<void*, int*> MPIDocTextExtractor::pack_scafile_msg(
 			MPI_Pack(v_files[i][j], file_id_len, MPI_CHAR, result.first,
 					total_size, &position, m_comm);
 		}
-		id_offset += v_files.size();
+		id_offset += v_files[i].size();
 	}
 
 	return result;
