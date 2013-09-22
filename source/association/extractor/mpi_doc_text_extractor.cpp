@@ -88,7 +88,11 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		while (NULL != (entry = readdir(pDir))) {
 			if (entry->d_type == 8) {
 				//普通文件
-				files.push_back(entry->d_name);
+				unsigned int file_name_len = strlen(entry->d_name) + 1;
+				char* file_name = new char[file_name_len];
+				file_name[file_name_len - 1] = '\0';
+				strcpy(file_name, entry->d_name);
+				files.push_back(file_name);
 			} else {
 				//目录
 			}
@@ -118,6 +122,9 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		}
 
 		closedir(pDir);
+		for (unsigned int i = 0; i < files.size(); i++) {
+			delete[] files[i];
+		}
 	}
 
 	//准备Scatter接收的数据缓冲区
