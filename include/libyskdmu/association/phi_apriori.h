@@ -67,9 +67,9 @@ private:
 //	char** m_global_identifiers; //全局项目标识
 	KItemsets* m_itemset_send_buf;
 	KItemsets* m_itemset_recv_buf;
-	const static unsigned int SYNIDG_RECV_BUF_SIZE = 40960;
+	const static unsigned int SYNIDG_RECV_BUF_SIZE = 409600;
 	const static unsigned int SYNIDB_BUF_SIZE = 409600;
-	const static unsigned int SYNRIG_RECV_BUF_SIZE = 40960;
+	const static unsigned int SYNRIG_RECV_BUF_SIZE = 409600;
 	const static unsigned int SYNRIB_BUF_SIZE = 409600;
 	const static unsigned int PHIS_BUF_SIZE = 40960;
 	const static unsigned int PHIR_BUF_SIZE = 40960;
