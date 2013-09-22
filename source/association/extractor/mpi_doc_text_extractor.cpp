@@ -222,19 +222,32 @@ bool MPIDocTextExtractor::hi_extract_record(void* data_addr) {
 			}
 
 			char* key_info = NULL;
+			int item_detail_index = -1;
 			bool have_index = true;
 			size_t length = strlen(word);
 			//抽取item_detail
 			if (!m_item_index->get_key_info(&key_info, word, length)) {
 				m_item_details->push_back(
 						DocItemDetail(word, parsed_words[i].szPOS));
-				key_info = itoa(m_item_details->size() - 1);
+				item_detail_index = m_item_details->size() - 1;
+				key_info = itoa(item_detail_index);
 				have_index = false;
+			} else {
+				char* p[3];
+				char* buf = key_info;
+				int in = 0;
+				while ((p[in] = strtok(buf, "#")) != NULL) {
+					in++;
+					buf = NULL;
+				}
+				item_detail_index = ysk_atoi(p[1], strlen(p[1]));
+				delete[] key_info;
+				key_info = itoa(item_detail_index);
 			}
 
 			//抽取item
-			DocItem item = DocItem(ysk_atoi(key_info, strlen(key_info)),
-					parsed_words[i].iStartPos, parsed_words[i].iLength);
+			DocItem item = DocItem(item_detail_index, parsed_words[i].iStartPos,
+					parsed_words[i].iLength);
 			pair<unsigned int, bool> bs_result = b_search<DocItem>(v_items,
 					item);
 			if (bs_result.second) {
