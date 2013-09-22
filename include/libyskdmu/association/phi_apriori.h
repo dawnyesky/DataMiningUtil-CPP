@@ -257,45 +257,93 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		}
 
 		if (numprocs % 2 == 0) {
-			if (pid % 2 == 0) { //进程号为偶数的发送
+			if (numprocs % 4 != 0) {
+				//这种情况可以所有结点同时进行通讯，每个结点只参与发送/接收的一种，理论上最快的方式
+				if (pid % 2 == 0) { //进程号为偶数的发送
+					this->toggle_buffer();
+					//用发送缓冲区的数据打包发送消息
+					pair<void*, int> phis_msg_pkg = this->pack_phis_msg(
+							this->m_itemset_send_buf);
+					//以非阻塞方式数据发送给下一个节点
+					MPI_Buffer_attach(buffer, PHIS_BUF_SIZE);
+					MPI_Bsend(phis_msg_pkg.first, phis_msg_pkg.second,
+							MPI_PACKED, (pid + 1) % numprocs, j, m_comm);
+					//栅栏同步
+					MPI_Barrier(m_comm);
+					this->toggle_buffer();
+					MPI_Buffer_detach(&buffer, &buffer_size);
+				} else { //进程号为奇数的接收
+					delete this->m_itemset_recv_buf;
+					//准备接收数据缓冲区
+					pair<void*, int> phir_msg_pkg;
+					phir_msg_pkg.first = malloc(PHIR_BUF_SIZE);
+					phir_msg_pkg.second = PHIR_BUF_SIZE;
+
+					//以阻塞方式从上一节点接收数据
+					MPI_Status comm_status;
+					MPI_Recv(phir_msg_pkg.first, phir_msg_pkg.second,
+							MPI_PACKED, (pid + numprocs - 1) % numprocs, j,
+							m_comm, &comm_status);
+
+					//把接收数据解包到接收缓冲区
+					this->m_itemset_recv_buf = unpack_phir_msg(phir_msg_pkg);
+
+					//F(k-1)[本节点]×F(k-1)[上j+1节点]
+					if (!this->hi_frq_gen(*frq_itemsets,
+							this->m_frequent_itemsets->at(i),
+							*this->m_itemset_recv_buf)) {
+						return false;
+					}
+
+					//栅栏同步
+					MPI_Barrier(m_comm);
+				}
+			} else {
+				//这种情况只有n/2+1个节点进行通讯，每个结点参与发送/接收的一种或两种，理论上中等速度的方式
+				this->m_itemset_send_buf = new KItemsets();
 				this->toggle_buffer();
-				//用发送缓冲区的数据打包发送消息
-				pair<void*, int> phis_msg_pkg = this->pack_phis_msg(
-						this->m_itemset_send_buf);
-				//以非阻塞方式数据发送给下一个节点
-				MPI_Buffer_attach(buffer, PHIS_BUF_SIZE);
-				MPI_Bsend(phis_msg_pkg.first, phis_msg_pkg.second, MPI_PACKED,
-						(pid + 1) % numprocs, j, m_comm);
-				//栅栏同步
-				MPI_Barrier(m_comm);
-				this->toggle_buffer();
-				MPI_Buffer_detach(&buffer, &buffer_size);
-			} else { //进程号为奇数的接收
-				delete this->m_itemset_recv_buf;
-				//准备接收数据缓冲区
-				pair<void*, int> phir_msg_pkg;
-				phir_msg_pkg.first = malloc(PHIR_BUF_SIZE);
-				phir_msg_pkg.second = PHIR_BUF_SIZE;
 
-				//以阻塞方式从上一节点接收数据
-				MPI_Status comm_status;
-				MPI_Recv(phir_msg_pkg.first, phir_msg_pkg.second, MPI_PACKED,
-						(pid + numprocs - 1) % numprocs, j, m_comm,
-						&comm_status);
+				if (pid < numprocs / 2) {
+					//用发送缓冲区的数据打包发送消息
+					pair<void*, int> phis_msg_pkg = this->pack_phis_msg(
+							this->m_itemset_send_buf);
 
-				//把接收数据解包到接收缓冲区
-				this->m_itemset_recv_buf = unpack_phir_msg(phir_msg_pkg);
+					//以非阻塞方式数据发送给下一个节点
+					MPI_Buffer_attach(buffer, PHIS_BUF_SIZE);
+					MPI_Bsend(phis_msg_pkg.first, phis_msg_pkg.second,
+							MPI_PACKED, (pid + 1) % numprocs, j, m_comm);
+					MPI_Buffer_detach(&buffer, &buffer_size);
+				}
 
-				//F(k-1)[本节点]×F(k-1)[上j+1节点]
-				if (!this->hi_frq_gen(*frq_itemsets,
-						this->m_frequent_itemsets->at(i),
-						*this->m_itemset_recv_buf)) {
-					return false;
+				if (pid > 0 && pid <= numprocs / 2) {
+					//准备接收数据缓冲区
+					pair<void*, int> phir_msg_pkg;
+					phir_msg_pkg.first = malloc(PHIR_BUF_SIZE);
+					phir_msg_pkg.second = PHIR_BUF_SIZE;
+
+					//以阻塞方式从上一节点接收数据
+					MPI_Status comm_status;
+					MPI_Recv(phir_msg_pkg.first, phir_msg_pkg.second,
+							MPI_PACKED, (pid + numprocs - 1) % numprocs, j,
+							m_comm, &comm_status);
+
+					//把接收数据解包到接收缓冲区
+					this->m_itemset_recv_buf = unpack_phir_msg(phir_msg_pkg);
+
+					//F(k-1)[本节点]×F(k-1)[上j+1节点]
+					if (!this->hi_frq_gen(*frq_itemsets,
+							this->m_frequent_itemsets->at(i),
+							*this->m_itemset_recv_buf)) {
+						return false;
+					}
 				}
 
 				//栅栏同步
 				MPI_Barrier(m_comm);
+				delete this->m_itemset_send_buf;
 			}
+//			printf("process %u have %u f%u itemsets after last round comm\n",
+//					pid, frq_itemsets->get_itemsets().size(), i + 2);
 		}
 
 		delete this->m_itemset_recv_buf;
