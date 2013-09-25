@@ -22,7 +22,8 @@ extern void test_open_hash_index();
 const static char* DYNAMIC_HASH_INDEX = "dynamic_hash_index";
 extern void test_dynamic_hash_index();
 const static char* MPI_D_HASH_INDEX = "mpi_d_hash_index";
-extern void test_mpi_d_hash_index(int argc, char *argv[]);
+extern void test_mpi_d_hash_index(int argc, char *argv[],
+		unsigned int record_num = 15, unsigned int term_num_per_record = 5);
 
 const static char* TRADE_X_EXTRACTOR = "trade_x_extractor";
 extern void test_trade_x_extractor();
@@ -102,7 +103,11 @@ int main(int argc, char *argv[]) {
 	} else if (strcmp(argv[1], DYNAMIC_HASH_INDEX) == 0) {
 		test_dynamic_hash_index();
 	} else if (strcmp(argv[1], MPI_D_HASH_INDEX) == 0) {
-		test_mpi_d_hash_index(argc, argv);
+		if (argc < 4) {
+			printf("usage: %s %s record_num term_num_per_record", argv[0],
+					MPI_D_HASH_INDEX);
+		}
+		test_mpi_d_hash_index(argc, argv, atoi(argv[2]), atoi(argv[3]));
 	} else if (strcmp(argv[1], TRADE_X_EXTRACTOR) == 0) {
 		test_trade_x_extractor();
 	} else if (strcmp(argv[1], DOC_TEXT_EXTRACTOR) == 0) {

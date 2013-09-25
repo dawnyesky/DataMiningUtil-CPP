@@ -462,7 +462,7 @@ void DynamicHashIndex::print_index(const char** identifiers) {
 	for (unsigned int i = 0; i < (unsigned int) pow(2, index.get_global_deep());
 			i++) {
 		if (catalogs[i].bucket != NULL) {
-			vector<IndexHead> elements = catalogs[i].bucket->elements;
+			vector<IndexHead>& elements = catalogs[i].bucket->elements;
 			for (unsigned int j = 0; j < elements.size(); j++) {
 				if (identifiers != NULL) {
 					identifier = identifiers[ysk_atoi(elements[j].key_info,

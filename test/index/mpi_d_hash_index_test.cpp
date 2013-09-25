@@ -16,7 +16,8 @@
 static clock_t start, finish;
 static float duration;
 
-void test_mpi_d_hash_index(int argc, char *argv[]) {
+void test_mpi_d_hash_index(int argc, char *argv[], unsigned int record_num = 15,
+		unsigned int term_num_per_record = 5) {
 	int pid, numprocs;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
@@ -25,8 +26,6 @@ void test_mpi_d_hash_index(int argc, char *argv[]) {
 			"**********MPIDistributedHashIndex start testing in processor%i**********\n",
 			pid);
 	start = clock();
-	unsigned int record_num = 15;
-	unsigned int term_num_per_record = 5;
 	unsigned int intersect_iden_num = 2;
 	bool print_index = true;
 	bool print_intersect_record_num = false;
