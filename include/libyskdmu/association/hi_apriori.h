@@ -156,12 +156,20 @@ bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
 
 			/************************** 项目集连接与过滤 **************************/
 			//求并集
-			k_itemset = KItemsets::union_set(prv_frq1_iter->first,
-					prv_frq2_iter->first);
+			if (prv_frq1_iter->first.size() == 1
+					|| prv_frq2_iter->first.size() == 1) { //F(k-1)×F(1)
+				k_itemset = KItemsets::union_set(prv_frq1_iter->first,
+						prv_frq2_iter->first);
+			} else if (prv_frq1_iter->first.size()
+					== prv_frq2_iter->first.size()) { //F(k-1)×F(k-1)
+				k_itemset = KItemsets::union_eq_set(prv_frq1_iter->first,
+						prv_frq2_iter->first);
+			}
 
 			//过滤并保存潜在频繁项集
 			unsigned int support;
-			if (k_itemset->size() == prv_frq1.get_term_num() + 1
+			if (k_itemset != NULL
+					&& k_itemset->size() == prv_frq1.get_term_num() + 1
 					&& hi_filter(k_itemset, &support)) {
 				frq_itemset.push(*k_itemset, support);
 				this->logItemset("Frequent", k_itemset->size(), *k_itemset,

@@ -87,6 +87,31 @@ vector<unsigned int>* KItemsets::subtract_set(
 	return result;
 }
 
+vector<unsigned int>* KItemsets::union_eq_set(
+		const vector<unsigned int>& itemset_1,
+		const vector<unsigned int>& itemset_2) {
+	if (itemset_1.size() != itemset_2.size()) {
+		return NULL;
+	}
+	vector<unsigned int>* result = new vector<unsigned int>(itemset_1);
+	vector<unsigned int> other = vector<unsigned int>(itemset_2);
+	sort(result->begin(), result->end());
+	sort(other.begin(), other.end());
+	unsigned int i = 0;
+	for (i = 0; i < result->size() - 1; i++) {
+		if (result->at(i) != other[i]) {
+			delete result;
+			return NULL;
+		}
+	}
+	if (result->at(i) <= other[i]) {
+		result->push_back(other[i]);
+	} else {
+		result->insert(result->begin() + i, other[i]);
+	}
+	return result;
+}
+
 bool KItemsets::has_itemset(vector<unsigned int>& itemset) {
 	if (itemset.size() == m_term_num
 			|| m_term_num == numeric_limits<unsigned int>::max()) {

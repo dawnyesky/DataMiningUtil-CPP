@@ -41,6 +41,14 @@ public:
 			const vector<unsigned int>& minuend,
 			const vector<unsigned int>& subtrahend);
 	/*
+	 * description: 求两个项集的自连接集
+	 *  parameters: (in)			itemset:		需要自连接的集合
+	 *      return: (out)	自连接集
+	 */
+	static vector<unsigned int>* union_eq_set(
+			const vector<unsigned int>& itemset_1,
+			const vector<unsigned int>& itemset_2);
+	/*
 	 * description: 判断是否已存在此项集
 	 *  parameters: itemset:	参考项集
 	 *      return: 是否存在
