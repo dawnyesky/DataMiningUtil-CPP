@@ -65,7 +65,7 @@ DynamicHashIndex::~DynamicHashIndex() {
 			delete m_catalogs[i].bucket;
 			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
 					j++) {
-				deleted[i + j * (int) pow(2, m_catalogs[i].l)] = true;
+				deleted[i + j * (int) pow(2, m_catalogs[i].l)] = 1;
 			}
 		}
 	}
@@ -96,6 +96,7 @@ pair<unsigned int, int> DynamicHashIndex::locate_index(const char *key,
 	for (unsigned int i = 0; i < elements.size(); i++) {
 		if (strcmp(elements[i].identifier, key_str) == 0) {
 			result.second = i;
+			break;
 		}
 	}
 	return result;
@@ -258,7 +259,36 @@ bool DynamicHashIndex::split_catalog(unsigned int global_deep) {
 }
 
 unsigned int DynamicHashIndex::size_of_index() {
-	return 0;
+	unsigned int result = 0;
+	unsigned int catalogs_size = pow(2, m_d);
+	result += catalogs_size * sizeof(Catalog); //计算目录的大小
+	unsigned int calculated[catalogs_size];
+	memset(calculated, 0, catalogs_size);
+	unsigned int dynamic_char_num = 0;
+	unsigned int dynamic_item_num = 0;
+	for (unsigned int i = 0; i < catalogs_size; i++) {
+		if (calculated[i] == 0) {
+			result += sizeof(*m_catalogs[i].bucket); //计算每个桶（及其包含的索引头结构）的大小
+			for (vector<IndexHead>::iterator iter =
+					m_catalogs[i].bucket->elements.begin();
+					iter != m_catalogs[i].bucket->elements.end(); iter++) { //计算每个索引头里的动态数据大小以及索引项大小
+				if (NULL != iter->identifier) {
+					dynamic_char_num += strlen(iter->identifier) + 1;
+				}
+				if (NULL != iter->key_info) {
+					dynamic_char_num += strlen(iter->key_info) + 1;
+				}
+				dynamic_item_num += iter->index_item_num;
+			}
+			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
+					j++) {
+				calculated[i + j * (int) pow(2, m_catalogs[i].l)] = 1;
+			}
+		}
+	}
+	result += dynamic_char_num * sizeof(char)
+			+ dynamic_item_num * sizeof(IndexItem);
+	return result;
 }
 
 unsigned int DynamicHashIndex::get_mark_record_num(const char *key,
@@ -334,6 +364,9 @@ bool DynamicHashIndex::get_key_info(char **key_info, const char *key,
 
 unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 		unsigned int key_num) {
+	if (keys == NULL) {
+		return NULL;
+	}
 	if (key_num == 1) {
 		unsigned int record_num = get_mark_record_num(keys[0], strlen(keys[0]));
 		unsigned int *records = new unsigned int[1 + record_num];
@@ -341,7 +374,7 @@ unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 		find_record(records + 1, keys[0], strlen(keys[0]));
 		return records;
 	}
-	if (keys != NULL && key_num > 1) {
+	if (key_num > 1) {
 		IndexItem **ptr = new IndexItem*[key_num];
 		IndexItem *cur_min = NULL;
 		unsigned int intersect_num = 0;
