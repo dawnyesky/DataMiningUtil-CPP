@@ -14,6 +14,7 @@
 
 using namespace std;
 
+#pragma offload_attribute(push, target(mic))
 class KItemsets {
 public:
 	KItemsets();
@@ -65,5 +66,6 @@ private:
 	map<vector<unsigned int>, unsigned int> m_itemsets;
 	HashIndex* m_itemsets_index;
 };
+#pragma offload_attribute(pop)
 
 #endif /* ITEMSET_H_ */

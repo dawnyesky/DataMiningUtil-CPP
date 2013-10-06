@@ -31,8 +31,8 @@ class HashIndex {
 public:
 	virtual ~HashIndex() {
 	}
-	;
 
+	HashFunc get_hash_func();
 	/*
 	 * description: 插入函数
 	 *  parameters: key:			关键字

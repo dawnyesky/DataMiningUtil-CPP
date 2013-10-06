@@ -8,6 +8,10 @@
 #include <string.h>
 #include "libyskdmu/index/hash_index.h"
 
+HashFunc HashIndex::get_hash_func() {
+	return m_hash_func;
+}
+
 IndexItem* HashIndex::min_record_id(IndexItem **ptr, unsigned int ptr_num) {
 	if (ptr != NULL) {
 		IndexItem* cur_min = ptr[0];

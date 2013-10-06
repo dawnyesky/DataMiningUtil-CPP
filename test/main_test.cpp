@@ -21,6 +21,8 @@ const static char* OPEN_HASH_INDEX = "open_hash_index";
 extern void test_open_hash_index();
 const static char* DYNAMIC_HASH_INDEX = "dynamic_hash_index";
 extern void test_dynamic_hash_index();
+const static char* RO_DYNAMIC_HASH_INDEX = "ro_dynamic_hash_index";
+extern void test_ro_dynamic_hash_index();
 const static char* MPI_D_HASH_INDEX = "mpi_d_hash_index";
 extern void test_mpi_d_hash_index(int argc, char *argv[],
 		unsigned int record_num = 15, unsigned int term_num_per_record = 5);
@@ -102,6 +104,8 @@ int main(int argc, char *argv[]) {
 		test_open_hash_index();
 	} else if (strcmp(argv[1], DYNAMIC_HASH_INDEX) == 0) {
 		test_dynamic_hash_index();
+	} else if (strcmp(argv[1], RO_DYNAMIC_HASH_INDEX) == 0) {
+		test_ro_dynamic_hash_index();
 	} else if (strcmp(argv[1], MPI_D_HASH_INDEX) == 0) {
 		if (argc < 4) {
 			printf("usage: %s %s record_num term_num_per_record", argv[0],

@@ -41,8 +41,8 @@ DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
 
 DynamicHashIndex::~DynamicHashIndex() {
 	unsigned int catalogs_size = pow(2, m_d);
-	unsigned int deleted[catalogs_size];
-	memset(deleted, 0, catalogs_size);
+	unsigned char deleted[catalogs_size];
+	memset(deleted, 0, catalogs_size * sizeof(unsigned char));
 	for (unsigned int i = 0; i < catalogs_size; i++) {
 		if (deleted[i] == 0) {
 			for (vector<IndexHead>::iterator iter =
@@ -92,7 +92,7 @@ pair<unsigned int, int> DynamicHashIndex::locate_index(const char *key,
 	result.second = -1;
 	char key_str[key_length + 1];
 	strcpy(key_str, key);
-	memset(key_str + key_length, '\0', 1);
+	memset(key_str + key_length, '\0', 1 * sizeof(char));
 	for (unsigned int i = 0; i < elements.size(); i++) {
 		if (strcmp(elements[i].identifier, key_str) == 0) {
 			result.second = i;
@@ -262,8 +262,8 @@ unsigned int DynamicHashIndex::size_of_index() {
 	unsigned int result = 0;
 	unsigned int catalogs_size = pow(2, m_d);
 	result += catalogs_size * sizeof(Catalog); //计算目录的大小
-	unsigned int calculated[catalogs_size];
-	memset(calculated, 0, catalogs_size);
+	unsigned char calculated[catalogs_size];
+	memset(calculated, 0, catalogs_size * sizeof(unsigned char));
 	unsigned int dynamic_char_num = 0;
 	unsigned int dynamic_item_num = 0;
 	for (unsigned int i = 0; i < catalogs_size; i++) {

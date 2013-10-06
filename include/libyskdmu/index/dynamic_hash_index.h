@@ -9,6 +9,7 @@
 #define DYNAMIC_HASH_INDEX_H_
 
 #include "libyskdmu/util/hashfunc_util.h"
+#include "libyskdmu/index/ro_dynamic_hash_index.h"
 #include "libyskdmu/index/closed_hash_index.h"
 
 struct Catalog {
@@ -18,6 +19,7 @@ struct Catalog {
 
 class DynamicHashIndex: public HashIndex {
 public:
+	friend class RODynamicHashIndex;
 	DynamicHashIndex(unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
 	DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index);
@@ -33,7 +35,7 @@ public:
 	 * description: 定位函数
 	 *  parameters: key:		关键字
 	 *  			key_length:	关键字长度
-	 *      return: （对应的目录项索引值，目标在桶中的索引号，不存在返回-1,重复返回最近插入的那个）
+	 *      return: （对应的目录项索引值，目标在桶中的索引号(不存在返回-1)）
 	 */
 	virtual pair<unsigned int, int> locate_index(const char *key,
 			size_t key_length);
