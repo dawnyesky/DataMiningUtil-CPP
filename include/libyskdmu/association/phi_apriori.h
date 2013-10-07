@@ -13,6 +13,7 @@
 #include <omp.h>
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
+#include "libyskdmu/index/ro_dynamic_hash_index.h"
 #include "libyskdmu/association/hi_apriori.h"
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -35,6 +36,8 @@ protected:
 	bool phi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq1,
 			KItemsets& prv_frq2);
 	bool phi_filter(vector<unsigned int>* k_itemset, unsigned int* support);
+	bool gen_ro_index();
+	bool destroy_ro_index();
 
 private:
 	bool syn_item_detail();
@@ -159,6 +162,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		return false;
 	}
 //	printf("process %u finish con\n", pid);
+
+	//生成只读索引并传输到加速卡内存
+//	printf("start gen ro index\n");
+	this->gen_ro_index();
+//	printf("end gen ro index\n");
 
 	this->m_minsup_count = double2int(
 			this->m_record_infos.size() * this->m_minsup);
@@ -384,6 +392,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 //	printf("process %u finish gen frequent itemset\n", pid);
 //	MPI_Barrier(m_comm);
 
+	//释放只读索引所占的内存空间
+//	printf("start destroy ro index\n");
+	this->destroy_ro_index();
+//	printf("end destroy ro index\n");
+
 	return true;
 }
 
@@ -504,7 +517,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	for (unsigned int j = 0; j < k_itemset->size(); j++) {
 		keys[j] = this->m_item_details[k_itemset->at(j)].m_identifier;
 	}
-	result = this->m_item_index->get_intersect_records((const char **) keys,
+	result = this->m_ro_hash_index->get_intersect_records((const char **) keys,
 			k_itemset->size());
 	*support = result[0];
 	delete[] keys;
@@ -591,6 +604,26 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_genrules() {
 	}
 
 	return true;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::gen_ro_index() {
+	if (this->m_ro_hash_index != NULL) {
+		delete this->m_ro_hash_index;
+	}
+	this->m_ro_hash_index = new RODynamicHashIndex();
+	bool succeed = true;
+	succeed &= this->m_ro_hash_index->build(this->m_item_index);
+	return succeed;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::destroy_ro_index() {
+	bool succeed = true;
+	if (this->m_ro_hash_index != NULL) {
+		delete this->m_ro_hash_index;
+	}
+	return succeed;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
