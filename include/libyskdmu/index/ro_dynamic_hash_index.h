@@ -7,11 +7,11 @@
 
 #ifndef RO_DYNAMIC_HASH_INDEX_H_
 #define RO_DYNAMIC_HASH_INDEX_H_
+#pragma offload_attribute(push, target(mic))
 
 #include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/index/ro_hash_index.h"
 
-#pragma offload_attribute(push, target(mic))
 class RODynamicHashIndex: public ROHashIndex {
 public:
 	RODynamicHashIndex();
@@ -54,7 +54,9 @@ protected:
 	unsigned int m_l1_index_size; //一级索引大小
 	void* m_l2_index; //索引数据块的二级索引
 	unsigned int m_l2_index_size;
-};
-#pragma offload_attribute(pop)
 
+	RODynamicHashIndex* m_accard_inst; //offload到加速卡实例化后的指针
+};
+
+#pragma offload_attribute(pop)
 #endif /* RO_DYNAMIC_HASH_INDEX_H_ */

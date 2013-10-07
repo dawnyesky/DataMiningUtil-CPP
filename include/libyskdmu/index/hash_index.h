@@ -7,6 +7,7 @@
 
 #ifndef HASH_INDEX_H_
 #define HASH_INDEX_H_
+#pragma offload_attribute(push, target(mic))
 
 #include <stdio.h>
 #include "libyskdmu/util/hashfunc_util.h"
@@ -33,6 +34,7 @@ public:
 	}
 
 	HashFunc get_hash_func();
+
 	/*
 	 * description: 插入函数
 	 *  parameters: key:			关键字
@@ -131,4 +133,5 @@ protected:
 	LogInstance* m_log_fp; //日志文件指针
 };
 
+#pragma offload_attribute(pop)
 #endif /* HASH_INDEX_H_ */

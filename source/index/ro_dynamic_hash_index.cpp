@@ -310,27 +310,44 @@ unsigned int* RODynamicHashIndex::get_intersect_records(const char **keys,
 }
 
 bool RODynamicHashIndex::offload_data() {
+	unsigned int* index_data = (unsigned int*) m_data;
 #pragma offload target(mic)\
-		in(m_data:length(m_data_size) alloc_if(1) free_if(0),\
-		   m_data_size alloc_if(1) free_if(0),\
-		   m_l1_index:length(m_l1_index_size) alloc_if(1) free_if(0),\
-		   m_l1_index_size alloc_if(1) free_if(0),\
-		   m_l2_index:length(m_l2_index_size) alloc_if(1) free_if(0),\
-		   m_l2_index_size alloc_if(1) free_if(0))
+		in(m_d:alloc_if(1) free_if(0))\
+		in(index_data:length(m_data_size) alloc_if(1) free_if(0))\
+		in(m_data_size:alloc_if(1) free_if(0))\
+		in(m_l1_index:length(m_l1_index_size) alloc_if(1) free_if(0))\
+		in(m_l1_index_size:alloc_if(1) free_if(0))\
+		in(m_l2_index:length(m_l2_index_size) alloc_if(1) free_if(0))\
+		in(m_l2_index_size:alloc_if(1) free_if(0)\
+		out(m_accard_inst:alloc_if(1) free_if(0))
 	{
+		m_accard_inst = new RODynamicHashIndex();
+		m_accard_inst->m_accard_inst = this;
+		m_accard_inst->m_d = m_d;
+		m_accard_inst->m_data = m_data;
+		m_accard_inst->m_data_size = m_data_size;
+		m_accard_inst->m_l1_index = m_l1_index;
+		m_accard_inst->m_l1_index_size = m_l1_index_size;
+		m_accard_inst->m_l2_index = m_l2_index;
+		m_accard_inst->m_l2_index_size = m_l2_index_size;
 	}
 	return true;
 }
 
 bool RODynamicHashIndex::recycle_data() {
+	unsigned int* index_data = (unsigned int*) m_data;
 #pragma offload target(mic)\
-		nocopy(m_data:length(m_data_size) alloc_if(0) free_if(1),\
-			   m_data_size alloc_if(0) free_if(1),\
-			   m_l1_index:length(m_l1_index_size) alloc_if(0) free_if(1),\
-			   m_l1_index_size alloc_if(0) free_if(1),\
-			   m_l2_index:length(m_l2_index_size) alloc_if(0) free_if(1),\
-			   m_l2_index_size alloc_if(0) free_if(1))
+		nocopy(m_d:alloc_if(1) free_if(0))\
+		nocopy(index_data:length(m_data_size) alloc_if(0) free_if(1))\
+		nocopy(m_data_size:alloc_if(0) free_if(1))\
+		nocopy(m_l1_index:length(m_l1_index_size) alloc_if(0) free_if(1))\
+		nocopy(m_l1_index_size:alloc_if(0) free_if(1))\
+		nocopy(m_l2_index:length(m_l2_index_size) alloc_if(0) free_if(1))\
+		nocopy(m_l2_index_size:alloc_if(0) free_if(1))\
+		out(m_accard_inst:alloc_if(0) free_if(1))
 	{
+		delete m_accard_inst;
+		m_accard_inst = NULL;
 	}
 	return true;
 }

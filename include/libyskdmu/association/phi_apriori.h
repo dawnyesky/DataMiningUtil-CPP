@@ -7,6 +7,7 @@
 
 #ifndef PHI_APRIORI_H_
 #define PHI_APRIORI_H_
+#pragma offload_attribute(push, target(mic))
 
 #include <math.h>
 #include <string.h>
@@ -35,9 +36,7 @@ public:
 protected:
 	bool phi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq1,
 			KItemsets& prv_frq2);
-#pragma offload_attribute(push, target(mic))
 	bool phi_filter(vector<unsigned int>* k_itemset, unsigned int* support);
-#pragma offload_attribute(pop)
 	bool gen_ro_index();
 	bool destroy_ro_index();
 
@@ -449,12 +448,12 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 
 	/* 潜在频繁项集生成 */
 #pragma offload target(mic)\
-		out(frq_itemset_buf:length(numthreads * FRQGENG_RECV_BUF_SIZE),\
-			frq_itemset_num:length(numthreads))\
-		in(frq_itemset_list1:length(prv_frq_itemsets1.size() * prv_frq1.get_term_num()),\
-		   frq_itemset_list2:length(prv_frq_itemsets2.size() * prv_frq2.get_term_num()),\
-		   prv_frq_size1, prv_frq_size2,\
-		   prv_frq_term_num1, prv_frq_term_num2)
+		out(frq_itemset_buf:length(numthreads * FRQGENG_RECV_BUF_SIZE))\
+		out(frq_itemset_num:length(numthreads))\
+		in(frq_itemset_list1:length(prv_frq_itemsets1.size() * prv_frq1.get_term_num()))\
+		in(frq_itemset_list2:length(prv_frq_itemsets2.size() * prv_frq2.get_term_num()))\
+		in(prv_frq_size1, prv_frq_size2)\
+		in(prv_frq_term_num1, prv_frq_term_num2)
 #pragma omp parallel for shared(frq_itemset_buf, frq_itemset_num)
 	for (unsigned int k = 0; k < prv_frq_size1 * prv_frq_size2; k++) {
 		unsigned int tid = omp_get_thread_num();
@@ -1249,4 +1248,5 @@ void ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::toggle_buffer() {
 	this->m_itemset_recv_buf = temp;
 }
 
+#pragma offload_attribute(pop)
 #endif /* PHI_APRIORI_H_ */
