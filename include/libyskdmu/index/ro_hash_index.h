@@ -11,25 +11,15 @@
 #include <stdio.h>
 #include "libyskdmu/util/hashfunc_util.h"
 #include "libyskdmu/util/log_util.h"
-#include "libyskdmu/index/hash_index.h"
 
-class ROHashIndex {
+FUNCDECL unsigned int simple_hash_mic(const char *key, unsigned int length,
+		unsigned int table_size);
+
+class CLASSDECL ROHashIndex {
 public:
 	virtual ~ROHashIndex() {
 	}
 
-	bool is_built();
-	/*
-	 * description: 获取索引
-	 *      return: 索引数据
-	 *      		索引所占内存大小，单位(byte)
-	 */
-	virtual pair<void*, unsigned int> get_index_data();
-	/*
-	 * description: 根据一个完整的索引构建只读索引
-	 *      return: 构建是否成功
-	 */
-	virtual bool build(HashIndex* original_index) = 0;
 	/*
 	 * description: 获取记录数量函数
 	 *  parameters: (in)	key:			关键字

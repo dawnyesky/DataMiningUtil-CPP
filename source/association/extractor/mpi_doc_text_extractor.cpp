@@ -100,7 +100,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		//准备Scatter数据
 		assert(files.size() >= numprocs);
 		unsigned int file_per_proc = files.size() / numprocs;
-		vector<vector<char*> > v_files;
+		vector < vector<char*> > v_files;
 		vector<char*>::iterator iter = files.begin();
 		for (unsigned int i = 0; i < numprocs - 1; i++) {
 			vector<char*> files_per_proc = vector<char*>(iter,

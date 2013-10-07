@@ -9,7 +9,7 @@
 #define DYNAMIC_HASH_INDEX_H_
 
 #include "libyskdmu/util/hashfunc_util.h"
-#include "libyskdmu/index/ro_dynamic_hash_index.h"
+#include "libyskdmu/index/ro_dhi_data.h"
 #include "libyskdmu/index/closed_hash_index.h"
 
 struct Catalog {
@@ -19,7 +19,7 @@ struct Catalog {
 
 class DynamicHashIndex: public HashIndex {
 public:
-	friend class RODynamicHashIndex;
+	friend class RODynamicHashIndexData;
 	DynamicHashIndex(unsigned int bucket_size = 10,
 			unsigned int global_deep = 2);
 	DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index);

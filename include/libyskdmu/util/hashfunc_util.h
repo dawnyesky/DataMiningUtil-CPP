@@ -8,6 +8,8 @@
 #ifndef HASHFUNC_UTIL_H_
 #define HASHFUNC_UTIL_H_
 
+#include "libyskdmu/macro.h"
+
 typedef unsigned int (*HashFunc)(const char *key, unsigned int length,
 		unsigned int table_size);
 

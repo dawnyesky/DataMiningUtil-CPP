@@ -12,6 +12,7 @@
 #include <math.h>
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/dynamic_hash_index.h"
+#include "libyskdmu/index/ro_dhi_data.h"
 #include "libyskdmu/index/ro_dynamic_hash_index.h"
 
 static clock_t start, finish;
@@ -29,7 +30,7 @@ void test_ro_dynamic_hash_index() {
 			"hello kitty", "snoopy", "sheldon", "penny", "saber", "archer",
 			"T-Pat" };
 	srand((unsigned int) time(NULL));
-	RODynamicHashIndex ro_index;
+	RODynamicHashIndexData ro_index_data;
 	DynamicHashIndex index = DynamicHashIndex(4, 2);
 	const char *identifier = NULL;
 	unsigned int iden_index, hashcode;
@@ -46,7 +47,14 @@ void test_ro_dynamic_hash_index() {
 		index.print_index();
 	}
 
-	ro_index.build(&index);
+	ro_index_data.build(&index);
+	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
+			*l2_index_size;
+	unsigned char* l2_index;
+	ro_index_data.fill_memeber_data(&d, &data, &data_size, &l1_index,
+			&l1_index_size, &l2_index, &l2_index_size);
+	RODynamicHashIndex ro_index(d, data, data_size, l1_index, l1_index_size,
+			l2_index, l2_index_size, simple_hash);
 
 	const char* target_identifier = identifiers[rand() % 11];
 	unsigned int records[record_num];
