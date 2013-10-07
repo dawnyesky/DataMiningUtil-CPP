@@ -11,11 +11,37 @@
 #ifdef OMP
 #include <omp.h>
 #include "libyskdmu/macro.h"
+#include "libyskdmu/util/mic_util.h"
+#elif defined(OCL)
+#define OPENCL_CHECK_ERRORS(ERR)					\
+		if(ERR != CL_SUCCESS) {						\
+			cerr									\
+			<< "OpenCL error with code " << ERR		\
+			<< " happened in file " << __FILE__		\
+			<< " at line " << __LINE__				\
+			<< ". Exiting...\n";					\
+			exit(1);								\
+		}
+
+#define OPENCL_GET_NUMERIC_PROPERTY(DEVICE, NAME, VALUE) {		\
+            size_t property_length = 0;							\
+            err = clGetDeviceInfo(								\
+            		DEVICE,										\
+            		NAME,										\
+            		sizeof(VALUE),								\
+            		&VALUE,										\
+            		&property_length							\
+            );													\
+            assert(property_length == sizeof(VALUE));			\
+            OPENCL_CHECK_ERRORS(err);							\
+		}
+
+#include <CL/cl.h>
+#include <unistd.h>
 #endif
 
 #include <math.h>
 #include <string.h>
-#include "libyskdmu/util/mic_util.h"
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
 #include "libyskdmu/index/ro_dhi_data.h"
@@ -46,6 +72,18 @@ protected:
 			ROHashIndex* ro_index, char* identifiers,
 			unsigned int identifiers_size, unsigned int* id_index,
 			unsigned int id_index_size, unsigned int minsup_count);
+#elif defined(OCL)
+	bool phi_filter(vector<vector<unsigned long long> >* intersect_result,
+			vector<unsigned long long>* data,
+			vector<unsigned long long>* in_indice,
+			vector<unsigned long long>* in_offset,
+			vector<unsigned long long>* out_indice,
+			vector<unsigned long long>* out_offset,
+			vector<unsigned long long>* out_offset_indice,
+			vector<unsigned long long>* task_indice, size_t total_work_load,
+			size_t total_work_task);
+	bool init_opencl();
+	bool release_opencl();
 #else
 	bool phi_filter(vector<unsigned int>* k_itemset, unsigned int* support);
 #endif
@@ -100,7 +138,14 @@ private:
 	const static unsigned int PHIR_BUF_SIZE = 40960;
 	const static unsigned int GENG_RECV_BUF_SIZE = 4096000;
 	const static unsigned int FRQGENG_RECV_BUF_SIZE = 4096;
+#ifdef OMP
 	const static unsigned int DEFAULT_OMP_NUM_THREADS = 2;
+#elif defined(OCL)
+	vector<cl_device_id> m_cl_devices;
+	vector<cl_device_type> m_cl_device_types;
+	vector<float> m_cl_device_perfs;
+	vector<cl_context> m_cl_contexts;
+#endif
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -188,6 +233,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	this->gen_ro_index();
 //	printf("end gen ro index\n");
 
+#ifdef OCL
+	//初始化OpenCL环境
+	this->init_opencl();
+#endif
+
 	this->m_minsup_count = double2int(
 			this->m_record_infos.size() * this->m_minsup);
 	if (0 == this->m_minsup_count)
@@ -239,7 +289,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 //		printf("process %u before f%u gen\n", pid, i + 2);
 		//F(k-1)[本节点]×F(k-1)[本节点]
 		if (!this->phi_frq_gen(*frq_itemsets, this->m_frequent_itemsets->at(i),
-				*this->m_itemset_recv_buf)) {
+				this->m_frequent_itemsets->at(i))) {
 			return false;
 		}
 //		printf("process %u after f%u gen\n", pid, i + 2);
@@ -421,6 +471,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 //	printf("start destroy ro index\n");
 	this->destroy_ro_index();
 //	printf("end destroy ro index\n");
+
+#ifdef OCL
+	//清理OpenCL环境
+	this->release_opencl();
+#endif
 
 	return true;
 }
@@ -644,6 +699,498 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	return *support >= this->m_minsup_count;
 }
 
+#elif defined(OCL)
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
+		KItemsets& frq_itemset, KItemsets& prv_frq1, KItemsets& prv_frq2) {
+	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
+			prv_frq1.get_itemsets();
+	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
+			prv_frq2.get_itemsets();
+	vector<vector<unsigned int>*> candidate_itemset;
+	vector<unsigned int>* k_itemset = NULL;
+
+	//每个项集需要进行OpenCL计算的次数
+	unsigned int pass = ceil(
+			log(max(prv_frq1.get_term_num(), prv_frq2.get_term_num()) + 1)
+					/ log(2));
+	//用长度为pass+1的数组来存储每次计算的输入输出（每次的输出是下一次的输入）
+	vector<vector<pair<unsigned long long, vector<unsigned long long>*> >*> in_output[pass
+			+ 1];
+
+	//OpenCL输入计算数据
+	vector<unsigned long long>* data = new vector<unsigned long long>;
+	//标记key所对应的record数据是否已加入OpenCL数据，避免重复
+	std::map<unsigned int, unsigned long long> data_map;
+
+	/* 潜在频繁项集生成 */
+	unsigned int* frq2_offset = new unsigned int[prv_frq_itemsets1.size()];
+	if (&prv_frq1 != &prv_frq2) {
+		memset(frq2_offset, 0, prv_frq_itemsets1.size() * sizeof(unsigned int));
+	} else {
+		for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
+			frq2_offset[i] = i + 1;
+		}
+	}
+	unsigned int t = 0;
+	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq1_iter =
+			prv_frq_itemsets1.begin(); prv_frq1_iter != prv_frq_itemsets1.end();
+			prv_frq1_iter++, t++) {
+		map<vector<unsigned int>, unsigned int>::const_iterator prv_frq2_iter =
+				prv_frq_itemsets2.begin();
+		for (unsigned int s = 0; s < frq2_offset[t]; s++) {
+			prv_frq2_iter++;
+		}
+		for (; prv_frq2_iter != prv_frq_itemsets2.end(); prv_frq2_iter++) {
+
+			/************************** 项目集连接与过滤 **************************/
+			//求并集
+			if (prv_frq1_iter->first.size() == 1
+					|| prv_frq2_iter->first.size() == 1) { //F(k-1)×F(1)
+				k_itemset = KItemsets::union_set(prv_frq1_iter->first,
+						prv_frq2_iter->first);
+			} else if (prv_frq1_iter->first.size()
+					== prv_frq2_iter->first.size()) { //F(k-1)×F(k-1)
+				k_itemset = KItemsets::union_eq_set(prv_frq1_iter->first,
+						prv_frq2_iter->first);
+			}
+
+			//过滤潜在频繁项集并准备第一次调用OpenCL的数据
+			if (k_itemset != NULL
+					&& k_itemset->size() == frq_itemset.get_term_num()) {
+				char **keys = new char*[k_itemset->size()];
+				for (unsigned int i = 0; i < k_itemset->size(); i++) {
+					keys[i] =
+							this->m_item_details[k_itemset->at(i)].m_identifier;
+				}
+
+				vector<pair<unsigned long long, vector<unsigned long long>*> >* ioput =
+						new vector<
+								pair<unsigned long long,
+										vector<unsigned long long>*> >;
+
+				//每个key对应于OpenCL数据区域的偏移量
+				unsigned long long data_offset[k_itemset->size()];
+				for (unsigned int i = 0; i < k_itemset->size(); i++) {
+					std::map<unsigned int, unsigned long long>::iterator data_iter =
+							data_map.find(k_itemset->at(i));
+					if (data_iter != data_map.end()) {
+						data_offset[i] = data_iter->second;
+					} else {
+						data_offset[i] = data->size();
+						data_map[k_itemset->at(i)] = data->size();
+						unsigned int record_num =
+								this->m_item_index->get_mark_record_num(keys[i],
+										strlen(keys[i]));
+						unsigned int record[record_num + 1];
+						record[0] = record_num;
+						this->m_item_index->find_record(record + 1, keys[i],
+								strlen(keys[i]));
+						data->insert(data->end(), record,
+								record + record_num + 1);
+					}
+					//初始偏移量
+					unsigned long long data_length = data->at(data_offset[i]);
+					unsigned long long offset_array[data_length];
+					for (unsigned int j = 0; j < data_length; j++) {
+						offset_array[j] = j + 1;
+					}
+					ioput->push_back(
+							pair<unsigned long long, vector<unsigned long long>*>(
+									data_offset[i],
+									new vector<unsigned long long>(offset_array,
+											offset_array + data_length)));
+				}
+				in_output[0].push_back(ioput);
+
+				//暂存候选频繁项集
+				candidate_itemset.push_back(k_itemset);
+
+//				if (strcmp(
+//						(const char*) ivtoa((int*) k_itemset->data(),
+//								k_itemset->size()), "87105122") == 0) {
+//					printf("87105122 from: %s and %s\n",
+//							ivtoa((int*) prv_frq1_iter->first.data(),
+//									prv_frq1_iter->first.size()),
+//							ivtoa((int*) prv_frq2_iter->first.data(),
+//									prv_frq2_iter->first.size()));
+//				}
+
+				delete[] keys;
+			} else {
+				delete k_itemset;
+			}
+		}
+	}
+
+	//先把data数据传输到OpenCL设备
+//	cl_int err = CL_SUCCESS;
+//	cl_mem cl_data = clCreateBuffer(this->m_cl_contexts[0],
+//			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+//			sizeof(unsigned long long) * data->size(), data->data(), &err);
+//	OPENCL_CHECK_ERRORS(err);
+
+	bool succeed = true;
+	//多个数组求交集需要采用2路归并的方法
+	for (unsigned int p = 0; p < pass; p++) {
+		//OpenCL输入辅助数据
+		vector<unsigned long long>* in_indice = new vector<unsigned long long>;
+		vector<unsigned long long>* in_offset = new vector<unsigned long long>;
+		vector<unsigned long long>* out_indice = new vector<unsigned long long>;
+		vector<unsigned long long>* out_offset = new vector<unsigned long long>;
+		vector<unsigned long long>* out_offset_indice = new vector<
+				unsigned long long>;
+		vector<unsigned long long>* task_indice = new vector<unsigned long long>;
+		//统计总共需要完成的细粒度任务数
+		size_t total_work_load = 0;
+		//统计总共需要完成的细粒度任务数
+		size_t total_work_task = 0;
+
+		for (unsigned int i = 0; i < in_output[p].size(); i++) {
+			//项集中两个项为一组求交集
+			unsigned int partition = in_output[p][i]->size() / 2;
+			for (unsigned int k = 0; k < partition; k++) {
+				//每组的第一个key(里面的元素分别在第二个key的记录中进行查询)对应的记录数量
+				unsigned int in_length =
+						in_output[p][i]->at(2 * k).second->size();
+				//累加任务数量
+				size_t work_load = in_length;
+				total_work_load += work_load;
+
+				//辨识每个细粒度任务对应的粗粒度任务
+				task_indice->insert(task_indice->end(), work_load,
+						total_work_task);
+
+				//构建in_indice
+				in_indice->insert(in_indice->end(), work_load,
+						in_output[p][i]->at(2 * k).first);
+				//构建in_offset
+				in_offset->insert(in_offset->end(),
+						in_output[p][i]->at(2 * k).second->begin(),
+						in_output[p][i]->at(2 * k).second->end());
+				//构建out_indice
+				out_indice->insert(out_indice->end(), work_load,
+						in_output[p][i]->at(2 * k + 1).first);
+
+				//构建out_offset和out_offset_indice
+				unsigned long long out_offset_index = out_offset->size();
+				out_offset->push_back(
+						in_output[p][i]->at(2 * k + 1).second->size());
+				out_offset->insert(out_offset->end(),
+						in_output[p][i]->at(2 * k + 1).second->begin(),
+						in_output[p][i]->at(2 * k + 1).second->end());
+				out_offset_indice->insert(out_offset_indice->end(), work_load,
+						out_offset_index);
+				//累加粗粒度任务数量
+				total_work_task += 1;
+			}
+			//每个项集在本层的输出作为下一层归并的输入
+			vector<pair<unsigned long long, vector<unsigned long long>*> >* next_io =
+					new vector<
+							pair<unsigned long long, vector<unsigned long long>*> >();
+			//非偶数项项集的最后一项直接加入下一轮的输入
+			if (2 * partition < in_output[p][i]->size()) {
+				next_io->push_back(
+						pair<unsigned long long, vector<unsigned long long>*>(
+								in_output[p][i]->back().first,
+								new vector<unsigned long long>(
+										*in_output[p][i]->back().second)));
+			}
+			in_output[p + 1].push_back(next_io);
+		}
+		assert(total_work_load == in_indice->size());
+		assert(total_work_load == in_offset->size());
+		assert(total_work_load == out_indice->size());
+		assert(total_work_load == out_offset_indice->size());
+
+		//使用OpenCL进行计算
+		vector<vector<unsigned long long> > result;
+		succeed &= phi_filter(&result, data, in_indice, in_offset, out_indice,
+				out_offset, out_offset_indice, task_indice, total_work_load,
+				total_work_task);
+
+		//验证结果
+//		vector<vector<unsigned long long> > result_cpu;
+//		vector<unsigned long long> empty_v;
+//		for (unsigned int i = 0; i < total_work_task; i++) {
+//			result_cpu.push_back(empty_v);
+//		}
+//		for (unsigned int i = 0; i < total_work_load; i++) {
+//			unsigned long long o_indice = out_indice->at(i);
+//			unsigned long long target = *(data->begin() + in_indice->at(i)
+//					+ in_offset->at(i));
+//			unsigned long long offset_indice = out_offset_indice->at(i);
+//			vector<unsigned long long> space_offset =
+//					vector<unsigned long long>(
+//							out_offset->begin() + offset_indice + 1,
+//							out_offset->begin() + offset_indice + 1
+//									+ out_offset->at(offset_indice));
+//			vector<unsigned long long> space = vector<unsigned long long>(
+//					data->begin() + o_indice,
+//					data->begin() + o_indice + 1 + data->at(o_indice));
+//			for (unsigned long long t = 0; t < space_offset.size(); t++) {
+//				if (space[space_offset[t]] == target) {
+//					result_cpu[task_indice->at(i)].push_back(space_offset[t]);
+//				}
+//			}
+//		}
+//		assert(result.size() == result_cpu.size());
+//		for (unsigned int i = 0; i < result.size(); i++) {
+//			assert(result[i].size() == result_cpu[i].size());
+//			for (unsigned int j = 0; j < result[i].size(); j++) {
+//				assert(result[i][j] == result_cpu[i][j]);
+//			}
+//		}
+
+		//处理结果
+		unsigned int partition = in_output[p][0]->size() / 2;
+		for (unsigned int i = 0; i < result.size(); i++) {
+			in_output[p + 1][i / partition]->push_back(
+					pair<unsigned long long, vector<unsigned long long>*>(
+							in_output[p][i / partition]->at(
+									2 * (i % partition) + 1).first,
+							new vector<unsigned long long>(result[i].begin(),
+									result[i].end())));
+		}
+
+		delete in_indice;
+		delete in_offset;
+		delete out_indice;
+		delete out_offset;
+		delete out_offset_indice;
+		delete task_indice;
+	}
+	assert(in_output[pass].size() == candidate_itemset.size());
+
+	map<string, bool> itemset_map;
+	//保存频繁项集
+	for (unsigned int i = 0; i < candidate_itemset.size(); i++) {
+		map<string, bool>::iterator iter = itemset_map.find(
+				string(
+						ivtoa((int*) candidate_itemset[i]->data(),
+								candidate_itemset[i]->size(), ",")));
+		if (iter != itemset_map.end()) {
+			printf("duplicate:%s, orig:%s\n",
+					ivtoa((int*) candidate_itemset[i]->data(),
+							candidate_itemset[i]->size(), ","),
+					iter->first.data());
+			continue;
+		} else {
+			itemset_map.insert(
+					map<string, bool>::value_type(
+							string(
+									ivtoa((int*) candidate_itemset[i]->data(),
+											candidate_itemset[i]->size(), ",")), 0));
+		}
+		unsigned int support = in_output[pass][i]->at(0).second->size();
+		if (support >= this->m_minsup_count) {
+			//验证结果
+//			unsigned int support_cpu = 0;
+//			if (!this->hi_filter(candidate_itemset[i], &support_cpu)) {
+//				printf("wrong itemset:%s\n",
+//						ivtoa((int*) candidate_itemset[i]->data(),
+//								candidate_itemset[i]->size(), ","));
+//				char **keys = new char*[candidate_itemset[i]->size()];
+//				for (unsigned int i = 0; i < candidate_itemset[i]->size();
+//						i++) {
+//					keys[i] =
+//							this->m_item_details[candidate_itemset[i]->at(i)].m_identifier;
+//					unsigned int records[this->m_item_index->get_mark_record_num(
+//							keys[i], strlen(keys[i]))];
+//					unsigned int num = this->m_item_index->find_record(records,
+//							keys[i], strlen(keys[i]));
+//					for (unsigned int j = 0; j < num; j++) {
+//						printf("%u, ", records[j]);
+//					}
+//
+//					printf("\n");
+//				}
+//				printf("result:\n");
+//				for (unsigned int j = 0; j < pass + 1; j++) {
+//					printf("\tlevel %d:\n", j);
+//					for (unsigned int k = 0; k < in_output[j][i]->size(); k++) {
+//						printf("\t");
+//						for (unsigned int t = 0;
+//								t < in_output[j][i]->at(k).second->size();
+//								t++) {
+//							printf("%d,", in_output[j][i]->at(k).second->at(t));
+//						}
+//						printf("\n");
+//					}
+//				}
+//			}
+			frq_itemset.push(*candidate_itemset[i], support);
+			this->logItemset("Frequent", candidate_itemset[i]->size(),
+					*candidate_itemset[i], support);
+		}
+	}
+
+	delete data;
+	for (unsigned int i = 0; i < pass + 1; i++) {
+		for (unsigned int j = 0; j < in_output[i].size(); j++) {
+			if (in_output[i][j] != NULL) {
+				for (unsigned int k = 0; k < in_output[i][j]->size(); k++) {
+					if (in_output[i][j]->at(k).second != NULL) {
+						delete in_output[i][j]->at(k).second;
+						in_output[i][j]->at(k).second = NULL;
+					}
+				}
+				delete in_output[i][j];
+				in_output[i][j] = NULL;
+			}
+		}
+	}
+	for (unsigned int i = 0; i < candidate_itemset.size(); i++) {
+		delete candidate_itemset[i];
+	}
+
+	return succeed;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
+		vector<vector<unsigned long long> >* intersect_result,
+		vector<unsigned long long>* data, vector<unsigned long long>* in_indice,
+		vector<unsigned long long>* in_offset,
+		vector<unsigned long long>* out_indice,
+		vector<unsigned long long>* out_offset,
+		vector<unsigned long long>* out_offset_indice,
+		vector<unsigned long long>* task_indice, size_t total_work_load,
+		size_t total_work_task) {
+	cl_int err = CL_SUCCESS;
+	//创建OpenCL命令队列
+	cl_command_queue queue = clCreateCommandQueue(this->m_cl_contexts[0],
+			this->m_cl_devices[0], 0, &err);
+	OPENCL_CHECK_ERRORS(err);
+	//向OpenCL设备传输数据
+	cl_mem cl_data = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * data->size(), data->data(), &err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_mem cl_in_indice = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * in_indice->size(), in_indice->data(),
+			&err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_mem cl_in_offset = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * in_offset->size(), in_offset->data(),
+			&err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_mem cl_out_indice = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * out_indice->size(), out_indice->data(),
+			&err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_mem cl_out_offset = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * out_offset->size(), out_offset->data(),
+			&err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_mem cl_out_offset_indice = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * out_offset_indice->size(),
+			out_offset_indice->data(), &err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_mem cl_task_indice = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned long long) * task_indice->size(),
+			task_indice->data(), &err);
+	OPENCL_CHECK_ERRORS(err);
+	cl_ulong cl_work_load = total_work_load;
+
+	//结果缓冲区，存储每个元素在目标空间里的位置，找不到标记为-1
+	long long* result = new long long[total_work_load];
+	cl_mem cl_result = clCreateBuffer(this->m_cl_contexts[0], CL_MEM_WRITE_ONLY,
+			sizeof(unsigned long long) * total_work_load, NULL, &err);
+	OPENCL_CHECK_ERRORS(err);
+	//计数结果缓冲区，存储每次求交集得到的元素个数
+	unsigned int* result_count = new unsigned int[total_work_task];
+	cl_mem cl_result_count = clCreateBuffer(this->m_cl_contexts[0],
+			CL_MEM_WRITE_ONLY, sizeof(unsigned int) * total_work_task, NULL,
+			&err);
+	OPENCL_CHECK_ERRORS(err);
+
+	//创建程序
+	const char* source_path =
+			"include/libyskdmu/association/phi_apriori_kernel.cl";
+	int source_file = open(source_path, O_RDONLY);
+	size_t src_size = lseek(source_file, 0, SEEK_END); //计算文件大小
+	src_size += 1;
+	lseek(source_file, 0, SEEK_SET); //把文件指针重新移到开始位置
+	char* source = new char[src_size]; //最后一个字节是EOF
+	read(source_file, source, src_size);
+	memset(source + src_size - 1, 0, 1); //字符结束符
+	cl_program program = clCreateProgramWithSource(this->m_cl_contexts[0], 1,
+			(const char**) &source, &src_size, &err);
+	err = clBuildProgram(program, 1, &this->m_cl_devices[0], NULL, NULL, NULL);
+	OPENCL_CHECK_ERRORS(err);
+
+	//创建Kernel
+	cl_kernel intersect_kernel = clCreateKernel(program, "decarl_intersect",
+			&err);
+	OPENCL_CHECK_ERRORS(err);
+
+	//设置Kernel参数
+	err = clSetKernelArg(intersect_kernel, 0, sizeof(cl_mem), &cl_result);
+	err |= clSetKernelArg(intersect_kernel, 1, sizeof(cl_mem),
+			&cl_result_count);
+	err |= clSetKernelArg(intersect_kernel, 2, sizeof(cl_mem), &cl_data);
+	err |= clSetKernelArg(intersect_kernel, 3, sizeof(cl_mem), &cl_in_indice);
+	err |= clSetKernelArg(intersect_kernel, 4, sizeof(cl_mem), &cl_in_offset);
+	err |= clSetKernelArg(intersect_kernel, 5, sizeof(cl_mem), &cl_out_indice);
+	err |= clSetKernelArg(intersect_kernel, 6, sizeof(cl_mem), &cl_out_offset);
+	err |= clSetKernelArg(intersect_kernel, 7, sizeof(cl_mem),
+			&cl_out_offset_indice);
+	err |= clSetKernelArg(intersect_kernel, 8, sizeof(cl_mem), &cl_task_indice);
+	err |= clSetKernelArg(intersect_kernel, 9, sizeof(cl_ulong), &cl_work_load);
+	OPENCL_CHECK_ERRORS(err);
+
+	//执行Kernel
+	const size_t local_ws = 512;	//每个work-group的work-items数量
+	const size_t global_ws = ceil(1.0f * total_work_load / local_ws) * local_ws;
+
+	err = clEnqueueNDRangeKernel(queue, intersect_kernel, 1, NULL, &global_ws,
+			&local_ws, 0, NULL, NULL);
+	OPENCL_CHECK_ERRORS(err);
+
+	//读取结果
+	clEnqueueReadBuffer(queue, cl_result, CL_TRUE, 0,
+			sizeof(unsigned long long) * total_work_load, result, 0, NULL,
+			NULL);
+	clEnqueueReadBuffer(queue, cl_result_count, CL_TRUE, 0,
+			sizeof(unsigned int) * total_work_task, result_count, 0, NULL,
+			NULL);
+
+	//取出交集数据在out_joiner的索引值
+	intersect_result->clear();
+	vector<unsigned long long> empty_v;
+	intersect_result->insert(intersect_result->end(), total_work_task, empty_v);
+	for (unsigned int i = 0; i < total_work_load; i++) {
+		if (result[i] != -1) {
+			intersect_result->at(task_indice->at(i)).push_back(result[i]);
+		}
+	}
+
+	delete[] source;
+	delete[] result;
+	delete[] result_count;
+	clReleaseKernel(intersect_kernel);
+	clReleaseCommandQueue(queue);
+	clReleaseMemObject(cl_data);
+	clReleaseMemObject(cl_in_indice);
+	clReleaseMemObject(cl_in_offset);
+	clReleaseMemObject(cl_out_indice);
+	clReleaseMemObject(cl_out_offset);
+	clReleaseMemObject(cl_out_offset_indice);
+	clReleaseMemObject(cl_task_indice);
+	clReleaseMemObject(cl_result);
+	clReleaseMemObject(cl_result_count);
+
+	return err == CL_SUCCESS;
+}
+
 #else
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -710,7 +1257,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	ro_index_data->fill_memeber_data(&d, &data, &data_size, &l1_index,
 			&l1_index_size, &l2_index, &l2_index_size);
 	RODynamicHashIndex ro_index(d, data, data_size, l1_index, l1_index_size,
-			l2_index, l2_index_size, simple_hash_mic);
+			l2_index, l2_index_size, (HashFunc) &simple_hash);
 	result = ro_index.get_intersect_records((const char **) keys,
 			k_itemset->size());
 
@@ -914,6 +1461,108 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::destroy_ro_index()
 	}
 	return succeed;
 }
+
+#ifdef OCL
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::init_opencl() {
+	cl_int err = CL_SUCCESS;
+	//查询系统内所有可用的OpenCl平台
+	cl_uint num_of_platforms = 0;
+	//获取可用的平台数量
+	err = clGetPlatformIDs(0, 0, &num_of_platforms);
+	OPENCL_CHECK_ERRORS(err);
+
+	cl_platform_id* platforms = new cl_platform_id[num_of_platforms];
+	//获取所有平台的ID
+	err = clGetPlatformIDs(num_of_platforms, platforms, 0);
+	OPENCL_CHECK_ERRORS(err);
+
+	//遍历所有平台的所有类型设备
+	map<string, bool> skip_platforms;
+	vector<cl_device_id>& device_ids = this->m_cl_devices;
+	vector<cl_device_type>& device_types = this->m_cl_device_types;
+	for (unsigned int i = 0; i < num_of_platforms; i++) {
+		//获取平台名称的长度
+		size_t platform_name_length = 0;
+		err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 0, 0,
+				&platform_name_length);
+		OPENCL_CHECK_ERRORS(err);
+		//获取平台的名称
+		char* platform_name = new char[platform_name_length];
+		err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME,
+				platform_name_length, platform_name, 0);
+		OPENCL_CHECK_ERRORS(err);
+		//跳过忽略的平台
+		if (skip_platforms.find(string(platform_name))
+				!= skip_platforms.end()) {
+			delete[] platform_name;
+			continue;
+		}
+
+		//利用所有类型的设备
+		struct {
+			cl_device_type type;
+			const char* name;
+			cl_uint count;
+		} devices[] = { { CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", 0 },
+//				{ CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", 0 },
+//				{ CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", 0 }
+				};
+		const int NUM_OF_DEVICE_TYPES = sizeof(devices) / sizeof(devices[0]);
+		for (unsigned int j = 0; j < NUM_OF_DEVICE_TYPES; j++) {
+			err = clGetDeviceIDs(platforms[i], devices[j].type, 0, 0,
+					&devices[j].count);
+			if (CL_DEVICE_NOT_FOUND == err) {
+				// 没有找到该类型的设备
+				devices[j].count = 0;
+				continue;
+			}
+			OPENCL_CHECK_ERRORS(err);
+			device_types.insert(device_types.end(), devices[j].count,
+					devices[j].type);
+
+			// 获取该类型的设备
+			cl_device_id* devices_of_type = new cl_device_id[devices[j].count];
+			err = clGetDeviceIDs(platforms[i], devices[j].type,
+					devices[j].count, devices_of_type, 0);
+			OPENCL_CHECK_ERRORS(err);
+			device_ids.insert(device_ids.end(), devices_of_type,
+					devices_of_type + devices[j].count);
+
+			// 获取各个设备的信息
+			for (unsigned int k = 0; k < devices[j].count; k++) {
+				cl_uint compute_units;
+				cl_uint clock_freq;
+				OPENCL_GET_NUMERIC_PROPERTY(devices_of_type[k],
+						CL_DEVICE_MAX_COMPUTE_UNITS, compute_units);
+				OPENCL_GET_NUMERIC_PROPERTY(devices_of_type[k],
+						CL_DEVICE_MAX_CLOCK_FREQUENCY, clock_freq);
+				this->m_cl_device_perfs.push_back(compute_units * clock_freq);
+			}
+			delete[] devices_of_type;
+		}
+		delete[] platform_name;
+	}
+
+	//创建OpenCL上下文
+	for (unsigned int i = 0; i < device_ids.size(); i++) {
+		this->m_cl_contexts.push_back(
+				clCreateContext(0, 1, &device_ids[i], NULL, NULL, &err));
+		OPENCL_CHECK_ERRORS(err);
+	}
+
+	delete[] platforms;
+	return err == CL_SUCCESS;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::release_opencl() {
+	for (unsigned int i = 0; i < this->m_cl_contexts.size(); i++) {
+		clReleaseContext(this->m_cl_contexts[i]);
+	}
+	return true;
+}
+#endif
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::syn_item_detail() {
