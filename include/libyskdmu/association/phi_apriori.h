@@ -7,14 +7,12 @@
 
 #ifndef PHI_APRIORI_H_
 #define PHI_APRIORI_H_
-#pragma offload_attribute(push, target(mic))
 
 #include <math.h>
 #include <string.h>
 #include <omp.h>
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
-#include "libyskdmu/index/ro_dynamic_hash_index.h"
 #include "libyskdmu/association/hi_apriori.h"
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -37,8 +35,6 @@ protected:
 	bool phi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq1,
 			KItemsets& prv_frq2);
 	bool phi_filter(vector<unsigned int>* k_itemset, unsigned int* support);
-	bool gen_ro_index();
-	bool destroy_ro_index();
 
 private:
 	bool syn_item_detail();
@@ -86,7 +82,7 @@ private:
 	const static unsigned int PHIR_BUF_SIZE = 40960;
 	const static unsigned int GENG_RECV_BUF_SIZE = 4096000;
 	const static unsigned int FRQGENG_RECV_BUF_SIZE = 4096;
-	const static unsigned int DEFAULT_OMP_NUM_THREADS = 240;
+	const static unsigned int DEFAULT_OMP_NUM_THREADS = 8;
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -163,11 +159,6 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		return false;
 	}
 //	printf("process %u finish con\n", pid);
-
-	//生成只读索引并传输到加速卡内存
-//	printf("start gen ro index\n");
-	this->gen_ro_index();
-//	printf("end gen ro index\n");
 
 	this->m_minsup_count = double2int(
 			this->m_record_infos.size() * this->m_minsup);
@@ -393,11 +384,6 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 //	printf("process %u finish gen frequent itemset\n", pid);
 //	MPI_Barrier(m_comm);
 
-	//释放只读索引所占的内存空间
-//	printf("start destroy ro index\n");
-	this->destroy_ro_index();
-//	printf("end destroy ro index\n");
-
 	return true;
 }
 
@@ -408,11 +394,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			prv_frq1.get_itemsets();
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
 			prv_frq2.get_itemsets();
-	unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
-	unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
-	unsigned int prv_frq_term_num1 = prv_frq1.get_term_num();
-	unsigned int prv_frq_term_num2 = prv_frq2.get_term_num();
-	unsigned int frq_term_num = frq_itemset.get_term_num();
+	//把输入数据转化成矩阵以便在并行区域随机读取
 	unsigned int frq_itemset_list1[prv_frq_itemsets1.size()][prv_frq1.get_term_num()];
 	unsigned int frq_itemset_list2[prv_frq_itemsets2.size()][prv_frq2.get_term_num()];
 	unsigned int i = 0;
@@ -436,10 +418,13 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		}
 	}
 
+	/*使用OpenMP多线程并行化*/
+	//设置线程数
 	char* omp_num_threads = getenv("OMP_NUM_THREADS");
 	unsigned int numthreads =
 			omp_num_threads != NULL ?
 					atoi(omp_num_threads) : DEFAULT_OMP_NUM_THREADS;
+	//初始化归并结果缓冲区
 	unsigned int frq_itemset_buf[numthreads * FRQGENG_RECV_BUF_SIZE];
 	unsigned int frq_itemset_num[numthreads];
 	memset(frq_itemset_buf, 0,
@@ -447,23 +432,17 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
 
 	/* 潜在频繁项集生成 */
-#pragma offload target(mic)\
-		out(frq_itemset_buf:length(numthreads * FRQGENG_RECV_BUF_SIZE))\
-		out(frq_itemset_num:length(numthreads))\
-		in(frq_itemset_list1:length(prv_frq_itemsets1.size() * prv_frq1.get_term_num()))\
-		in(frq_itemset_list2:length(prv_frq_itemsets2.size() * prv_frq2.get_term_num()))\
-		in(prv_frq_size1, prv_frq_size2)\
-		in(prv_frq_term_num1, prv_frq_term_num2)
-#pragma omp parallel for shared(frq_itemset_buf, frq_itemset_num)
-	for (unsigned int k = 0; k < prv_frq_size1 * prv_frq_size2; k++) {
+#pragma omp parallel for num_threads(numthreads) shared(frq_itemset_buf, frq_itemset_num)
+	for (unsigned int k = 0;
+			k < prv_frq_itemsets1.size() * prv_frq_itemsets2.size(); k++) {
 		unsigned int tid = omp_get_thread_num();
 //		printf("thread:%u is running\n", tid);
-		unsigned int i = k / prv_frq_size2;
-		unsigned int j = k % prv_frq_size2;
+		unsigned int i = k / prv_frq_itemsets2.size();
+		unsigned int j = k % prv_frq_itemsets2.size();
 		vector<unsigned int> prv_frq_itemset1(frq_itemset_list1[i],
-				frq_itemset_list1[i] + prv_frq_term_num1);
+				frq_itemset_list1[i] + prv_frq1.get_term_num());
 		vector<unsigned int> prv_frq_itemset2(frq_itemset_list2[j],
-				frq_itemset_list2[j] + prv_frq_term_num2);
+				frq_itemset_list2[j] + prv_frq2.get_term_num());
 
 		/************************** 项目集连接与过滤 **************************/
 		//求并集
@@ -480,11 +459,8 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 
 		//过滤并保存潜在频繁项集
 		unsigned int support;
-		if (k_itemset != NULL && k_itemset->size() == frq_term_num
+		if (k_itemset != NULL && k_itemset->size() == frq_itemset.get_term_num()
 				&& this->phi_filter(k_itemset, &support)) {
-//			frq_itemset.push(*k_itemset, support);
-//			this->logItemset("Frequent", k_itemset->size(), *k_itemset,
-//					support);
 //			printf("start write result\n");
 			unsigned int* offset = frq_itemset_buf + tid * FRQGENG_RECV_BUF_SIZE
 					+ frq_itemset_num[tid] * (frq_itemset.get_term_num() + 1);
@@ -496,7 +472,6 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 //			printf("end write result\n");
 		}
 		delete k_itemset;
-//		printf("phread num:%u, dealing (%u,%u)\t", omp_get_thread_num(), i, j);
 	}
 
 //	printf("start gather result\n");
@@ -514,6 +489,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			this->logItemset("Frequent", itemset.size(), itemset, support);
 		}
 	}
+//	printf("end gather result\n");
 
 	return true;
 }
@@ -527,14 +503,9 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	unsigned int *result;
 	for (unsigned int j = 0; j < k_itemset->size(); j++) {
 		keys[j] = this->m_item_details[k_itemset->at(j)].m_identifier;
-//		printf("id:%s\t", keys[j]);
 	}
-//	printf("start calc intersect\n");
-	result = this->m_ro_hash_index->get_intersect_records((const char **) keys,
+	result = this->m_item_index->get_intersect_records((const char **) keys,
 			k_itemset->size());
-//	printf("end calc intersect\n");
-//	result = this->m_item_index->get_intersect_records((const char **) keys,
-//			k_itemset->size());
 	*support = result[0];
 	delete[] keys;
 	delete[] result;
@@ -619,30 +590,6 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_genrules() {
 		free(geng_recv_msg_pkg.first);
 	}
 
-	return true;
-}
-
-template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::gen_ro_index() {
-	if (this->m_ro_hash_index != NULL) {
-		delete this->m_ro_hash_index;
-	}
-	this->m_ro_hash_index = new RODynamicHashIndex();
-	bool succeed = true;
-	succeed &= this->m_ro_hash_index->build(this->m_item_index);
-	//把只读索引拷贝到加速卡
-	succeed &= this->m_ro_hash_index->offload_data();
-	return succeed;
-}
-
-template<typename ItemType, typename ItemDetail, typename RecordInfoType>
-bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::destroy_ro_index() {
-	bool succeed = true;
-	//把加速卡的只读索引内存空间回收
-	succeed &= this->m_ro_hash_index->recycle_data();
-	if (this->m_ro_hash_index != NULL) {
-		delete this->m_ro_hash_index;
-	}
 	return true;
 }
 
@@ -1248,5 +1195,4 @@ void ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::toggle_buffer() {
 	this->m_itemset_recv_buf = temp;
 }
 
-#pragma offload_attribute(pop)
 #endif /* PHI_APRIORI_H_ */

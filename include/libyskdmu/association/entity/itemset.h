@@ -7,7 +7,6 @@
 
 #ifndef ITEMSET_H_
 #define ITEMSET_H_
-#pragma offload_attribute(push, target(mic))
 
 #include <vector>
 #include <set>
@@ -67,5 +66,4 @@ private:
 	HashIndex* m_itemsets_index;
 };
 
-#pragma offload_attribute(pop)
 #endif /* ITEMSET_H_ */

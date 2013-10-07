@@ -7,7 +7,6 @@
 
 #ifndef RO_DYNAMIC_HASH_INDEX_H_
 #define RO_DYNAMIC_HASH_INDEX_H_
-#pragma offload_attribute(push, target(mic))
 
 #include "libyskdmu/index/hash_index.h"
 #include "libyskdmu/index/ro_hash_index.h"
@@ -58,5 +57,4 @@ protected:
 	RODynamicHashIndex* m_accard_inst; //offload到加速卡实例化后的指针
 };
 
-#pragma offload_attribute(pop)
 #endif /* RO_DYNAMIC_HASH_INDEX_H_ */

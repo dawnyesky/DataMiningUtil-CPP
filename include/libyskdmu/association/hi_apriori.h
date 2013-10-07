@@ -169,7 +169,7 @@ bool HiApriori<ItemType, ItemDetail, RecordInfoType>::hi_frq_gen(
 			//过滤并保存潜在频繁项集
 			unsigned int support;
 			if (k_itemset != NULL
-					&& k_itemset->size() == prv_frq1.get_term_num() + 1
+					&& k_itemset->size() == frq_itemset.get_term_num()
 					&& hi_filter(k_itemset, &support)) {
 				frq_itemset.push(*k_itemset, support);
 				this->logItemset("Frequent", k_itemset->size(), *k_itemset,
