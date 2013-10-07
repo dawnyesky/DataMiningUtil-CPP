@@ -125,7 +125,7 @@
 									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.other.pic.1751627752" name="Position Independent Code (-fPIC)" superClass="gnu.cpp.compiler.option.other.pic" value="true" valueType="boolean"/>
-								<option id="gnu.cpp.compiler.option.other.other.1406838223" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -fopenmp" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.other.other.1406838223" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.498509623" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.base.1523457527" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base">
@@ -149,7 +149,7 @@
 									<listOptionValue builtIn="false" value="ICTCLAS50.x86"/>
 									<listOptionValue builtIn="false" value="xml2"/>
 								</option>
-								<option id="gnu.cpp.link.option.flags.1340209334" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
+								<option id="gnu.cpp.link.option.flags.1340209334" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1392323084" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
@@ -157,154 +157,6 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.assembler.base.364770322" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.base">
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1640796078" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
-							</tool>
-						</toolChain>
-					</folderInfo>
-					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="include"/>
-					</sourceEntries>
-				</configuration>
-			</storageModule>
-			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
-			<storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
-			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
-		</cconfiguration>
-		<cconfiguration id="cdt.managedbuild.toolchain.gnu.base.917833292.789427108">
-			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.base.917833292.789427108" moduleId="org.eclipse.cdt.core.settings" name="mingw-debug">
-				<externalSettings/>
-				<extensions>
-					<extension id="org.eclipse.cdt.core.PE" point="org.eclipse.cdt.core.BinaryParser"/>
-					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-				</extensions>
-			</storageModule>
-			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="exe" artifactName="yskdmu" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" description="" id="cdt.managedbuild.toolchain.gnu.base.917833292.789427108" name="mingw-debug" parent="org.eclipse.cdt.build.core.emptycfg" postbuildStep="i686-w64-mingw32-ar rcs libyskdmu_d.a $(OBJS) $(USER_OBJS) &amp;&amp; i686-w64-mingw32-ranlib libyskdmu_d.a" prebuildStep="cp ${workspace_loc:/Algorithms/mingw-debug}/libyskalgrthms_d.a ../lib">
-					<folderInfo id="cdt.managedbuild.toolchain.gnu.base.917833292.789427108." name="/" resourcePath="">
-						<toolChain id="cdt.managedbuild.toolchain.gnu.mingw.base.2083828124" name="MinGW GCC" superClass="cdt.managedbuild.toolchain.gnu.mingw.base">
-							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.PE" id="cdt.managedbuild.target.gnu.platform.mingw.base.1590919653" name="Debug Platform" osList="win32" superClass="cdt.managedbuild.target.gnu.platform.mingw.base"/>
-							<builder buildPath="${workspace_loc:/DataMiningUtil/mingw-debug}" id="cdt.managedbuild.builder.gnu.cross.2112592725" keepEnvironmentInBuildfile="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
-							<tool command="i686-w64-mingw32-as" id="cdt.managedbuild.tool.gnu.assembler.mingw.base.887513513" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.mingw.base">
-								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1044471538" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.archiver.mingw.base.325734365" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.mingw.base"/>
-							<tool command="i686-w64-mingw32-g++" id="cdt.managedbuild.tool.gnu.cpp.compiler.mingw.base.365031368" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.mingw.base">
-								<option id="gnu.cpp.compiler.option.include.paths.1118104232" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="/usr/i686-w64-mingw32/sys-root/mingw/include/libxml2"/>
-									<listOptionValue builtIn="false" value="/usr/i686-w64-mingw32/sys-root/mingw/include"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Algorithms/include}&quot;"/>
-								</option>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.1910040587" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="OS_LINUX"/>
-									<listOptionValue builtIn="false" value="__DEBUG__"/>
-									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
-								</option>
-								<option id="gnu.cpp.compiler.option.optimization.level.1214295041" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.debugging.level.1130914698" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" value="gnu.cpp.compiler.debugging.level.default" valueType="enumerated"/>
-								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1377756457" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
-							</tool>
-							<tool command="i686-w64-mingw32-gcc" id="cdt.managedbuild.tool.gnu.c.compiler.mingw.base.105118054" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.mingw.base">
-								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.736426826" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.mingw.base.1879868802" name="MinGW C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.mingw.base"/>
-							<tool command="i686-w64-mingw32-g++" id="cdt.managedbuild.tool.gnu.cpp.linker.mingw.base.1387520837" name="MinGW C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.mingw.base">
-								<option id="gnu.cpp.link.option.libs.2142161442" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="yskalgrthms_d"/>
-									<listOptionValue builtIn="false" value="iconv"/>
-									<listOptionValue builtIn="false" value="pthread"/>
-									<listOptionValue builtIn="false" value="ICTCLAS50"/>
-									<listOptionValue builtIn="false" value="xml2"/>
-								</option>
-								<option id="gnu.cpp.link.option.paths.154914814" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="../lib"/>
-								</option>
-								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.577638521" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
-									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
-									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
-								</inputType>
-							</tool>
-						</toolChain>
-					</folderInfo>
-					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="include"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="test"/>
-					</sourceEntries>
-				</configuration>
-			</storageModule>
-			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
-			<storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
-			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
-		</cconfiguration>
-		<cconfiguration id="cdt.managedbuild.toolchain.gnu.base.917833292.717058556.2119927821">
-			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.base.917833292.717058556.2119927821" moduleId="org.eclipse.cdt.core.settings" name="mingw-release">
-				<externalSettings>
-					<externalSetting>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/DataMiningUtil"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/DataMiningUtil/mingw-release"/>
-						<entry flags="RESOLVED" kind="libraryFile" name="yskdmu" srcPrefixMapping="" srcRootPath=""/>
-					</externalSetting>
-				</externalSettings>
-				<extensions>
-					<extension id="org.eclipse.cdt.core.PE" point="org.eclipse.cdt.core.BinaryParser"/>
-					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-				</extensions>
-			</storageModule>
-			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="so" artifactName="yskdmu" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib" description="" id="cdt.managedbuild.toolchain.gnu.base.917833292.717058556.2119927821" name="mingw-release" parent="org.eclipse.cdt.build.core.emptycfg" postbuildStep="i686-w64-mingw32-ar rcs libyskdmu.a $(OBJS) $(USER_OBJS) &amp;&amp; i686-w64-mingw32-ranlib libyskdmu.a" prebuildStep="cp ${workspace_loc:/Algorithms/mingw-release}/libyskalgrthms.a ../lib">
-					<folderInfo id="cdt.managedbuild.toolchain.gnu.base.917833292.717058556.2119927821." name="/" resourcePath="">
-						<toolChain id="cdt.managedbuild.toolchain.gnu.mingw.base.746082760" name="MinGW GCC" superClass="cdt.managedbuild.toolchain.gnu.mingw.base">
-							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.PE" id="cdt.managedbuild.target.gnu.platform.mingw.base.1237746841" name="Debug Platform" osList="win32" superClass="cdt.managedbuild.target.gnu.platform.mingw.base"/>
-							<builder buildPath="${workspace_loc:/DataMiningUtil/mingw-release}" id="cdt.managedbuild.builder.gnu.cross.648572590" keepEnvironmentInBuildfile="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
-							<tool command="i686-w64-mingw32-as" id="cdt.managedbuild.tool.gnu.assembler.mingw.base.1099964404" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.mingw.base">
-								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1176738309" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.archiver.mingw.base.838100999" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.mingw.base"/>
-							<tool command="i686-w64-mingw32-g++" id="cdt.managedbuild.tool.gnu.cpp.compiler.mingw.base.659853279" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.mingw.base">
-								<option id="gnu.cpp.compiler.option.include.paths.1447585429" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="/usr/i686-w64-mingw32/sys-root/mingw/include/libxml2"/>
-									<listOptionValue builtIn="false" value="/usr/i686-w64-mingw32/sys-root/mingw/include"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Algorithms/include}&quot;"/>
-								</option>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.1702748449" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="OS_LINUX"/>
-									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
-								</option>
-								<option id="gnu.cpp.compiler.option.debugging.level.962074143" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
-								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.524458055" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
-							</tool>
-							<tool command="i686-w64-mingw32-gcc" id="cdt.managedbuild.tool.gnu.c.compiler.mingw.base.2146492151" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.mingw.base">
-								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1729826687" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.mingw.base.726941326" name="MinGW C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.mingw.base">
-								<option defaultValue="true" id="gnu.c.link.option.shared.1825263852" name="Shared (-shared)" superClass="gnu.c.link.option.shared" valueType="boolean"/>
-							</tool>
-							<tool command="i686-w64-mingw32-g++" id="cdt.managedbuild.tool.gnu.cpp.linker.mingw.base.1545653755" name="MinGW C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.mingw.base">
-								<option id="gnu.cpp.link.option.libs.800070436" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="yskalgrthms"/>
-									<listOptionValue builtIn="false" value="iconv"/>
-									<listOptionValue builtIn="false" value="pthread"/>
-									<listOptionValue builtIn="false" value="ICTCLAS50"/>
-									<listOptionValue builtIn="false" value="xml2"/>
-								</option>
-								<option id="gnu.cpp.link.option.paths.1659509470" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="../lib"/>
-								</option>
-								<option defaultValue="true" id="gnu.cpp.link.option.shared.274631183" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" valueType="boolean"/>
-								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.810773337" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
-									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
-									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
-								</inputType>
 							</tool>
 						</toolChain>
 					</folderInfo>
@@ -357,7 +209,7 @@
 								<option id="gnu.cpp.compiler.option.other.pic.593858329" name="Position Independent Code (-fPIC)" superClass="gnu.cpp.compiler.option.other.pic" value="true" valueType="boolean"/>
 								<option id="gnu.cpp.compiler.option.optimization.level.1133689885" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.debugging.level.2132480949" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" value="gnu.cpp.compiler.debugging.level.default" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.other.other.1497773734" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -fopenmp" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.other.other.1497773734" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.651365837" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.base.2055425485" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base">
@@ -378,7 +230,7 @@
 									<listOptionValue builtIn="false" value="xml2"/>
 								</option>
 								<option id="gnu.cpp.link.option.shared.995243325" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" value="false" valueType="boolean"/>
-								<option id="gnu.cpp.link.option.flags.1759024588" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
+								<option id="gnu.cpp.link.option.flags.1759024588" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.291488971" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
@@ -440,7 +292,7 @@
 									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.other.pic.1613992947" name="Position Independent Code (-fPIC)" superClass="gnu.cpp.compiler.option.other.pic" value="true" valueType="boolean"/>
-								<option id="gnu.cpp.compiler.option.other.other.1517274456" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -fopenmp" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.other.other.1517274456" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1011222964" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.base.302206531" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base">
@@ -464,7 +316,7 @@
 									<listOptionValue builtIn="false" value="ICTCLAS50.x86_64"/>
 									<listOptionValue builtIn="false" value="xml2"/>
 								</option>
-								<option id="gnu.cpp.link.option.flags.1620705296" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
+								<option id="gnu.cpp.link.option.flags.1620705296" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1183851953" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>

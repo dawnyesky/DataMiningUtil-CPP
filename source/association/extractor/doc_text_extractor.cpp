@@ -35,7 +35,6 @@ DocTextExtractor::~DocTextExtractor() {
 
 //做成守护进程，遇到新文件就调用extract_records()
 void DocTextExtractor::read_data(bool with_hi) {
-#ifndef __MINGW32__
 	ConfInstance* conf_instance = ConfUtil::get_instance()->get_conf_instance(
 			"global");
 	const char* conf_root_dir = conf_instance->get_configuration("ROOT_DIR");
@@ -83,13 +82,9 @@ void DocTextExtractor::read_data(bool with_hi) {
 	closedir(pDir);
 
 	ICTCLAS_Exit();
-#else
-	log->error("ICTCLAS Is Not Support In This Platform.\n");
-#endif
 }
 
 bool DocTextExtractor::extract_record(void* data_addr) {
-#ifndef __MINGW32__
 	/************************ 读取整个txt文件到内存 ************************/
 	char* file_path = (char*) data_addr;
 	int file_descriptor;
@@ -205,14 +200,9 @@ bool DocTextExtractor::extract_record(void* data_addr) {
 	ICTCLAS_ResultFree(parsed_words);
 	close(file_descriptor);
 	return true;
-#else
-	log->error("ICTCLAS Is Not Support In This Platform.\n");
-	return false;
-#endif
 }
 
 bool DocTextExtractor::hi_extract_record(void* data_addr) {
-#ifndef __MINGW32__
 	/************************ 读取整个txt文件到内存 ************************/
 	char* file_path = (char*) data_addr;
 	int file_descriptor;
@@ -310,8 +300,4 @@ bool DocTextExtractor::hi_extract_record(void* data_addr) {
 	ICTCLAS_ResultFree(parsed_words);
 	close(file_descriptor);
 	return true;
-#else
-	log->error("ICTCLAS Is Not Support In This Platform.\n");
-	return false;
-#endif
 }

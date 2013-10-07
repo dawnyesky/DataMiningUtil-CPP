@@ -39,11 +39,9 @@ void TradeXmlExtractor::read_data(bool with_hi) {
 	m_index.clear();
 	m_counter.clear();
 	while (NULL != (entry = readdir(pDir))) {
-#ifndef __MINGW32__
 		if (entry->d_type == 8
 				&& strcmp(".xml", entry->d_name + (strlen(entry->d_name) - 4))
 						== 0) {
-#endif
 			//普通文件
 			strcpy(fpath, TRADE_INPUT_DIR);
 			if (with_hi) {
@@ -51,11 +49,9 @@ void TradeXmlExtractor::read_data(bool with_hi) {
 			} else {
 				extract_record(strcat(fpath, entry->d_name));
 			}
-#ifndef __MINGW32__
 		} else {
 			//目录
 		}
-#endif
 	}
 	closedir(pDir);
 }

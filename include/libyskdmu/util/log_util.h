@@ -9,11 +9,9 @@
 #define LOG_UTIL_H_
 
 #include <map>
-#ifndef __MINGW32__
 #include <log4cpp/PropertyConfigurator.hh>
 #include <log4cpp/Category.hh>
 #include <log4cpp/FileAppender.hh>
-#endif
 
 using namespace std;
 
@@ -31,9 +29,7 @@ public:
 	const char* m_identifier;
 
 private:
-#ifndef __MINGW32__
 	log4cpp::Category* log;
-#endif
 };
 
 class LogUtil {

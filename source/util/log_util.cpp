@@ -17,7 +17,6 @@ LogUtil::__Garbage__ LogUtil::m_garbage;
 bool LogUtil::is_configured = false;
 
 LogUtil::LogUtil() {
-#ifndef __MINGW32__
 	try {
 		ConfUtil* conf_util = ConfUtil::get_instance();
 		ConfInstance* conf_instance = conf_util->get_conf_instance("global");
@@ -33,7 +32,6 @@ LogUtil::LogUtil() {
 	} catch (log4cpp::ConfigureFailure& f) {
 		printf("Configure Problem: %s\n", f.what());
 	}
-#endif
 }
 
 LogUtil::~LogUtil() {
@@ -75,44 +73,24 @@ LogInstance* LogUtil::get_log_instance(const char* identifier) {
 }
 
 LogInstance::LogInstance(const char* identifier) {
-#ifndef __MINGW32__
 	log = &log4cpp::Category::getInstance(std::string(identifier));
 	m_identifier = identifier;
-#else
-	m_identifier = identifier;
-#endif
 }
 
 bool LogInstance::isDebugEnabled() {
-#ifndef __MINGW32__
 	return log->isDebugEnabled();
-#else
-	return true;
-#endif
 }
 
 bool LogInstance::isInfoEnabled() {
-#ifndef __MINGW32__
 	return log->isInfoEnabled();
-#else
-	return true;
-#endif
 }
 
 bool LogInstance::isWarnEnabled() {
-#ifndef __MINGW32__
 	return log->isWarnEnabled();
-#else
-	return true;
-#endif
 }
 
 bool LogInstance::isErrorEnabled() {
-#ifndef __MINGW32__
 	return log->isErrorEnabled();
-#else
-	return true;
-#endif
 }
 
 void LogInstance::debug(const char* string_format, ...) {
@@ -120,11 +98,7 @@ void LogInstance::debug(const char* string_format, ...) {
 	va_list args;
 	va_start(args, string_format);
 	vsnprintf(buf, 1024, string_format, args);
-#ifndef __MINGW32__
 	log->debug(buf);
-#else
-	printf(buf);
-#endif
 	va_end(args);
 }
 
@@ -133,11 +107,7 @@ void LogInstance::info(const char* string_format, ...) {
 	va_list args;
 	va_start(args, string_format);
 	vsnprintf(buf, 1024, string_format, args);
-#ifndef __MINGW32__
 	log->info(buf);
-#else
-	printf(buf);
-#endif
 	va_end(args);
 }
 
@@ -146,11 +116,7 @@ void LogInstance::warn(const char* string_format, ...) {
 	va_list args;
 	va_start(args, string_format);
 	vsnprintf(buf, 1024, string_format, args);
-#ifndef __MINGW32__
 	log->warn(buf);
-#else
-	printf(buf);
-#endif
 	va_end(args);
 }
 
@@ -159,10 +125,6 @@ void LogInstance::error(const char* string_format, ...) {
 	va_list args;
 	va_start(args, string_format);
 	vsnprintf(buf, 1024, string_format, args);
-#ifndef __MINGW32__
 	log->error(buf);
-#else
-	printf(buf);
-#endif
 	va_end(args);
 }

@@ -44,7 +44,6 @@ MPIDocTextExtractor::~MPIDocTextExtractor() {
 }
 
 void MPIDocTextExtractor::read_data(bool with_hi) {
-#ifndef __MINGW32__
 	ConfInstance* conf_instance = ConfUtil::get_instance()->get_conf_instance(
 			"global");
 	const char* conf_root_dir = conf_instance->get_configuration("ROOT_DIR");
@@ -161,13 +160,9 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	delete scafile_recv_msg.first;
 
 	ICTCLAS_Exit();
-#else
-	log->error("ICTCLAS Is Not Support In This Platform.\n");
-#endif
 }
 
 bool MPIDocTextExtractor::hi_extract_record(void* data_addr) {
-#ifndef __MINGW32__
 	int pid, numprocs;
 	MPI_Comm_rank(m_comm, &pid);
 	MPI_Comm_size(m_comm, &numprocs);
@@ -290,10 +285,6 @@ bool MPIDocTextExtractor::hi_extract_record(void* data_addr) {
 	close(file_descriptor);
 	delete[] pid_str;
 	return true;
-#else
-	log->error("ICTCLAS Is Not Support In This Platform.\n");
-	return false;
-#endif
 }
 
 pair<void*, int*> MPIDocTextExtractor::pack_scafile_msg(

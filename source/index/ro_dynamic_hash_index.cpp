@@ -25,6 +25,7 @@ RODynamicHashIndex::RODynamicHashIndex() {
 	m_l2_index = NULL;
 	m_l2_index_size = 0;
 	m_is_built = false;
+	m_accard_inst = NULL;
 }
 
 RODynamicHashIndex::~RODynamicHashIndex() {
