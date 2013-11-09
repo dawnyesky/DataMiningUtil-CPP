@@ -199,9 +199,9 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 			this->logItemset("Frequent", 1, itemset, result);
 		}
 	}
-	if (frq_itemsets->get_itemsets().size() == 0) { //frequent 1-itemsets is not found
-		return false;
-	}
+//	if (frq_itemsets->get_itemsets().size() == 0) { //frequent 1-itemsets is not found
+//		return false;
+//	}
 	this->m_frequent_itemsets->push_back(*frq_itemsets);
 	delete frq_itemsets;
 	delete[] local_index.first; //不要尝试释放结构里面的东西，因为会影响索引结构
@@ -369,10 +369,10 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		delete this->m_itemset_recv_buf;
 		free(buffer);
 
+		//如果有新增的频繁项集则加入，如果所有进程都没有新的频繁项集则证明没有必要继续
 		if (frq_itemsets->get_itemsets().size() > 0) {
 			this->m_frequent_itemsets->push_back(*frq_itemsets);
 		}
-		delete frq_itemsets;
 
 		unsigned int max_frq_itemsets_num = 0;
 		unsigned int frq_itemsets_num = this->m_frequent_itemsets->size();
@@ -386,8 +386,13 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		if (max_frq_itemsets_num != i + 2) {
 			break;
 		} else if (this->m_frequent_itemsets->size() < max_frq_itemsets_num) {
+			//把空的部分频繁项集也加进来
 			this->m_frequent_itemsets->push_back(*frq_itemsets);
 		}
+
+		//栅栏同步
+		MPI_Barrier(m_comm);
+		delete frq_itemsets;
 	}
 //	printf("process %u finish gen frequent itemset\n", pid);
 //	MPI_Barrier(m_comm);
@@ -407,9 +412,22 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			prv_frq1.get_itemsets();
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
 			prv_frq2.get_itemsets();
+
+	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
+		return true;
+	}
+
 	//把输入数据转化成矩阵以便在并行区域随机读取
-	unsigned int frq_itemset_list1[prv_frq_itemsets1.size()][prv_frq1.get_term_num()];
-	unsigned int frq_itemset_list2[prv_frq_itemsets2.size()][prv_frq2.get_term_num()];
+	unsigned int** frq_itemset_list1 =
+			new unsigned int*[prv_frq_itemsets1.size()];
+	for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
+		frq_itemset_list1[i] = new unsigned int[prv_frq1.get_term_num()];
+	}
+	unsigned int** frq_itemset_list2 =
+			new unsigned int*[prv_frq_itemsets2.size()];
+	for (unsigned int i = 0; i < prv_frq_itemsets2.size(); i++) {
+		frq_itemset_list2[i] = new unsigned int[prv_frq2.get_term_num()];
+	}
 	unsigned int i = 0;
 	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter1 =
 			prv_frq_itemsets1.begin(); prv_frq_iter1 != prv_frq_itemsets1.end();
@@ -438,8 +456,9 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			omp_num_threads != NULL ?
 					atoi(omp_num_threads) : DEFAULT_OMP_NUM_THREADS;
 	//初始化归并结果缓冲区
-	unsigned int frq_itemset_buf[numthreads * FRQGENG_RECV_BUF_SIZE];
-	unsigned int frq_itemset_num[numthreads];
+	unsigned int* frq_itemset_buf = new unsigned int[numthreads
+			* FRQGENG_RECV_BUF_SIZE];
+	unsigned int* frq_itemset_num = new unsigned int[numthreads];
 	memset(frq_itemset_buf, 0,
 			numthreads * FRQGENG_RECV_BUF_SIZE * sizeof(unsigned int));
 	memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
@@ -503,6 +522,16 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		}
 	}
 //	printf("end gather result\n");
+	for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
+		delete[] frq_itemset_list1[i];
+	}
+	delete[] frq_itemset_list1;
+	for (unsigned int i = 0; i < prv_frq_itemsets2.size(); i++) {
+		delete[] frq_itemset_list2[i];
+	}
+	delete[] frq_itemset_list2;
+	delete[] frq_itemset_buf;
+	delete[] frq_itemset_num;
 
 	return true;
 }
