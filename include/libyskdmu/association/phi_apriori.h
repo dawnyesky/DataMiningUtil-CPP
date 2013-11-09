@@ -433,6 +433,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
 		return true;
 	}
+
 	//把部分要在MIC卡上用到的变量存放在临时变量
 	unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
 	unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
