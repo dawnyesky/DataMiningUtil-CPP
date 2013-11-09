@@ -487,11 +487,18 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
 	prv_frq1.get_itemsets();
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
+<<<<<<< HEAD
 	prv_frq2.get_itemsets();
 	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
 		return true;
 	}
 
+=======
+			prv_frq2.get_itemsets();
+	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
+		return true;
+	}
+>>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
 	//把部分要在MIC卡上用到的变量存放在临时变量
 	unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
 	unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
@@ -500,12 +507,20 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	unsigned int frq_term_num = frq_itemset.get_term_num();
 	//把输入数据转化成矩阵以便在并行区域随机读取
 	unsigned int** frq_itemset_list1 =
+<<<<<<< HEAD
 	new unsigned int*[prv_frq_itemsets1.size()];
+=======
+			new unsigned int*[prv_frq_itemsets1.size()];
+>>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
 	for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
 		frq_itemset_list1[i] = new unsigned int[prv_frq1.get_term_num()];
 	}
 	unsigned int** frq_itemset_list2 =
+<<<<<<< HEAD
 	new unsigned int*[prv_frq_itemsets2.size()];
+=======
+			new unsigned int*[prv_frq_itemsets2.size()];
+>>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
 	for (unsigned int i = 0; i < prv_frq_itemsets2.size(); i++) {
 		frq_itemset_list2[i] = new unsigned int[prv_frq2.get_term_num()];
 	}
@@ -539,7 +554,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	atoi(omp_num_threads) : DEFAULT_OMP_NUM_THREADS;
 	//初始化归并结果缓冲区
 	unsigned int* frq_itemset_buf = new unsigned int[numthreads
+<<<<<<< HEAD
 	* FRQGENG_RECV_BUF_SIZE];
+=======
+			* FRQGENG_RECV_BUF_SIZE];
+>>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
 	unsigned int* frq_itemset_num = new unsigned int[numthreads];
 //	memset(frq_itemset_buf, 0,
 //			numthreads * FRQGENG_RECV_BUF_SIZE * sizeof(unsigned int));
