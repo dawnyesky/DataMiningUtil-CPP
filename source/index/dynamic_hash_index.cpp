@@ -41,7 +41,7 @@ DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
 
 DynamicHashIndex::~DynamicHashIndex() {
 	unsigned int catalogs_size = pow(2, m_d);
-	unsigned char deleted[catalogs_size];
+	unsigned char* deleted = new unsigned char[catalogs_size];
 	memset(deleted, 0, catalogs_size * sizeof(unsigned char));
 	for (unsigned int i = 0; i < catalogs_size; i++) {
 		if (deleted[i] == 0) {
@@ -72,6 +72,7 @@ DynamicHashIndex::~DynamicHashIndex() {
 	if (m_catalogs != NULL) {
 		delete[] m_catalogs;
 	}
+	delete[] deleted;
 }
 
 unsigned int DynamicHashIndex::addressing(unsigned int hashcode) {
