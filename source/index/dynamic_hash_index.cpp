@@ -27,15 +27,44 @@ DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
 }
 
 DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
-	m_hash_func = &simple_hash;
+	m_hash_func = dynamic_hash_index.m_hash_func;
 	m_bucket_size = dynamic_hash_index.m_bucket_size;
 	m_d = dynamic_hash_index.m_d;
 	m_retry_times = dynamic_hash_index.m_retry_times;
 	m_log_fp = dynamic_hash_index.m_log_fp;
 	m_catalogs = new Catalog[(int) pow(2, m_d)];
 	for (unsigned int i = 0; i < (int) pow(2, m_d); i++) {
-		m_catalogs[i].l = m_d;
+		m_catalogs[i].l = dynamic_hash_index.m_catalogs[i].l;
 		m_catalogs[i].bucket = new Bucket();
+		vector<IndexHead>& elements =
+				dynamic_hash_index.m_catalogs[i].bucket->elements;
+		for (unsigned int j = 0; j < elements.size(); j++) {
+			IndexHead index_head;
+			index_head.identifier =
+					new char[strlen(elements[j].identifier) + 1];
+			strcpy(index_head.identifier, elements[j].identifier);
+			index_head.key_info = new char[strlen(elements[j].key_info) + 1];
+			strcpy(index_head.key_info, elements[j].key_info);
+			index_head.index_item_num = elements[j].index_item_num;
+			index_head.inverted_index = NULL;
+			if (elements[j].inverted_index != NULL) {
+				index_head.inverted_index = new IndexItem;
+				index_head.inverted_index->record_id =
+						elements[j].inverted_index->record_id;
+				index_head.inverted_index->next = NULL;
+
+				IndexItem* p = elements[j].inverted_index->next;
+				IndexItem* q = index_head.inverted_index;
+				while (p != NULL) {
+					q->next = new IndexItem;
+					q = q->next;
+					q->record_id = p->record_id;
+					q->next = NULL;
+					p = p->next;
+				}
+			}
+			m_catalogs[i].bucket->elements.push_back(index_head);
+		}
 	}
 }
 
