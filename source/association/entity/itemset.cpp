@@ -9,26 +9,30 @@
 #include <limits>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/util/search_util.h"
-#include "libyskdmu/index/open_hash_index.h"
+#include "libyskdmu/index/dynamic_hash_index.h"
 #include "libyskdmu/association/entity/itemset.h"
 
 KItemsets::KItemsets() {
 	m_term_num = 1;
-	m_itemsets_index = new OpenHashIndex();
+	m_itemsets_index = new DynamicHashIndex();
 }
 
 KItemsets::KItemsets(unsigned int term_num, unsigned int reserved_itemset_num) :
 		m_term_num(term_num) {
-	m_itemsets_index = new OpenHashIndex(reserved_itemset_num);
+	const unsigned int bucket_size = 256;
+	m_itemsets_index = new DynamicHashIndex(bucket_size,
+			std::max((int) (log(reserved_itemset_num / bucket_size) / log(2)),
+					2));
 }
 
 KItemsets::KItemsets(const KItemsets& k_itemsets) :
 		m_itemsets(k_itemsets.m_itemsets) {
 	m_term_num = k_itemsets.m_term_num;
-	m_itemsets_index = new OpenHashIndex(
-			*(OpenHashIndex*) k_itemsets.m_itemsets_index);
+	m_itemsets_index = new DynamicHashIndex(
+			*(DynamicHashIndex*) k_itemsets.m_itemsets_index);
 }
 
 KItemsets::~KItemsets() {
