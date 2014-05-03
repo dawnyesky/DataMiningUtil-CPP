@@ -8,6 +8,7 @@
 #ifndef DHP_H_
 #define DHP_H_
 
+#include "libyskdmu/counter/hash_table_counter.h"
 #include "libyskdmu/association/apriori.h"
 
 class DHPCounter: public HashTableCounter {

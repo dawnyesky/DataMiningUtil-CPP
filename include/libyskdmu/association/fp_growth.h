@@ -105,7 +105,7 @@ public:
 protected:
 	vector<unsigned int> m_sorted_item_index;
 	vector<vector<KItemsets*> > m_pattern_base; //频繁模式基矩阵，行代表后缀，列代表的1..k-1次频繁模式基
-	vector<vector<HashTableCounter*> > m_pattern_counter;
+	vector<vector<DynamicHashCounter*> > m_pattern_counter;
 };
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -283,10 +283,10 @@ bool FpGrowth<ItemType, ItemDetail, RecordInfoType>::fp_growth() {
 		m_pattern_base.push_back(k_itemsets);
 	}
 	for (unsigned int i = 0; i < this->m_item_details.size(); i++) {
-		vector<HashTableCounter*> pattern_counter;
+		vector<DynamicHashCounter*> pattern_counter;
 		for (unsigned int j = 0; j < this->m_max_itemset_size - 1; j++) {
 			pattern_counter.push_back(
-					new HashTableCounter(this->m_item_details.size(), j + 1));
+					new DynamicHashCounter(this->m_item_details.size(), j + 1));
 		}
 		m_pattern_counter.push_back(pattern_counter);
 	}

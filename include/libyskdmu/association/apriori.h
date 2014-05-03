@@ -297,7 +297,7 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 void Apriori<ItemType, ItemDetail, RecordInfoType>::create_counter() {
 	for (unsigned int i = 0; i < this->m_max_itemset_size; i++) {
 		this->m_itemsets_counter.push_back(
-				new HashTableCounter(this->m_item_details.size(), i + 1));
+				new DynamicHashCounter(this->m_item_details.size(), i + 1));
 	}
 }
 

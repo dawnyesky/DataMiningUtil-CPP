@@ -13,7 +13,7 @@
 #include <string.h>
 #include "libyskalgrthms/math/arrange_combine.h"
 #include "libyskdmu/association/entity/itemset.h"
-#include "libyskdmu/counter/hash_table_counter.h"
+#include "libyskdmu/counter/dynamic_hash_counter.h"
 #include "libyskdmu/association/extractor/extractor_interface.h"
 
 struct AssocBaseRule {
