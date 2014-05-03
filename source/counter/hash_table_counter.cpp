@@ -11,22 +11,14 @@
 #include "libyskalgrthms/math/arrange_combine.h"
 #include "libyskdmu/counter/hash_table_counter.h"
 
-unsigned int hash(const unsigned int *key, unsigned int length,
-		unsigned int table_size) {
-	unsigned int hashcode = 0;
-	for (unsigned int i = 0; i < length; i++) {
-		hashcode = 37 * hashcode + key[i];
-	}
-	return hashcode %= table_size;
-}
-
 unsigned int probe(const unsigned int *key, unsigned int length,
 		unsigned int table_size, unsigned int collision_key,
 		unsigned int probe_step) {
 	return (collision_key + probe_step * probe_step) % table_size;
 }
 
-HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension) {
+HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
+		IHashFunc hash_func, IProbeFunc probe_func) {
 	m_dimension = dimension;
 	m_size = size;
 	m_table_size = combine(m_size, m_dimension) * 1.5; //哈希表大小
@@ -39,26 +31,8 @@ HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension) {
 	for (unsigned int i = 0; i < m_table_size; i++) {
 		m_hash_table[i] = NULL;
 	}
-	m_hash_func = &hash;
-	m_probe_func = &probe;
-	this->m_log_fp = LogUtil::get_instance()->get_log_instance(
-			"hashTableCounter");
-}
-
-HashTableCounter::HashTableCounter(unsigned int size, unsigned int dimension,
-		IHashFunc hash_func, IProbeFunc probe_func) {
-	m_dimension = dimension;
-	m_size = size;
-	m_table_size = combine(m_size, m_dimension) * 1.5; //哈希表大小
-	if (m_table_size > MAX_TABLE_SIZE) {
-		m_table_size = MAX_TABLE_SIZE;
-	}
-	m_hash_table = new unsigned int*[m_table_size]; //建立哈希表
-	for (unsigned int i = 0; i < m_table_size; i++) {
-		m_hash_table[i] = NULL;
-	}
-	m_hash_func = (NULL == hash_func ? &hash : hash_func);
-	m_probe_func = (NULL == probe_func ? &probe : probe_func);
+	m_hash_func = hash_func;
+	m_probe_func = probe_func;
 	this->m_log_fp = LogUtil::get_instance()->get_log_instance(
 			"hashTableCounter");
 }
@@ -86,27 +60,6 @@ HashTableCounter::~HashTableCounter() {
 			delete[] m_hash_table[i];
 	}
 	delete[] m_hash_table;
-}
-
-bool HashTableCounter::count(const unsigned int k_item[]) {
-	unsigned int temp_k_item[m_dimension];
-	for (unsigned int i = 0; i < m_dimension; i++) {
-		temp_k_item[i] = k_item[i];
-	}
-	if (quicksort<unsigned int>(temp_k_item, m_dimension, true, true)
-			!= m_dimension)
-		return false;
-	unsigned int hash_code = hashfunc(temp_k_item);
-	if (NULL != m_hash_table[hash_code]) {
-		m_hash_table[hash_code][m_dimension]++;
-	} else {
-		m_hash_table[hash_code] = new unsigned int[m_dimension + 1];
-		for (unsigned int i = 0; i < m_dimension; i++) {
-			m_hash_table[hash_code][i] = temp_k_item[i];
-		}
-		m_hash_table[hash_code][m_dimension] = 1;
-	}
-	return true;
 }
 
 bool HashTableCounter::count(const unsigned int k_item[], unsigned int num) {

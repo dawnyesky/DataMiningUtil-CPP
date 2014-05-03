@@ -12,6 +12,8 @@
 
 typedef unsigned int (*HashFunc)(const char *key, unsigned int length,
 		unsigned int table_size);
+typedef unsigned int (*IHashFunc)(const unsigned int *key, unsigned int length,
+		unsigned int table_size);
 
 /*
  * description: 哈希函数
@@ -21,6 +23,9 @@ typedef unsigned int (*HashFunc)(const char *key, unsigned int length,
  *      return: 哈希值
  */
 unsigned int simple_hash(const char *key, unsigned int length,
+		unsigned int table_size);
+
+unsigned int simple_hash(const unsigned int *key, unsigned int length,
 		unsigned int table_size);
 
 #endif /* HASHFUNC_UTIL_H_ */

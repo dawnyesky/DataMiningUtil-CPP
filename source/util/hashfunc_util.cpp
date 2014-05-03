@@ -15,3 +15,12 @@ unsigned int simple_hash(const char *key, unsigned int length,
 	}
 	return hashcode %= table_size;
 }
+
+unsigned int simple_hash(const unsigned int *key, unsigned int length,
+		unsigned int table_size) {
+	unsigned int hashcode = 0;
+	for (unsigned int i = 0; i < length; i++) {
+		hashcode = 37 * hashcode + key[i];
+	}
+	return hashcode %= table_size;
+}

@@ -25,30 +25,19 @@ OpenHashIndex::OpenHashIndex() {
 	m_log_fp = LogUtil::get_instance()->get_log_instance("openHashIndex");
 }
 
-OpenHashIndex::OpenHashIndex(unsigned int table_size) {
-	m_table_size = table_size;
-	if (m_table_size > MAX_TABLE_SIZE || m_table_size == 0) {
-		m_table_size = MAX_TABLE_SIZE;
-	}
-	m_hash_table = new IndexHead*[m_table_size];
-	for (unsigned int i = 0; i < m_table_size; i++)
-		m_hash_table[i] = NULL;
-	m_hash_func = &simple_hash;
-	m_probe_func = &probe;
-	m_log_fp = LogUtil::get_instance()->get_log_instance("openHashIndex");
-}
-
 OpenHashIndex::OpenHashIndex(unsigned int table_size, HashFunc hash_func,
 		ProbeFunc probe_func) {
 	m_table_size = table_size;
+	if (0 == m_table_size)
+		m_table_size = 100;
 	if (m_table_size > MAX_TABLE_SIZE) {
 		m_table_size = MAX_TABLE_SIZE;
 	}
 	m_hash_table = new IndexHead*[m_table_size];
 	for (unsigned int i = 0; i < m_table_size; i++)
 		m_hash_table[i] = NULL;
-	m_hash_func = (NULL == hash_func ? &simple_hash : hash_func);
-	m_probe_func = (NULL == probe_func ? &probe : probe_func);
+	m_hash_func = hash_func;
+	m_probe_func = probe_func;
 	m_log_fp = LogUtil::get_instance()->get_log_instance("openHashIndex");
 }
 

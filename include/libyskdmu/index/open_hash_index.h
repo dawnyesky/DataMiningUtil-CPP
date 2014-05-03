@@ -30,9 +30,8 @@ unsigned int probe(const char *key, unsigned int length,
 class OpenHashIndex: public HashIndex {
 public:
 	OpenHashIndex();
-	OpenHashIndex(unsigned int table_size);
-	OpenHashIndex(unsigned int table_size, HashFunc hash_func,
-			ProbeFunc probe_func);
+	OpenHashIndex(unsigned int table_size, HashFunc hash_func =
+			(HashFunc) &simple_hash, ProbeFunc probe_func = probe);
 	OpenHashIndex(const OpenHashIndex& hash_index);
 	virtual ~OpenHashIndex();
 

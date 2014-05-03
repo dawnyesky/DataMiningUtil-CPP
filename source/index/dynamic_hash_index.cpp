@@ -14,11 +14,11 @@
 
 DynamicHashIndex::DynamicHashIndex(unsigned int bucket_size,
 		unsigned int global_deep) {
-	m_hash_func = &simple_hash;
+	m_hash_func = (HashFunc) &simple_hash;
 	m_bucket_size = bucket_size;
 	m_d = global_deep;
 	m_catalogs = new Catalog[(int) pow(2, m_d)];
-	for (unsigned int i = 0; i < (int) pow(2, m_d); i++) {
+	for (unsigned int i = 0; i < (unsigned int) pow(2, m_d); i++) {
 		m_catalogs[i].l = m_d;
 		m_catalogs[i].bucket = new Bucket();
 	}
@@ -33,7 +33,7 @@ DynamicHashIndex::DynamicHashIndex(const DynamicHashIndex& dynamic_hash_index) {
 	m_retry_times = dynamic_hash_index.m_retry_times;
 	m_log_fp = dynamic_hash_index.m_log_fp;
 	m_catalogs = new Catalog[(int) pow(2, m_d)];
-	for (unsigned int i = 0; i < (int) pow(2, m_d); i++) {
+	for (unsigned int i = 0; i < (unsigned int) pow(2, m_d); i++) {
 		m_catalogs[i].l = dynamic_hash_index.m_catalogs[i].l;
 		m_catalogs[i].bucket = new Bucket();
 		vector<IndexHead>& elements =
@@ -92,8 +92,8 @@ DynamicHashIndex::~DynamicHashIndex() {
 				}
 			}
 			delete m_catalogs[i].bucket;
-			for (unsigned int j = 0; j < (int) pow(2, m_d - m_catalogs[i].l);
-					j++) {
+			for (unsigned int j = 0;
+					j < (unsigned int) pow(2, m_d - m_catalogs[i].l); j++) {
 				deleted[i + j * (int) pow(2, m_catalogs[i].l)] = 1;
 			}
 		}
@@ -410,7 +410,6 @@ unsigned int* DynamicHashIndex::get_intersect_records(const char **keys,
 		unsigned int intersect_num = 0;
 		unsigned int records_max_num = 0;
 		unsigned int ptr_num = key_num;
-		unsigned int hashcode;
 		//准备纸带针孔，根据keys的每个值(i)来初始化跟踪指针ptr[j]，并记录针对准的孔中最小的一个cur_min和最少的记录数records_max_num，交集大小不会超过records_max_num
 		for (unsigned int i = 0, j = 0; i < key_num; i++) {
 			pair<unsigned int, int> location = locate_index(keys[i],

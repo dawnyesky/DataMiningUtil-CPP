@@ -9,11 +9,12 @@
 #define HASH_TABLE_COUNTER_H_
 
 #include <stdio.h>
-#include "libyskdmu/util/log_util.h"
+#include "libyskdmu/util/hashfunc_util.h"
 #include "libyskdmu/counter/counter_interface.h"
 
-typedef unsigned int (*IHashFunc)(const unsigned int *key, unsigned int length, unsigned int table_size);
-typedef unsigned int (*IProbeFunc)(const unsigned int *key, unsigned int length, unsigned int table_size, unsigned int collision_key, unsigned int probe_step);
+typedef unsigned int (*IProbeFunc)(const unsigned int *key, unsigned int length,
+		unsigned int table_size, unsigned int collision_key,
+		unsigned int probe_step);
 
 /*
  * description: 哈希函数
@@ -22,7 +23,8 @@ typedef unsigned int (*IProbeFunc)(const unsigned int *key, unsigned int length,
  *  			  table_size:	哈希表长度
  *      return: 哈希值
  */
-unsigned int hash(const unsigned int *key, unsigned int length, unsigned int table_size);
+unsigned int hash(const unsigned int *key, unsigned int length,
+		unsigned int table_size);
 
 /*
  * description: 探查序列生成函数
@@ -33,8 +35,9 @@ unsigned int hash(const unsigned int *key, unsigned int length, unsigned int tab
  *  			  probe_step:		探查步数
  *      return: 对应探查步数的探查值
  */
-unsigned int probe(const unsigned int *key, unsigned int length, unsigned int table_size, unsigned int collision_key, unsigned int probe_step);
-
+unsigned int probe(const unsigned int *key, unsigned int length,
+		unsigned int table_size, unsigned int collision_key,
+		unsigned int probe_step);
 
 /*
  * 计数表格
@@ -46,12 +49,12 @@ unsigned int probe(const unsigned int *key, unsigned int length, unsigned int ta
  */
 class HashTableCounter: public Counter {
 public:
-	HashTableCounter(unsigned int size, unsigned int dimension);
-	HashTableCounter(unsigned int size, unsigned int dimension, IHashFunc hash_func, IProbeFunc probe_func);
+	HashTableCounter(unsigned int size, unsigned int dimension,
+			IHashFunc hash_func = (IHashFunc) &simple_hash,
+			IProbeFunc probe_func = probe);
 	HashTableCounter(const HashTableCounter& counter);
 	virtual ~HashTableCounter();
-	virtual bool count(const unsigned int k_item[]);
-	virtual bool count(const unsigned int k_item[], unsigned int num);
+	virtual bool count(const unsigned int k_item[], unsigned int num = 1);
 	virtual unsigned int get_count(const unsigned int k_item[]) const;
 protected:
 	/*
@@ -66,7 +69,8 @@ protected:
 	 *  			  collision_key:	冲突关键字
 	 *      return: 不冲突的替代位置
 	 */
-	virtual unsigned int collision_handler(const unsigned int k_item[], unsigned int collision_key) const;
+	virtual unsigned int collision_handler(const unsigned int k_item[],
+			unsigned int collision_key) const;
 
 private:
 	unsigned int m_dimension;
@@ -74,7 +78,6 @@ private:
 	unsigned int m_table_size;
 	IHashFunc m_hash_func; //哈希函数指针
 	IProbeFunc m_probe_func; //探查序列函数指针
-	LogInstance* m_log_fp; //日志文件指针
 
 	const static unsigned int MAX_TABLE_SIZE = 134217728; //哈希表最大的大小，索引数组占用了512M内存
 };
