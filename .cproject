@@ -52,10 +52,12 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.base.128191945" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.1365545830" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
 								<option id="gnu.cpp.link.option.paths.155534022" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
+									<listOptionValue builtIn="false" value="/usr/lib/i386-linux-gnu"/>
 									<listOptionValue builtIn="false" value="../lib"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.223966402" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="yskalgrthms_d"/>
+									<listOptionValue builtIn="false" value="OpenCL"/>
 									<listOptionValue builtIn="false" value="mpich"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="log4cpp"/>
@@ -138,11 +140,13 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.475319999" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
 								<option id="gnu.cpp.link.option.paths.2142486413" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
+									<listOptionValue builtIn="false" value="/usr/lib/i386-linux-gnu"/>
 									<listOptionValue builtIn="false" value="../lib"/>
 								</option>
 								<option id="gnu.cpp.link.option.shared.157064185" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" value="true" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.libs.901385754" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="yskalgrthms"/>
+									<listOptionValue builtIn="false" value="OpenCl"/>
 									<listOptionValue builtIn="false" value="mpich"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="log4cpp"/>
@@ -223,6 +227,7 @@
 								</option>
 								<option id="gnu.cpp.link.option.libs.1027455117" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="yskalgrthms_d"/>
+									<listOptionValue builtIn="false" value="OpenCL"/>
 									<listOptionValue builtIn="false" value="mpich"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="log4cpp"/>
@@ -310,6 +315,7 @@
 								<option id="gnu.cpp.link.option.shared.1827751720" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" value="true" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.libs.1726795011" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="yskalgrthms"/>
+									<listOptionValue builtIn="false" value="OpenCL"/>
 									<listOptionValue builtIn="false" value="mpich"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="log4cpp"/>
