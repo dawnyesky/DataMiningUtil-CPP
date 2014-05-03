@@ -12,6 +12,7 @@
 #include "libyskdmu/counter/array_triangle_matrix.h"
 #include "libyskdmu/counter/hash_table_counter.h"
 #include "libyskdmu/counter/map_triangle_matrix.h"
+#include "libyskdmu/counter/dynamic_hash_counter.h"
 
 using namespace std;
 
@@ -30,7 +31,7 @@ void test_triangle_matrix() {
 		exit(-1);
 	}
 
-	srand((unsigned int)time(NULL));
+	srand((unsigned int) time(NULL));
 	Counter *matrix = new TriangleMatrix(space_size);
 	unsigned int data[record_num][2];
 	for (unsigned int i = 0; i < record_num; i++) {
@@ -74,7 +75,7 @@ void test_hash_table_counter() {
 		exit(-1);
 	}
 
-	srand((unsigned int)time(NULL));
+	srand((unsigned int) time(NULL));
 	Counter *matrix = new HashTableCounter(space_size, dimension);
 	unsigned int data[record_num][dimension];
 	for (unsigned int i = 0; i < record_num; i++) {
@@ -103,4 +104,48 @@ void test_hash_table_counter() {
 	duration = (float) (finish - start) / (CLOCKS_PER_SEC);
 	printf("HashTableCounter testing duaration: %f(secs)\n", duration);
 	printf("**********HashTableCounter finish testing**********\n\n");
+}
+
+void test_dynamic_hash_counter() {
+	printf("**********DynamicHashCounter start testing**********\n");
+	start = clock();
+	unsigned int space_size = 1000;
+	unsigned int dimension = 2;
+	unsigned int record_num = 1000;
+	bool print_matrix = false;
+
+	if (record_num > combine(space_size, dimension)) {
+		printf("the parameter record_num is too large to let it go!");
+		exit(-1);
+	}
+
+	srand((unsigned int) time(NULL));
+	Counter *matrix = new DynamicHashCounter(space_size, dimension);
+	unsigned int data[record_num][dimension];
+	for (unsigned int i = 0; i < record_num; i++) {
+		for (unsigned int j = 0; j < dimension; j++) {
+			data[i][j] = rand() % space_size;
+		}
+		matrix->count(data[i]);
+//				printf("[%u](%u, %u)\n", i, data[i][0], data[i][1]);
+	}
+
+	if (dimension == 2 && print_matrix) {
+		unsigned int item[2];
+		for (item[0] = 0; item[0] < space_size; ++item[0]) {
+			for (item[1] = 0; item[1] < space_size; ++item[1]) {
+				if (item[0] == item[1]) { //对角线元素
+					printf("%i\t", 999);
+				} else {
+					printf("%u\t", matrix->get_count(item));
+				}
+			}
+			printf("\n");
+		}
+	}
+	delete matrix;
+	finish = clock();
+	duration = (float) (finish - start) / (CLOCKS_PER_SEC);
+	printf("DynamicHashCounter testing duaration: %f(secs)\n", duration);
+	printf("**********DynamicHashCounter finish testing**********\n\n");
 }

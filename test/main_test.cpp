@@ -16,6 +16,8 @@ const static char* TRIANGLE_MATRIX = "triangle_matrix";
 extern void test_triangle_matrix();
 const static char* HASH_TABLE_COUNTER = "hash_table_counter";
 extern void test_hash_table_counter();
+const static char* DYNAMIC_HASH_COUNTER = "dynamic_hash_counter";
+extern void test_dynamic_hash_counter();
 
 const static char* OPEN_HASH_INDEX = "open_hash_index";
 extern void test_open_hash_index();
@@ -100,6 +102,8 @@ int main(int argc, char *argv[]) {
 		test_triangle_matrix();
 	} else if (strcmp(argv[1], HASH_TABLE_COUNTER) == 0) {
 		test_hash_table_counter();
+	} else if (strcmp(argv[1], DYNAMIC_HASH_COUNTER) == 0) {
+		test_dynamic_hash_counter();
 	} else if (strcmp(argv[1], OPEN_HASH_INDEX) == 0) {
 		test_open_hash_index();
 	} else if (strcmp(argv[1], DYNAMIC_HASH_INDEX) == 0) {
