@@ -54,7 +54,7 @@ public:
 			size_t key_length);
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num);
-#ifdef __MIC__
+#ifdef OMP
 	virtual bool offload_data();
 	virtual bool recycle_data();
 #endif

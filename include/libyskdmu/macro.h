@@ -8,25 +8,25 @@
 #ifndef GLOBAL_H_
 #define GLOBAL_H_
 
-#ifdef __MIC__
+#ifdef OMP
 #define CLASSDECL __attribute__((target(mic:0)))
 #else
 #define CLASSDECL
 #endif
 
-#ifdef __MIC__
+#ifdef OMP
 #define FUNCDECL __attribute__((target(mic:0)))
 #else
 #define FUNCDECL
 #endif
 
-#ifdef __MIC__
+#ifdef OMP
 #define PROPDECL __attribute__((target(mic:0)))
 #else
 #define PROPDECL
 #endif
 
-#ifdef __MIC__
+#ifdef OMP
 #define ALLOC alloc_if(1) free_if(0)
 #define FREE length(0) alloc_if(0) free_if(1)
 #define REUSE length(0) alloc_if(0) free_if(0)

@@ -45,6 +45,7 @@ public:
 	 */
 	virtual unsigned int* get_intersect_records(const char **keys,
 			unsigned int key_num) = 0;
+#ifdef OMP
 	/*
 	 * description: 把数据加载到加速卡
 	 *      return: 加载数据是否成功
@@ -55,6 +56,7 @@ public:
 	 *      return: 回收内存是否成功
 	 */
 	virtual bool recycle_data() = 0;
+#endif
 
 protected:
 	/*

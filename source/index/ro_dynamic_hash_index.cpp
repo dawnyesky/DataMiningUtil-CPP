@@ -31,7 +31,7 @@ RODynamicHashIndex::RODynamicHashIndex() {
 	m_l2_index = NULL;
 	m_l2_index_size = 0;
 	m_is_built = false;
-#ifdef __MIC__
+#ifdef OMP
 	m_accard_inst = NULL;
 #endif
 }
@@ -204,7 +204,7 @@ unsigned int* RODynamicHashIndex::get_intersect_records(const char **keys,
 	return NULL;
 }
 
-#ifdef __MIC__
+#ifdef OMP
 bool RODynamicHashIndex::offload_data() {
 	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
 	*l2_index_size;

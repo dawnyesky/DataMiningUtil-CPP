@@ -8,10 +8,13 @@
 #ifndef PHI_APRIORI_H_
 #define PHI_APRIORI_H_
 
-#include <math.h>
-#include <string.h>
+#ifdef OMP
 #include <omp.h>
 #include "libyskdmu/macro.h"
+#endif
+
+#include <math.h>
+#include <string.h>
 #include "libyskdmu/util/mic_util.h"
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
@@ -38,7 +41,7 @@ public:
 protected:
 	bool phi_frq_gen(KItemsets& frq_itemset, KItemsets& prv_frq1,
 			KItemsets& prv_frq2);
-#ifdef __MIC__
+#ifdef OMP
 	bool phi_filter(vector<unsigned int>* k_itemset, unsigned int* support,
 			ROHashIndex* ro_index, char* identifiers,
 			unsigned int identifiers_size, unsigned int* id_index,
@@ -180,7 +183,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	}
 //	printf("process %u finish con\n", pid);
 
-	//生成只读索引并传输到加速卡内存
+	//生成只读索引
 //	printf("start gen ro index\n");
 	this->gen_ro_index();
 //	printf("end gen ro index\n");
@@ -422,7 +425,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	return true;
 }
 
-#ifdef __MIC__
+#ifdef OMP
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		KItemsets& frq_itemset, KItemsets& prv_frq1, KItemsets& prv_frq2) {
@@ -634,8 +637,6 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	result = ro_index->get_intersect_records((const char **) keys,
 			k_itemset->size());
 //	printf("end calc intersect\n");
-//	result = this->m_item_index->get_intersect_records((const char **) keys,
-//			k_itemset->size());
 	*support = result[0];
 	delete[] keys;
 	delete[] result;
@@ -700,8 +701,19 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	for (unsigned int j = 0; j < k_itemset->size(); j++) {
 		keys[j] = this->m_item_details[k_itemset->at(j)].m_identifier;
 	}
-	result = this->m_ro_hash_index->get_intersect_records((const char **) keys,
+
+	RODynamicHashIndexData* ro_index_data =
+			(RODynamicHashIndexData*) this->m_ro_hi_data;
+	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
+			*l2_index_size, *identifiers_size, *id_index, *id_index_size;
+	unsigned char* l2_index;
+	ro_index_data->fill_memeber_data(&d, &data, &data_size, &l1_index,
+			&l1_index_size, &l2_index, &l2_index_size);
+	RODynamicHashIndex ro_index(d, data, data_size, l1_index, l1_index_size,
+			l2_index, l2_index_size, simple_hash_mic);
+	result = ro_index.get_intersect_records((const char **) keys,
 			k_itemset->size());
+
 	*support = result[0];
 	delete[] keys;
 	delete[] result;
@@ -798,7 +810,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::gen_ro_index() {
 	RODynamicHashIndexData* ro_hi_data = new RODynamicHashIndexData();
 	bool succeed = true;
 	succeed &= ro_hi_data->build(this->m_item_index);
-#ifdef __MIC__
+#ifdef OMP
 	succeed &= this->gen_identifiers(&this->m_identifiers.first,
 			&this->m_identifiers.second, &this->m_id_index.first,
 			&this->m_id_index.second);
@@ -848,7 +860,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::destroy_ro_index()
 		return true;
 	}
 	bool succeed = true;
-#ifdef __MIC__
+#ifdef OMP
 	//把加速卡的只读索引内存空间回收
 	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
 	*l2_index_size, *identifiers_size, *id_index, *id_index_size;
