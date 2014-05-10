@@ -20,6 +20,9 @@ static clock_t start, finish;
 static float duration;
 
 void test_trade_x_extractor() {
+#ifndef XML
+	printf("XML symbol is not defined! Please recompiled with -DXML.\n");
+#else
 	printf("**********TradeXmlExtractor start testing**********\n");
 	start = clock();
 	bool print_index = false;
@@ -75,6 +78,7 @@ void test_trade_x_extractor() {
 			"TradeXmlExtractor testing duaration: %f(secs), memory occupation: %u(kb)\n",
 			duration, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********TradeXmlExtractor finish testing**********\n\n");
+#endif
 }
 
 void test_doc_text_extractor() {

@@ -8,8 +8,11 @@
 #ifndef RO_DYNAMIC_HASH_INDEX_H_
 #define RO_DYNAMIC_HASH_INDEX_H_
 
+#include <utility>
 #include "libyskdmu/macro.h"
 #include "libyskdmu/index/ro_hash_index.h"
+
+using namespace std;
 
 class CLASSDECL RODynamicHashIndex: public ROHashIndex {
 public:

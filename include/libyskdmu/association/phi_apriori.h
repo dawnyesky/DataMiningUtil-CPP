@@ -42,6 +42,7 @@
 
 #include <math.h>
 #include <string.h>
+#include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
 #include "libyskdmu/index/ro_dhi_data.h"
@@ -487,18 +488,15 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
 	prv_frq1.get_itemsets();
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
-<<<<<<< HEAD
 	prv_frq2.get_itemsets();
 	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
 		return true;
 	}
-
-=======
-			prv_frq2.get_itemsets();
-	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
-		return true;
+	bool distinct = true;
+	if (&prv_frq1 == &prv_frq2) {
+		distinct = false;
 	}
->>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
+
 	//把部分要在MIC卡上用到的变量存放在临时变量
 	unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
 	unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
@@ -506,44 +504,24 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	unsigned int prv_frq_term_num2 = prv_frq2.get_term_num();
 	unsigned int frq_term_num = frq_itemset.get_term_num();
 	//把输入数据转化成矩阵以便在并行区域随机读取
-	unsigned int** frq_itemset_list1 =
-<<<<<<< HEAD
-	new unsigned int*[prv_frq_itemsets1.size()];
-=======
-			new unsigned int*[prv_frq_itemsets1.size()];
->>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
-	for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
-		frq_itemset_list1[i] = new unsigned int[prv_frq1.get_term_num()];
-	}
-	unsigned int** frq_itemset_list2 =
-<<<<<<< HEAD
-	new unsigned int*[prv_frq_itemsets2.size()];
-=======
-			new unsigned int*[prv_frq_itemsets2.size()];
->>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
-	for (unsigned int i = 0; i < prv_frq_itemsets2.size(); i++) {
-		frq_itemset_list2[i] = new unsigned int[prv_frq2.get_term_num()];
-	}
+	unsigned int* frq_itemset_list1 =
+	new unsigned int[prv_frq_itemsets1.size() * prv_frq1.get_term_num()];
+	unsigned int* frq_itemset_list2 =
+	new unsigned int[prv_frq_itemsets2.size() * prv_frq2.get_term_num()];
 
 	unsigned int i = 0;
 	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter1 =
 			prv_frq_itemsets1.begin(); prv_frq_iter1 != prv_frq_itemsets1.end();
 			prv_frq_iter1++, i++) {
-//		memcpy(frq_itemset_list1 + i, prv_frq_iter1->first.data(),
-//				prv_frq1.get_term_num());
-		for (unsigned int j = 0; j < prv_frq1.get_term_num(); j++) {
-			frq_itemset_list1[i][j] = prv_frq_iter1->first.data()[j];
-		}
+		memcpy(frq_itemset_list1 + i * prv_frq1.get_term_num(), prv_frq_iter1->first.data(),
+				prv_frq1.get_term_num() * sizeof(unsigned int));
 	}
 	i = 0;
 	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter2 =
 			prv_frq_itemsets2.begin(); prv_frq_iter2 != prv_frq_itemsets2.end();
 			prv_frq_iter2++, i++) {
-//		memcpy(frq_itemset_list2 + i, prv_frq_iter2->first.data(),
-//				prv_frq2.get_term_num());
-		for (unsigned int j = 0; j < prv_frq2.get_term_num(); j++) {
-			frq_itemset_list2[i][j] = prv_frq_iter2->first.data()[j];
-		}
+		memcpy(frq_itemset_list2 + i * prv_frq2.get_term_num(), prv_frq_iter2->first.data(),
+				prv_frq2.get_term_num() * sizeof(unsigned int));
 	}
 
 	/*使用OpenMP多线程并行化*/
@@ -554,11 +532,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	atoi(omp_num_threads) : DEFAULT_OMP_NUM_THREADS;
 	//初始化归并结果缓冲区
 	unsigned int* frq_itemset_buf = new unsigned int[numthreads
-<<<<<<< HEAD
 	* FRQGENG_RECV_BUF_SIZE];
-=======
-			* FRQGENG_RECV_BUF_SIZE];
->>>>>>> 修复PHI-Apriori算法跑大数据集情况下出现的内存错误
 	unsigned int* frq_itemset_num = new unsigned int[numthreads];
 //	memset(frq_itemset_buf, 0,
 //			numthreads * FRQGENG_RECV_BUF_SIZE * sizeof(unsigned int));
@@ -595,6 +569,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		in(prv_frq_size2)\
 		in(prv_frq_term_num1)\
 		in(prv_frq_term_num2)\
+		in(distinct)\
 		in(frq_term_num)\
 		in(minsup_count)\
 		in(buf_size)\
@@ -621,20 +596,18 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 //			printf("thread:%u is running\n", tid);
 			unsigned int i = k / prv_frq_size2;
 			unsigned int j = k % prv_frq_size2;
-			vector<unsigned int> prv_frq_itemset1(frq_itemset_list1[i],
-					frq_itemset_list1[i] + prv_frq_term_num1);
-			vector<unsigned int> prv_frq_itemset2(frq_itemset_list2[j],
-					frq_itemset_list2[j] + prv_frq_term_num2);
+			if (!distinct && i >= j) {
+				continue;
+			}
 
 			/************************** 项目集连接与过滤 **************************/
 			//求并集
 //			printf("start calc union\n");
-			vector<unsigned int>* k_itemset = NULL;
-			if (prv_frq_itemset1.size() == 1 || prv_frq_itemset2.size() == 1) { //F(k-1)×F(1)
-				k_itemset = union_set_mic(prv_frq_itemset1, prv_frq_itemset2);
-			} else if (prv_frq_itemset1.size() == prv_frq_itemset2.size()) { //F(k-1)×F(k-1)
-				k_itemset = union_eq_set_mic(prv_frq_itemset1,
-						prv_frq_itemset2);
+			unsigned int* k_itemset = NULL;
+			if (prv_frq_term_num1 == 1 || prv_frq_term_num2 == 1) { //F(k-1)×F(1)
+				k_itemset = union_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
+			} else if (prv_frq_term_num1 == prv_frq_term_num2) { //F(k-1)×F(k-1)
+				k_itemset = union_eq_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
 			}
 //			printf("end calc union\n");
 
@@ -644,7 +617,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 
 			//过滤并保存潜在频繁项集
 			unsigned int support;
-			if (k_itemset != NULL && k_itemset->size() == frq_term_num
+			if (k_itemset != NULL && k_itemset[0] == frq_term_num
 					&& phi_filter_mic(k_itemset, &support, &ro_index,
 							identifiers, *identifiers_size, id_index,
 							*id_index_size, minsup_count)) {
@@ -652,8 +625,8 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 				unsigned int* offset = frq_itemset_buf
 				+ tid * FRQGENG_RECV_BUF_SIZE
 				+ frq_itemset_num[tid] * (frq_term_num + 1);
-				memcpy(offset, k_itemset->data(),
-						k_itemset->size() * sizeof(unsigned int));
+				memcpy(offset, k_itemset + 1,
+						k_itemset[0] * sizeof(unsigned int));
 				memcpy(offset + frq_term_num, &support,
 						1 * sizeof(unsigned int));
 				frq_itemset_num[tid]++;
@@ -665,6 +638,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 
 //	printf("start gather result\n");
 	//合并结果
+//	map<string, bool> itemset_map;
 	for (unsigned int i = 0; i < numthreads; i++) {
 		for (unsigned int j = 0; j < frq_itemset_num[i]; j++) {
 			unsigned int* offset = frq_itemset_buf + i * FRQGENG_RECV_BUF_SIZE
@@ -674,18 +648,36 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			unsigned int support = 0;
 			memcpy(&support, offset + frq_itemset.get_term_num(),
 					1 * sizeof(unsigned int));
+
+//			if (!this->hi_filter(&itemset, &support)) {
+//				printf("wrong itemset:%s\n",
+//						ivtoa((int*) itemset.data(),
+//								itemset.size(), ","));
+//			}
+//			map<string, bool>::iterator iter = itemset_map.find(
+//					string(
+//							ivtoa((int*) itemset.data(),
+//									itemset.size(), ",")));
+//			if (iter != itemset_map.end()) {
+//				printf("duplicate:%s, orig:%s\n",
+//						ivtoa((int*) itemset.data(),
+//								itemset.size(), ","),
+//						iter->first.data());
+//				continue;
+//			} else {
+//				itemset_map.insert(
+//						map<string, bool>::value_type(
+//								string(
+//										ivtoa((int*) itemset.data(),
+//												itemset.size(), ",")), 0));
+//			}
+
 			frq_itemset.push(itemset, support);
-//			this->logItemset("Frequent", itemset.size(), itemset, support);
+			this->logItemset("Frequent", itemset.size(), itemset, support);
 		}
 	}
 //	printf("end gather result\n");
-	for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
-		delete[] frq_itemset_list1[i];
-	}
 	delete[] frq_itemset_list1;
-	for (unsigned int i = 0; i < prv_frq_itemsets2.size(); i++) {
-		delete[] frq_itemset_list2[i];
-	}
 	delete[] frq_itemset_list2;
 	delete[] frq_itemset_buf;
 	delete[] frq_itemset_num;
@@ -724,19 +716,19 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		KItemsets& frq_itemset, KItemsets& prv_frq1, KItemsets& prv_frq2) {
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
-			prv_frq1.get_itemsets();
+	prv_frq1.get_itemsets();
 	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
-			prv_frq2.get_itemsets();
+	prv_frq2.get_itemsets();
 	vector<vector<unsigned int>*> candidate_itemset;
 	vector<unsigned int>* k_itemset = NULL;
 
 	//每个项集需要进行OpenCL计算的次数
 	unsigned int pass = ceil(
 			log(max(prv_frq1.get_term_num(), prv_frq2.get_term_num()) + 1)
-					/ log(2));
+			/ log(2));
 	//用长度为pass+1的数组来存储每次计算的输入输出（每次的输出是下一次的输入）
 	vector<vector<pair<unsigned long long, vector<unsigned long long>*> >*> in_output[pass
-			+ 1];
+	+ 1];
 
 	//OpenCL输入计算数据
 	vector<unsigned long long>* data = new vector<unsigned long long>;
@@ -757,7 +749,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			prv_frq_itemsets1.begin(); prv_frq1_iter != prv_frq_itemsets1.end();
 			prv_frq1_iter++, t++) {
 		map<vector<unsigned int>, unsigned int>::const_iterator prv_frq2_iter =
-				prv_frq_itemsets2.begin();
+		prv_frq_itemsets2.begin();
 		for (unsigned int s = 0; s < frq2_offset[t]; s++) {
 			prv_frq2_iter++;
 		}
@@ -781,27 +773,27 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 				char **keys = new char*[k_itemset->size()];
 				for (unsigned int i = 0; i < k_itemset->size(); i++) {
 					keys[i] =
-							this->m_item_details[k_itemset->at(i)].m_identifier;
+					this->m_item_details[k_itemset->at(i)].m_identifier;
 				}
 
 				vector<pair<unsigned long long, vector<unsigned long long>*> >* ioput =
-						new vector<
-								pair<unsigned long long,
-										vector<unsigned long long>*> >;
+				new vector<
+				pair<unsigned long long,
+				vector<unsigned long long>*> >;
 
 				//每个key对应于OpenCL数据区域的偏移量
 				unsigned long long data_offset[k_itemset->size()];
 				for (unsigned int i = 0; i < k_itemset->size(); i++) {
 					std::map<unsigned int, unsigned long long>::iterator data_iter =
-							data_map.find(k_itemset->at(i));
+					data_map.find(k_itemset->at(i));
 					if (data_iter != data_map.end()) {
 						data_offset[i] = data_iter->second;
 					} else {
 						data_offset[i] = data->size();
 						data_map[k_itemset->at(i)] = data->size();
 						unsigned int record_num =
-								this->m_item_index->get_mark_record_num(keys[i],
-										strlen(keys[i]));
+						this->m_item_index->get_mark_record_num(keys[i],
+								strlen(keys[i]));
 						unsigned int record[record_num + 1];
 						record[0] = record_num;
 						this->m_item_index->find_record(record + 1, keys[i],
@@ -843,6 +835,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		}
 	}
 
+	//没有产生计算任务
+	if (data->size() == 0) {
+		return true;
+	}
+
 	//先把data数据传输到OpenCL设备
 //	cl_int err = CL_SUCCESS;
 //	cl_mem cl_data = clCreateBuffer(this->m_cl_contexts[0],
@@ -859,7 +856,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		vector<unsigned long long>* out_indice = new vector<unsigned long long>;
 		vector<unsigned long long>* out_offset = new vector<unsigned long long>;
 		vector<unsigned long long>* out_offset_indice = new vector<
-				unsigned long long>;
+		unsigned long long>;
 		vector<unsigned long long>* task_indice = new vector<unsigned long long>;
 		//统计总共需要完成的细粒度任务数
 		size_t total_work_load = 0;
@@ -872,7 +869,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			for (unsigned int k = 0; k < partition; k++) {
 				//每组的第一个key(里面的元素分别在第二个key的记录中进行查询)对应的记录数量
 				unsigned int in_length =
-						in_output[p][i]->at(2 * k).second->size();
+				in_output[p][i]->at(2 * k).second->size();
 				//累加任务数量
 				size_t work_load = in_length;
 				total_work_load += work_load;
@@ -906,8 +903,8 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			}
 			//每个项集在本层的输出作为下一层归并的输入
 			vector<pair<unsigned long long, vector<unsigned long long>*> >* next_io =
-					new vector<
-							pair<unsigned long long, vector<unsigned long long>*> >();
+			new vector<
+			pair<unsigned long long, vector<unsigned long long>*> >();
 			//非偶数项项集的最后一项直接加入下一轮的输入
 			if (2 * partition < in_output[p][i]->size()) {
 				next_io->push_back(
@@ -982,26 +979,26 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	}
 	assert(in_output[pass].size() == candidate_itemset.size());
 
-	map<string, bool> itemset_map;
+//	map<string, bool> itemset_map;
 	//保存频繁项集
 	for (unsigned int i = 0; i < candidate_itemset.size(); i++) {
-		map<string, bool>::iterator iter = itemset_map.find(
-				string(
-						ivtoa((int*) candidate_itemset[i]->data(),
-								candidate_itemset[i]->size(), ",")));
-		if (iter != itemset_map.end()) {
-			printf("duplicate:%s, orig:%s\n",
-					ivtoa((int*) candidate_itemset[i]->data(),
-							candidate_itemset[i]->size(), ","),
-					iter->first.data());
-			continue;
-		} else {
-			itemset_map.insert(
-					map<string, bool>::value_type(
-							string(
-									ivtoa((int*) candidate_itemset[i]->data(),
-											candidate_itemset[i]->size(), ",")), 0));
-		}
+//		map<string, bool>::iterator iter = itemset_map.find(
+//				string(
+//						ivtoa((int*) candidate_itemset[i]->data(),
+//								candidate_itemset[i]->size(), ",")));
+//		if (iter != itemset_map.end()) {
+//			printf("duplicate:%s, orig:%s\n",
+//					ivtoa((int*) candidate_itemset[i]->data(),
+//							candidate_itemset[i]->size(), ","),
+//					iter->first.data());
+//			continue;
+//		} else {
+//			itemset_map.insert(
+//					map<string, bool>::value_type(
+//							string(
+//									ivtoa((int*) candidate_itemset[i]->data(),
+//											candidate_itemset[i]->size(), ",")), 0));
+//		}
 		unsigned int support = in_output[pass][i]->at(0).second->size();
 		if (support >= this->m_minsup_count) {
 			//验证结果
@@ -1133,14 +1130,14 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 
 	//创建程序
 	const char* source_path =
-			"include/libyskdmu/association/phi_apriori_kernel.cl";
+	"include/libyskdmu/association/phi_apriori_kernel.cl";
 	int source_file = open(source_path, O_RDONLY);
-	size_t src_size = lseek(source_file, 0, SEEK_END); //计算文件大小
+	size_t src_size = lseek(source_file, 0, SEEK_END);//计算文件大小
 	src_size += 1;
-	lseek(source_file, 0, SEEK_SET); //把文件指针重新移到开始位置
-	char* source = new char[src_size]; //最后一个字节是EOF
+	lseek(source_file, 0, SEEK_SET);//把文件指针重新移到开始位置
+	char* source = new char[src_size];//最后一个字节是EOF
 	read(source_file, source, src_size);
-	memset(source + src_size - 1, 0, 1); //字符结束符
+	memset(source + src_size - 1, 0, 1);//字符结束符
 	cl_program program = clCreateProgramWithSource(this->m_cl_contexts[0], 1,
 			(const char**) &source, &src_size, &err);
 	err = clBuildProgram(program, 1, &this->m_cl_devices[0], NULL, NULL, NULL);
@@ -1167,7 +1164,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	OPENCL_CHECK_ERRORS(err);
 
 	//执行Kernel
-	const size_t local_ws = 512;	//每个work-group的work-items数量
+	const size_t local_ws = 512;//每个work-group的work-items数量
 	const size_t global_ws = ceil(1.0f * total_work_load / local_ws) * local_ws;
 
 	err = clEnqueueNDRangeKernel(queue, intersect_kernel, 1, NULL, &global_ws,
@@ -1222,13 +1219,24 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	vector<unsigned int>* k_itemset = NULL;
 
 	/* 潜在频繁项集生成 */
+	unsigned int* frq2_offset = new unsigned int[prv_frq_itemsets1.size()];
+	if (&prv_frq1 != &prv_frq2) {
+		memset(frq2_offset, 0, prv_frq_itemsets1.size() * sizeof(unsigned int));
+	} else {
+		for (unsigned int i = 0; i < prv_frq_itemsets1.size(); i++) {
+			frq2_offset[i] = i + 1;
+		}
+	}
+	unsigned int t = 0;
 	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq1_iter =
 			prv_frq_itemsets1.begin(); prv_frq1_iter != prv_frq_itemsets1.end();
-			prv_frq1_iter++) {
-		for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq2_iter =
+			prv_frq1_iter++, t++) {
+		map<vector<unsigned int>, unsigned int>::const_iterator prv_frq2_iter =
 				prv_frq_itemsets2.begin();
-				prv_frq2_iter != prv_frq_itemsets2.end(); prv_frq2_iter++) {
-
+		for (unsigned int s = 0; s < frq2_offset[t]; s++) {
+			prv_frq2_iter++;
+		}
+		for (; prv_frq2_iter != prv_frq_itemsets2.end(); prv_frq2_iter++) {
 			/************************** 项目集连接与过滤 **************************/
 			//求并集
 			if (prv_frq1_iter->first.size() == 1
@@ -1523,10 +1531,10 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::init_opencl() {
 			cl_device_type type;
 			const char* name;
 			cl_uint count;
-		} devices[] = { { CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", 0 },
+		}devices[] = { {CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", 0},
 //				{ CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", 0 },
 //				{ CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", 0 }
-				};
+		};
 		const int NUM_OF_DEVICE_TYPES = sizeof(devices) / sizeof(devices[0]);
 		for (unsigned int j = 0; j < NUM_OF_DEVICE_TYPES; j++) {
 			err = clGetDeviceIDs(platforms[i], devices[j].type, 0, 0,

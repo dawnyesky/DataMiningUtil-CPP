@@ -33,6 +33,9 @@ public:
 
 void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		double minconf = 0.4) {
+#ifndef XML
+	printf("XML symbol is not defined! Please recompiled with -DXML.\n");
+#else
 	printf("**********Apriori with XML Data testing start testing**********\n");
 	printf(
 			"Max itemset's size is: %u; minimum support is: %f; minimum confidence is: %f\n",
@@ -123,6 +126,7 @@ void test_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 			"Apriori with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
 			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********Apriori with XML Data finish testing**********\n\n");
+#endif
 }
 
 void test_apriori_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,

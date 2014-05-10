@@ -5,12 +5,18 @@
  *      Author: Yan Shankai
  */
 
+#ifdef OMP
+#pragma offload_attribute (push, target(mic))
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include "libyskdmu/index/ro_dynamic_hash_index.h"
 
-using namespace std;
+#ifdef OMP
+#pragma offload_attribute (pop)
+#endif
 
 unsigned int simple_hash_mic(const char *key, unsigned int length,
 		unsigned int table_size) {
@@ -31,9 +37,6 @@ RODynamicHashIndex::RODynamicHashIndex() {
 	m_l2_index = NULL;
 	m_l2_index_size = 0;
 	m_is_built = false;
-#ifdef OMP
-	m_accard_inst = NULL;
-#endif
 }
 
 RODynamicHashIndex::RODynamicHashIndex(unsigned int* deep, unsigned int* data,

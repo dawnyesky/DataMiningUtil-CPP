@@ -21,6 +21,9 @@ static double duration, duration_t;
 
 void test_fp_growth_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		double minconf = 0.4) {
+#ifndef XML
+	printf("XML symbol is not defined! Please recompiled with -DXML.\n");
+#else
 	printf(
 			"**********FP-Growth with XML Data testing start testing**********\n");
 	printf(
@@ -118,6 +121,7 @@ void test_fp_growth_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 			"FP-Growth with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
 			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********FP-Growth with XML Data finish testing**********\n\n");
+#endif
 }
 
 void test_fp_growth_doc(unsigned int max_itemset_size = 2, double minsup = 0.05,

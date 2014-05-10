@@ -20,6 +20,9 @@ static double duration, duration_t;
 
 void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 		double minconf = 0.4) {
+#ifndef XML
+	printf("XML symbol is not defined! Please recompiled with -DXML.\n");
+#else
 	printf(
 			"**********HI-Apriori with XML Data testing start testing**********\n");
 	printf(
@@ -137,6 +140,7 @@ void test_hi_apriori_xml(unsigned int max_itemset_size = 3, double minsup = 0.6,
 			"HI-Apriori with XML Data testing duaration: %f(seconds) or %f(seconds), memory occupation: %u(kb)\n",
 			duration, duration_t, SysInfoUtil::get_cur_proc_mem_usage());
 	printf("**********HI-Apriori with XML Data finish testing**********\n\n");
+#endif
 }
 
 void test_hi_apriori_doc(unsigned int max_itemset_size = 2,

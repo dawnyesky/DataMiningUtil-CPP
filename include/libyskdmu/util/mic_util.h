@@ -20,17 +20,15 @@ using namespace std;
  *  			  				itemset_2:		项集2
  *      return: (out)	合并结果项集
  */
-extern FUNCDECL vector<unsigned int>* union_set_mic(
-		const vector<unsigned int>& itemset_1,
-		const vector<unsigned int>& itemset_2);
+extern FUNCDECL unsigned int* union_set_mic(unsigned int* itemset_1,
+		unsigned int len_1, unsigned int* itemset_2, unsigned int len_2);
 /*
  * description: 求两个项集的自连接集
  *  parameters: (in)			itemset:		需要自连接的集合
  *      return: (out)	自连接集
  */
-extern FUNCDECL vector<unsigned int>* union_eq_set_mic(
-		const vector<unsigned int>& itemset_1,
-		const vector<unsigned int>& itemset_2);
+extern FUNCDECL unsigned int* union_eq_set_mic(unsigned int* itemset_1,
+		unsigned int len_1, unsigned int* itemset_2, unsigned int len_2);
 /*
  * description: 求两个项集的差集
  *  parameters: (in)			minuend:		被减集合
@@ -40,7 +38,7 @@ extern FUNCDECL vector<unsigned int>* union_eq_set_mic(
 extern vector<unsigned int>* subtract_set(const vector<unsigned int>& minuend,
 		const vector<unsigned int>& subtrahend);
 
-extern FUNCDECL bool phi_filter_mic(vector<unsigned int>* k_itemset,
+extern FUNCDECL bool phi_filter_mic(unsigned int* k_itemset,
 		unsigned int* support, ROHashIndex* ro_index, char* identifiers,
 		unsigned int identifiers_size, unsigned int* id_index,
 		unsigned int id_index_size, unsigned int minsup_count);

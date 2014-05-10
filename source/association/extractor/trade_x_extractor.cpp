@@ -5,6 +5,8 @@
  *      Author: Yan Shankai
  */
 
+#ifdef XML
+
 #include <dirent.h>
 #include <string.h>
 #include <libxml/parser.h>
@@ -326,3 +328,5 @@ void TradeXmlExtractor::free_char_array(
 		}
 	}
 }
+
+#endif

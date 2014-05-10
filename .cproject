@@ -36,6 +36,8 @@
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1465722759" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__DEBUG__"/>
+									<listOptionValue builtIn="false" value="OCL"/>
+									<listOptionValue builtIn="false" value="XML"/>
 									<listOptionValue builtIn="false" value="OS_LINUX"/>
 									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
 								</option>
@@ -65,7 +67,7 @@
 									<listOptionValue builtIn="false" value="xml2"/>
 								</option>
 								<option id="gnu.cpp.link.option.shared.882461737" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" value="false" valueType="boolean"/>
-								<option id="gnu.cpp.link.option.flags.2124328369" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="-openmp" valueType="string"/>
+								<option id="gnu.cpp.link.option.flags.2124328369" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="-fopenmp" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1165899843" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
@@ -123,6 +125,7 @@
 								<option id="gnu.cpp.compiler.option.debugging.level.453174869" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.optimization.level.2077292052" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" value="gnu.cpp.compiler.optimization.level.more" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.122455486" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="XML"/>
 									<listOptionValue builtIn="false" value="OS_LINUX"/>
 									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
 								</option>
@@ -140,7 +143,6 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.475319999" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
 								<option id="gnu.cpp.link.option.paths.2142486413" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="/usr/lib/i386-linux-gnu"/>
 									<listOptionValue builtIn="false" value="../lib"/>
 								</option>
 								<option id="gnu.cpp.link.option.shared.157064185" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" value="true" valueType="boolean"/>
@@ -207,6 +209,7 @@
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.519450183" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__DEBUG__"/>
+									<listOptionValue builtIn="false" value="XML"/>
 									<listOptionValue builtIn="false" value="OS_LINUX"/>
 									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
 								</option>
@@ -293,6 +296,7 @@
 								<option id="gnu.cpp.compiler.option.debugging.level.1073433607" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.optimization.level.254413692" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" value="gnu.cpp.compiler.optimization.level.more" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.390906038" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="XML"/>
 									<listOptionValue builtIn="false" value="OS_LINUX"/>
 									<listOptionValue builtIn="false" value="CLOCKS_PER_SEC=1000000l"/>
 								</option>
@@ -349,10 +353,10 @@
 	</storageModule>
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration configurationName="mpi-release"/>
-		<configuration configurationName="mingw-debug">
+		<configuration configurationName="mingw-release">
 			<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
 		</configuration>
-		<configuration configurationName="mingw-release">
+		<configuration configurationName="mingw-debug">
 			<resource resourceType="PROJECT" workspacePath="/DataMiningUtil"/>
 		</configuration>
 		<configuration configurationName="mpi-debug"/>

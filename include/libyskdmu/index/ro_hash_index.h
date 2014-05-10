@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include "libyskdmu/util/hashfunc_util.h"
-#include "libyskdmu/util/log_util.h"
 
 FUNCDECL unsigned int simple_hash_mic(const char *key, unsigned int length,
 		unsigned int table_size);

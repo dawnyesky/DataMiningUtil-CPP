@@ -7,6 +7,7 @@
 
 #ifndef TRADE_X_EXTRACTOR_H_
 #define TRADE_X_EXTRACTOR_H_
+#ifdef XML
 
 #include "libyskdmu/association/entity/item.h"
 #include "libyskdmu/association/extractor/extractor_interface.h"
@@ -31,4 +32,5 @@ private:
 	void free_char_array(pair<char**, unsigned int>& char_array);
 };
 
+#endif
 #endif /* TRADE_X_EXTRACTOR_H_ */
