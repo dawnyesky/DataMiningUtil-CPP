@@ -105,13 +105,15 @@ private:
 	bool union_bucket(Bucket* out_bucket, Bucket* in_buckets,
 			unsigned int bucket_num);
 
+public:
+	unsigned int SYNG_RECV_BUF_SIZE;
+	unsigned int SYNB_BUF_SIZE;
+	unsigned int SYNATA_BUF_SIZE;
+	unsigned int CONG_RECV_BUF_SIZE;
+	unsigned int CONB_BUF_SIZE;
+
 private:
 	MPI_Comm m_comm;
-	const static unsigned int SYNG_RECV_BUF_SIZE = 40960;
-	const static unsigned int SYNB_BUF_SIZE = 40960;
-	const static unsigned int SYNATA_BUF_SIZE = 4096000;
-	const static unsigned int CONG_RECV_BUF_SIZE = 4096000;
-	const static unsigned int CONB_BUF_SIZE = 4096000;
 };
 
 #endif /* MPI_D_HASH_INDEX_H_ */

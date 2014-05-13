@@ -28,6 +28,9 @@ public:
 	void read_data(bool with_hi);
 	bool extract_record(void* data_addr);
 	bool hi_extract_record(void* data_addr);
+
+public:
+	const static unsigned int WORD_SIZE = 3;
 };
 
 #endif /* DOC_TEXT_EXTRACTOR_H_ */

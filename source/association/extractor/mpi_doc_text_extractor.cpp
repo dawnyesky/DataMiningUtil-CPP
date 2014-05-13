@@ -5,11 +5,13 @@
  *      Author: Yan Shankai
  */
 
+#include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <numeric>
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/util/charset_util.h"
 #include "libyskdmu/util/search_util.h"
@@ -21,6 +23,9 @@ MPIDocTextExtractor::MPIDocTextExtractor(MPI_Comm comm, int root_pid) {
 	m_root_pid = root_pid;
 	m_record_offset = 0;
 	m_item_detail_offset = 0;
+	m_record_num = 0;
+	m_record_size = 0;
+	SCAFILE_BUF_SIZE = 4096;
 	this->init();
 }
 
@@ -36,6 +41,9 @@ MPIDocTextExtractor::MPIDocTextExtractor(
 	m_root_pid = root_pid;
 	m_record_offset = 0;
 	m_item_detail_offset = 0;
+	m_record_num = 0;
+	m_record_size = 0;
+	SCAFILE_BUF_SIZE = 4096;
 	this->init();
 }
 
@@ -72,6 +80,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	MPI_Comm_rank(m_comm, &pid);
 	MPI_Comm_size(m_comm, &numprocs);
 
+	unsigned int meta_info[2]; //设置缓冲区大小的参数，分别是记录的数量和记录的大小
 	pair<void*, int*> scafile_send_msg_pkg;
 	pair<void*, int> scafile_recv_msg_pkg;
 	int displs[numprocs];
@@ -84,6 +93,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 
 		//读取目录下的所有文件
 		vector<char*> files;
+		vector<unsigned int> sizes;
 		while (NULL != (entry = readdir(pDir))) {
 			if (entry->d_type == 8) {
 				//普通文件
@@ -91,6 +101,17 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 				char* file_name = new char[file_name_len];
 				file_name[file_name_len - 1] = '\0';
 				strcpy(file_name, entry->d_name);
+
+				//获取文件大小
+				fpath[strlen(input_dir)] = '\0';
+				strcat(fpath, file_name);
+				struct stat st_stat;
+				if (stat(fpath, &st_stat) < 0 || st_stat.st_size == 0) {
+					delete[] file_name;
+					continue;
+				}
+
+				sizes.push_back(st_stat.st_size);
 				files.push_back(file_name);
 			} else {
 				//目录
@@ -100,7 +121,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		//准备Scatter数据
 		assert(files.size() >= numprocs);
 		unsigned int file_per_proc = files.size() / numprocs;
-		vector < vector<char*> > v_files;
+		vector<vector<char*> > v_files;
 		vector<char*>::iterator iter = files.begin();
 		for (unsigned int i = 0; i < numprocs - 1; i++) {
 			vector<char*> files_per_proc = vector<char*>(iter,
@@ -110,6 +131,11 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 		}
 		vector<char*> files_per_proc = vector<char*>(iter, files.end());
 		v_files.push_back(files_per_proc);
+
+		//准备Broadcast数据
+		meta_info[0] = file_per_proc;
+		meta_info[1] = std::accumulate(sizes.begin(), sizes.end(), 0)
+				/ numprocs;
 
 		//打包Scatter消息
 //		printf("start pack scafile msg\n");
@@ -125,6 +151,14 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 			delete[] files[i];
 		}
 	}
+
+	//广播数据
+	MPI_Bcast(meta_info, 2, MPI_UNSIGNED, m_root_pid, m_comm);
+
+	//处理广播数据
+	m_record_num = meta_info[0];
+	m_record_size = meta_info[1];
+	SCAFILE_BUF_SIZE = 256 * m_record_num;
 
 	//准备Scatter接收的数据缓冲区
 	scafile_recv_msg_pkg.first = malloc(SCAFILE_BUF_SIZE);

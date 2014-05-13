@@ -26,12 +26,16 @@ private:
 	pair<void*, int*> pack_scafile_msg(vector<vector<char*> >& v_files);
 	pair<vector<char*>*, int> unpack_scafile_msg(pair<void*, int> msg_pkg);
 
+public:
+	unsigned int m_record_num;
+	unsigned int m_record_size;
+
 private:
 	MPI_Comm m_comm;
 	int m_root_pid;
 	unsigned int m_record_offset;
 	unsigned int m_item_detail_offset;
-	const static unsigned int SCAFILE_BUF_SIZE = 409600;
+	unsigned int SCAFILE_BUF_SIZE;
 };
 
 #endif /* MPI_DOC_TEXT_EXTRACTOR_H_ */

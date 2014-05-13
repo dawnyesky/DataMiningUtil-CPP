@@ -20,6 +20,12 @@ MPIDHashIndex::MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size,
 	m_log_fp = LogUtil::get_instance()->get_log_instance("mpiDHashIndex");
 	is_synchronized = false;
 	is_consolidated = false;
+
+	SYNG_RECV_BUF_SIZE = 40960;
+	SYNB_BUF_SIZE = 40960;
+	SYNATA_BUF_SIZE = 4096000;
+	CONG_RECV_BUF_SIZE = 4096000;
+	CONB_BUF_SIZE = 4096000;
 }
 
 MPIDHashIndex::~MPIDHashIndex() {
@@ -57,7 +63,7 @@ bool MPIDHashIndex::synchronize() {
 			m_comm);
 //	printf("process %u end syn gather\n", pid);
 
-//声明和准备Broadcast消息数据
+	//声明和准备Broadcast消息数据
 	SynBcastMsg synb_msg;
 	synb_msg.global_deep = 0;
 	synb_msg.catalog_offset = NULL;
