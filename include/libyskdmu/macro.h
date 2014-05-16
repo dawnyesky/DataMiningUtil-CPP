@@ -9,19 +9,19 @@
 #define GLOBAL_H_
 
 #ifdef OMP
-#define CLASSDECL __attribute__((target(mic:0)))
+#define CLASSDECL __attribute__((target(mic)))
 #else
 #define CLASSDECL
 #endif
 
 #ifdef OMP
-#define FUNCDECL __attribute__((target(mic:0)))
+#define FUNCDECL __attribute__((target(mic)))
 #else
 #define FUNCDECL
 #endif
 
 #ifdef OMP
-#define PROPDECL __attribute__((target(mic:0)))
+#define PROPDECL __attribute__((target(mic)))
 #else
 #define PROPDECL
 #endif

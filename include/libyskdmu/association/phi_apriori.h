@@ -42,6 +42,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <numeric>
 #include <limits>
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/distributed_hash_index.h"
@@ -147,6 +148,7 @@ private:
 	vector<cl_device_type> m_cl_device_types;
 	vector<float> m_cl_device_perfs;
 	vector<cl_context> m_cl_contexts;
+	unsigned int m_device_id;
 #endif
 };
 
@@ -172,6 +174,9 @@ ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::ParallelHiApriori(
 	this->PHIR_BUF_SIZE = 40960;
 	this->GENG_RECV_BUF_SIZE = 4096000;
 	this->FRQGENG_RECV_BUF_SIZE = 4096;
+#if defined(OCL)
+	this->m_device_id = 0;
+#endif
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -271,6 +276,28 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 #ifdef OCL
 	//初始化OpenCL环境
 	this->init_opencl();
+	//决定使用哪个OpenCL设备
+#if MPI_VERSION >=3
+	float total_perfs = std::accumulate(this->m_cl_device_perfs.begin(),
+			this->m_cl_device_perfs.end(), 0);
+	vector<float> perfs_presum;
+	float perf_presum = 0;
+	for (unsigned int i = 0; i < this->m_cl_device_perfs.size(); i++) {
+		perfs_presum.push_back(perf_presum);
+		perf_presum = perf_presum + this->m_cl_device_perfs[i] / total_perfs;
+	}
+	perfs_presum.push_back(1);
+	int local_pid, local_numprocs;
+	MPI_Comm local_comm;
+	MPI_Comm_split_type(m_comm, MPI_COMM_TYPE_SHARED, 0, NULL, &local_comm);
+	MPI_Comm_rank(local_comm, &local_pid);
+	MPI_Comm_size(local_comm, &local_numprocs);
+	pair<unsigned int, bool> device_id = b_search<float>(perfs_presum,
+			(local_pid + 1.0f) / local_numprocs);
+	this->m_device_id = device_id.first - 1;
+#else
+	this->m_device_id = pid % this->m_cl_devices.size();
+#endif
 #endif
 
 	this->m_minsup_count = double2int(
@@ -683,7 +710,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 							*id_index_size, minsup_count)) {
 //				printf("start write result\n");
 				unsigned int* offset = frq_itemset_buf
-				+ tid * FRQGENG_RECV_BUF_SIZE
+				+ tid * buf_size
 				+ frq_itemset_num[tid] * (frq_term_num + 1);
 				memcpy(offset, k_itemset + 1,
 						k_itemset[0] * sizeof(unsigned int));
@@ -691,7 +718,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 						1 * sizeof(unsigned int));
 				frq_itemset_num[tid]++;
 //				printf("end write result\n");
-				delete k_itemset;
+				delete[] k_itemset;
 			}
 		}
 	}
@@ -1134,42 +1161,45 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 		vector<unsigned long long>* out_offset_indice,
 		vector<unsigned long long>* task_indice, size_t total_work_load,
 		size_t total_work_task) {
+	unsigned int ctx_id = this->m_device_id;
+	unsigned int dev_id = ctx_id;
+
 	cl_int err = CL_SUCCESS;
 	//创建OpenCL命令队列
-	cl_command_queue queue = clCreateCommandQueue(this->m_cl_contexts[0],
-			this->m_cl_devices[0], 0, &err);
+	cl_command_queue queue = clCreateCommandQueue(this->m_cl_contexts[ctx_id],
+			this->m_cl_devices[dev_id], 0, &err);
 	OPENCL_CHECK_ERRORS(err);
 	//向OpenCL设备传输数据
-	cl_mem cl_data = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_data = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * data->size(), data->data(), &err);
 	OPENCL_CHECK_ERRORS(err);
-	cl_mem cl_in_indice = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_in_indice = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * in_indice->size(), in_indice->data(),
 			&err);
 	OPENCL_CHECK_ERRORS(err);
-	cl_mem cl_in_offset = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_in_offset = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * in_offset->size(), in_offset->data(),
 			&err);
 	OPENCL_CHECK_ERRORS(err);
-	cl_mem cl_out_indice = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_out_indice = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * out_indice->size(), out_indice->data(),
 			&err);
 	OPENCL_CHECK_ERRORS(err);
-	cl_mem cl_out_offset = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_out_offset = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * out_offset->size(), out_offset->data(),
 			&err);
 	OPENCL_CHECK_ERRORS(err);
-	cl_mem cl_out_offset_indice = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_out_offset_indice = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * out_offset_indice->size(),
 			out_offset_indice->data(), &err);
 	OPENCL_CHECK_ERRORS(err);
-	cl_mem cl_task_indice = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_task_indice = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 			sizeof(unsigned long long) * task_indice->size(),
 			task_indice->data(), &err);
@@ -1178,12 +1208,13 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 
 	//结果缓冲区，存储每个元素在目标空间里的位置，找不到标记为-1
 	long long* result = new long long[total_work_load];
-	cl_mem cl_result = clCreateBuffer(this->m_cl_contexts[0], CL_MEM_WRITE_ONLY,
-			sizeof(unsigned long long) * total_work_load, NULL, &err);
+	cl_mem cl_result = clCreateBuffer(this->m_cl_contexts[ctx_id],
+			CL_MEM_WRITE_ONLY, sizeof(unsigned long long) * total_work_load,
+			NULL, &err);
 	OPENCL_CHECK_ERRORS(err);
 	//计数结果缓冲区，存储每次求交集得到的元素个数
 	unsigned int* result_count = new unsigned int[total_work_task];
-	cl_mem cl_result_count = clCreateBuffer(this->m_cl_contexts[0],
+	cl_mem cl_result_count = clCreateBuffer(this->m_cl_contexts[ctx_id],
 			CL_MEM_WRITE_ONLY, sizeof(unsigned int) * total_work_task, NULL,
 			&err);
 	OPENCL_CHECK_ERRORS(err);
@@ -1198,9 +1229,10 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	char* source = new char[src_size];	//最后一个字节是EOF
 	read(source_file, source, src_size);
 	memset(source + src_size - 1, 0, 1);	//字符结束符
-	cl_program program = clCreateProgramWithSource(this->m_cl_contexts[0], 1,
-			(const char**) &source, &src_size, &err);
-	err = clBuildProgram(program, 1, &this->m_cl_devices[0], NULL, NULL, NULL);
+	cl_program program = clCreateProgramWithSource(this->m_cl_contexts[ctx_id],
+			1, (const char**) &source, &src_size, &err);
+	err = clBuildProgram(program, 1, &this->m_cl_devices[dev_id], NULL, NULL,
+			NULL);
 	OPENCL_CHECK_ERRORS(err);
 
 	//创建Kernel
@@ -1622,10 +1654,11 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::init_opencl() {
 			cl_device_type type;
 			const char* name;
 			cl_uint count;
-		} devices[] = { { CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", 0 },
+		} devices[] =
+				{ { CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", 0 },
 //				{ CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", 0 },
-//				{ CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", 0 }
-				};
+						{ CL_DEVICE_TYPE_ACCELERATOR,
+								"CL_DEVICE_TYPE_ACCELERATOR", 0 } };
 		const int NUM_OF_DEVICE_TYPES = sizeof(devices) / sizeof(devices[0]);
 		for (unsigned int j = 0; j < NUM_OF_DEVICE_TYPES; j++) {
 			err = clGetDeviceIDs(platforms[i], devices[j].type, 0, 0,
