@@ -80,7 +80,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	MPI_Comm_rank(m_comm, &pid);
 	MPI_Comm_size(m_comm, &numprocs);
 
-	unsigned int meta_info[2]; //设置缓冲区大小的参数，分别是记录的数量和记录的大小
+	unsigned long long int meta_info[2]; //设置缓冲区大小的参数，分别是记录的数量和记录的大小
 	pair<void*, int*> scafile_send_msg_pkg;
 	pair<void*, int> scafile_recv_msg_pkg;
 	int displs[numprocs];
@@ -93,7 +93,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 
 		//读取目录下的所有文件
 		vector<char*> files;
-		vector<unsigned int> sizes;
+		vector<unsigned long long int> sizes;
 		while (NULL != (entry = readdir(pDir))) {
 			if (entry->d_type == 8) {
 				//普通文件
@@ -120,22 +120,54 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 
 		//准备Scatter数据
 		assert(files.size() >= numprocs);
-		unsigned int file_per_proc = files.size() / numprocs;
+		unsigned long long int file_per_proc = files.size() / numprocs;
+		unsigned long long int filesize_per_proc = std::accumulate(
+				sizes.begin(), sizes.end(), 0) / numprocs;
 		vector<vector<char*> > v_files;
-		vector<char*>::iterator iter = files.begin();
-		for (unsigned int i = 0; i < numprocs - 1; i++) {
-			vector<char*> files_per_proc = vector<char*>(iter,
-					iter + file_per_proc);
-			v_files.push_back(files_per_proc);
-			iter += file_per_proc;
+
+		vector<char*> dull_files;
+		v_files.insert(v_files.end(), numprocs, dull_files);
+		vector<unsigned long long int> v_filesizes;
+		v_filesizes.insert(v_filesizes.end(), numprocs, 0);
+		const unsigned int threshold = 3 * filesize_per_proc / file_per_proc;
+		srand((unsigned int) time(NULL));
+		for (unsigned int i = 0; i < files.size(); i++) {
+			int target_pid = rand() % numprocs;
+			if (abs(v_filesizes[target_pid] - filesize_per_proc) < threshold) {
+				bool dispatched = false;
+				for (unsigned int p = 1; p < numprocs; p++) {
+					unsigned int new_pid = (target_pid + p) % numprocs;
+					if (abs(v_filesizes[new_pid] - filesize_per_proc)
+							> threshold) {
+						v_files[new_pid].push_back(files[i]);
+						v_filesizes[new_pid] += sizes[i];
+						dispatched = true;
+						break;
+					}
+				}
+				if (!dispatched) {
+					v_files[target_pid].push_back(files[i]);
+					v_filesizes[target_pid] += sizes[i];
+				}
+			} else {
+				v_files[target_pid].push_back(files[i]);
+				v_filesizes[target_pid] += sizes[i];
+			}
 		}
-		vector<char*> files_per_proc = vector<char*>(iter, files.end());
-		v_files.push_back(files_per_proc);
+
+//		vector<char*>::iterator iter = files.begin();
+//		for (unsigned int i = 0; i < numprocs - 1; i++) {
+//			vector<char*> files_per_proc = vector<char*>(iter,
+//					iter + file_per_proc);
+//			v_files.push_back(files_per_proc);
+//			iter += file_per_proc;
+//		}
+//		vector<char*> files_per_proc = vector<char*>(iter, files.end());
+//		v_files.push_back(files_per_proc);
 
 		//准备Broadcast数据
 		meta_info[0] = file_per_proc;
-		meta_info[1] = std::accumulate(sizes.begin(), sizes.end(), 0)
-				/ numprocs;
+		meta_info[1] = filesize_per_proc;
 
 		//打包Scatter消息
 //		printf("start pack scafile msg\n");
@@ -153,7 +185,7 @@ void MPIDocTextExtractor::read_data(bool with_hi) {
 	}
 
 	//广播数据
-	MPI_Bcast(meta_info, 2, MPI_UNSIGNED, m_root_pid, m_comm);
+	MPI_Bcast(meta_info, 2, MPI_UNSIGNED_LONG_LONG, m_root_pid, m_comm);
 
 	//处理广播数据
 	m_record_num = meta_info[0];

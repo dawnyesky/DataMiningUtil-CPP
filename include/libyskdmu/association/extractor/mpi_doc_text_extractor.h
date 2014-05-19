@@ -27,8 +27,8 @@ private:
 	pair<vector<char*>*, int> unpack_scafile_msg(pair<void*, int> msg_pkg);
 
 public:
-	unsigned int m_record_num;
-	unsigned int m_record_size;
+	unsigned long long int m_record_num;
+	unsigned long long int m_record_size;
 
 private:
 	MPI_Comm m_comm;
