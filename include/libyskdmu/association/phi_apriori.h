@@ -1057,6 +1057,18 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 									result[i].end())));
 		}
 
+		for (unsigned int j = 0; j < in_output[p].size(); j++) {
+			if (in_output[p][j] != NULL) {
+				for (unsigned int k = 0; k < in_output[p][j]->size(); k++) {
+					if (in_output[p][j]->at(k).second != NULL) {
+						delete in_output[p][j]->at(k).second;
+						in_output[p][j]->at(k).second = NULL;
+					}
+				}
+				delete in_output[p][j];
+				in_output[p][j] = NULL;
+			}
+		}
 		delete in_indice;
 		delete in_offset;
 		delete out_indice;
@@ -1130,18 +1142,16 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 	}
 
 	delete data;
-	for (unsigned int i = 0; i < pass + 1; i++) {
-		for (unsigned int j = 0; j < in_output[i].size(); j++) {
-			if (in_output[i][j] != NULL) {
-				for (unsigned int k = 0; k < in_output[i][j]->size(); k++) {
-					if (in_output[i][j]->at(k).second != NULL) {
-						delete in_output[i][j]->at(k).second;
-						in_output[i][j]->at(k).second = NULL;
-					}
+	for (unsigned int j = 0; j < in_output[pass].size(); j++) {
+		if (in_output[pass][j] != NULL) {
+			for (unsigned int k = 0; k < in_output[pass][j]->size(); k++) {
+				if (in_output[pass][j]->at(k).second != NULL) {
+					delete in_output[pass][j]->at(k).second;
+					in_output[pass][j]->at(k).second = NULL;
 				}
-				delete in_output[i][j];
-				in_output[i][j] = NULL;
 			}
+			delete in_output[pass][j];
+			in_output[pass][j] = NULL;
 		}
 	}
 	for (unsigned int i = 0; i < candidate_itemset.size(); i++) {
