@@ -1239,6 +1239,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	char* source = new char[src_size];	//最后一个字节是EOF
 	read(source_file, source, src_size);
 	memset(source + src_size - 1, 0, 1);	//字符结束符
+	close(source_file);
 	cl_program program = clCreateProgramWithSource(this->m_cl_contexts[ctx_id],
 			1, (const char**) &source, &src_size, &err);
 	err = clBuildProgram(program, 1, &this->m_cl_devices[dev_id], NULL, NULL,
@@ -1294,6 +1295,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_filter(
 	delete[] source;
 	delete[] result;
 	delete[] result_count;
+	clReleaseProgram(program);
 	clReleaseKernel(intersect_kernel);
 	clReleaseCommandQueue(queue);
 	clReleaseMemObject(cl_data);
@@ -1720,6 +1722,7 @@ template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::release_opencl() {
 	for (unsigned int i = 0; i < this->m_cl_contexts.size(); i++) {
 		clReleaseContext(this->m_cl_contexts[i]);
+		clReleaseDevice(this->m_cl_devices[i]);
 	}
 	return true;
 }
