@@ -10,6 +10,7 @@
 
 #ifdef OMP
 #include <omp.h>
+#include <offload.h>
 #include "libyskdmu/macro.h"
 #include "libyskdmu/util/mic_util.h"
 #elif defined(OCL)
@@ -129,6 +130,7 @@ public:
 private:
 	MPI_Comm m_comm;
 	int m_root_pid;
+	unsigned int m_device_id;
 	pair<char*, unsigned int> m_identifiers; //全局项目标识
 	pair<unsigned int*, unsigned int> m_id_index; //全局项目标识的索引
 	KItemsets* m_itemset_send_buf;
@@ -142,13 +144,12 @@ private:
 	unsigned int GENG_RECV_BUF_SIZE;
 	unsigned int FRQGENG_RECV_BUF_SIZE;
 #ifdef OMP
-	const static unsigned int DEFAULT_OMP_NUM_THREADS = 2;
+	unsigned int DEFAULT_OMP_NUM_THREADS;
 #elif defined(OCL)
 	vector<cl_device_id> m_cl_devices;
 	vector<cl_device_type> m_cl_device_types;
 	vector<float> m_cl_device_perfs;
 	vector<cl_context> m_cl_contexts;
-	unsigned int m_device_id;
 #endif
 };
 
@@ -174,8 +175,9 @@ ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::ParallelHiApriori(
 	this->PHIR_BUF_SIZE = 40960;
 	this->GENG_RECV_BUF_SIZE = 4096000;
 	this->FRQGENG_RECV_BUF_SIZE = 4096;
-#if defined(OCL)
 	this->m_device_id = 0;
+#ifdef OMP
+	this->DEFAULT_OMP_NUM_THREADS = 4;
 #endif
 }
 
@@ -267,6 +269,32 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		return false;
 	}
 //	printf("process %u finish con\n", pid);
+
+#ifdef OMP
+	//决定使用哪个设备
+#if MPI_VERSION >=3
+	int local_pid, local_numprocs;
+	MPI_Comm local_comm;
+	MPI_Comm_split_type(m_comm, MPI_COMM_TYPE_SHARED, 0, NULL, &local_comm);
+	MPI_Comm_rank(local_comm, &local_pid);
+	MPI_Comm_size(local_comm, &local_numprocs);
+	int dev_num = _Offload_number_of_devices();
+	int cpu_num = 0;
+	const char *cmd_get_num_cores = "cat /proc/cpuinfo | grep \"processor\" | wc -l";
+	FILE *fd = popen(cmd_get_num_cores, "r");
+	fscanf(fd, "%d", &cpu_num);
+	pclose(fd);
+	if (local_pid >= dev_num) {
+		this->m_device_id = dev_num;
+		this->DEFAULT_OMP_NUM_THREADS = 3 * cpu_num / (local_numprocs - dev_num);
+	} else {
+		this->m_device_id = local_pid % dev_num;
+		this->DEFAULT_OMP_NUM_THREADS = 240;
+	}
+#else
+	this->m_device_id = pid % (_Offload_number_of_devices() + 1);
+#endif
+#endif
 
 	//生成只读索引
 //	printf("start gen ro index\n");
@@ -570,83 +598,213 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
 bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		KItemsets& frq_itemset, KItemsets& prv_frq1, KItemsets& prv_frq2) {
-	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
-	prv_frq1.get_itemsets();
-	const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
-	prv_frq2.get_itemsets();
-	if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
+	if (this->m_device_id == _Offload_number_of_devices()) {
+		const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
+		prv_frq1.get_itemsets();
+		const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
+		prv_frq2.get_itemsets();
+		if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
+			return true;
+		}
+		bool distinct = true;
+		if (&prv_frq1 == &prv_frq2) {
+			distinct = false;
+		}
+
+		//声明部分要在OpenMP中用到的变量
+		unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
+		unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
+		unsigned int prv_frq_term_num1 = prv_frq1.get_term_num();
+		unsigned int prv_frq_term_num2 = prv_frq2.get_term_num();
+		unsigned int frq_term_num = frq_itemset.get_term_num();
+
+		//把输入数据转化成矩阵以便在并行区域随机读取
+		unsigned int* frq_itemset_list1 =
+		new unsigned int[prv_frq_itemsets1.size() * prv_frq1.get_term_num()];
+		unsigned int* frq_itemset_list2 =
+		new unsigned int[prv_frq_itemsets2.size() * prv_frq2.get_term_num()];
+
+		unsigned int i = 0;
+		for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter1 =
+				prv_frq_itemsets1.begin(); prv_frq_iter1 != prv_frq_itemsets1.end();
+				prv_frq_iter1++, i++) {
+			memcpy(frq_itemset_list1 + i * prv_frq1.get_term_num(), prv_frq_iter1->first.data(),
+					prv_frq1.get_term_num() * sizeof(unsigned int));
+		}
+		i = 0;
+		for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter2 =
+				prv_frq_itemsets2.begin(); prv_frq_iter2 != prv_frq_itemsets2.end();
+				prv_frq_iter2++, i++) {
+			memcpy(frq_itemset_list2 + i * prv_frq2.get_term_num(), prv_frq_iter2->first.data(),
+					prv_frq2.get_term_num() * sizeof(unsigned int));
+		}
+
+		/*使用OpenMP多线程并行化*/
+		//设置线程数
+		unsigned int numthreads = DEFAULT_OMP_NUM_THREADS;
+		//估算缓冲区大小
+		FRQGENG_RECV_BUF_SIZE = max((int)(prv_frq_size1 * prv_frq_size2 / numthreads), 3) * (1 + frq_itemset.get_term_num());
+		//初始化归并结果缓冲区
+		unsigned int* frq_itemset_buf = new unsigned int[numthreads
+		* FRQGENG_RECV_BUF_SIZE];
+		unsigned int* frq_itemset_num = new unsigned int[numthreads];
+		memset(frq_itemset_buf, 0,
+				numthreads * FRQGENG_RECV_BUF_SIZE * sizeof(unsigned int));
+		memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
+
+		/* 潜在频繁项集生成 */
+		//声明临时变量
+		unsigned int minsup_count = this->m_minsup_count;
+		unsigned int buf_size = FRQGENG_RECV_BUF_SIZE;
+		RODynamicHashIndexData* ro_index_data =
+		(RODynamicHashIndexData*) this->m_ro_hi_data;
+		unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
+		*l2_index_size, *identifiers_size, *id_index, *id_index_size;
+		unsigned char* l2_index;
+		char* identifiers;
+		ro_index_data->fill_memeber_data(&d, &data, &data_size, &l1_index,
+				&l1_index_size, &l2_index, &l2_index_size);
+		identifiers = this->m_identifiers.first;
+		identifiers_size = &this->m_identifiers.second;
+		id_index = this->m_id_index.first;
+		id_index_size = &this->m_id_index.second;
+
+#pragma omp parallel for num_threads(numthreads) shared(frq_itemset_buf, frq_itemset_num)
+		for (unsigned int k = 0; k < prv_frq_size1 * prv_frq_size2; k++) {
+			unsigned int tid = omp_get_thread_num();
+			unsigned int i = k / prv_frq_size2;
+			unsigned int j = k % prv_frq_size2;
+			if (!distinct && i >= j) {
+				continue;
+			}
+
+			/************************** 项目集连接与过滤 **************************/
+			//求并集
+			unsigned int* k_itemset = NULL;
+			if (prv_frq_term_num1 == 1 || prv_frq_term_num2 == 1) { //F(k-1)×F(1)
+				k_itemset = union_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
+			} else if (prv_frq_term_num1 == prv_frq_term_num2) { //F(k-1)×F(k-1)
+				k_itemset = union_eq_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
+			}
+
+			//构建只读索引类对象
+			RODynamicHashIndex ro_index(d, data, data_size, l1_index,
+					l1_index_size, l2_index, l2_index_size, simple_hash_mic);
+
+			//过滤并保存潜在频繁项集
+			unsigned int support;
+			if (k_itemset != NULL && k_itemset[0] == frq_term_num
+					&& phi_filter_mic(k_itemset, &support, &ro_index,
+							identifiers, *identifiers_size, id_index,
+							*id_index_size, minsup_count)) {
+				unsigned int* offset = frq_itemset_buf
+				+ tid * buf_size
+				+ frq_itemset_num[tid] * (frq_term_num + 1);
+				memcpy(offset, k_itemset + 1,
+						k_itemset[0] * sizeof(unsigned int));
+				memcpy(offset + frq_term_num, &support,
+						1 * sizeof(unsigned int));
+				frq_itemset_num[tid]++;
+				delete[] k_itemset;
+			}
+		}
+
+		//合并结果
+		for (unsigned int i = 0; i < numthreads; i++) {
+			for (unsigned int j = 0; j < frq_itemset_num[i]; j++) {
+				unsigned int* offset = frq_itemset_buf + i * FRQGENG_RECV_BUF_SIZE
+				+ j * (frq_itemset.get_term_num() + 1);
+				vector<unsigned int> itemset(offset,
+						offset + frq_itemset.get_term_num());
+				unsigned int support = 0;
+				memcpy(&support, offset + frq_itemset.get_term_num(),
+						1 * sizeof(unsigned int));
+				frq_itemset.push(itemset, support);
+				this->logItemset("Frequent", itemset.size(), itemset, support);
+			}
+		}
+
+		delete[] frq_itemset_list1;
+		delete[] frq_itemset_list2;
+		delete[] frq_itemset_buf;
+		delete[] frq_itemset_num;
+
 		return true;
-	}
-	bool distinct = true;
-	if (&prv_frq1 == &prv_frq2) {
-		distinct = false;
-	}
+	} else {
+		const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets1 =
+		prv_frq1.get_itemsets();
+		const map<vector<unsigned int>, unsigned int>& prv_frq_itemsets2 =
+		prv_frq2.get_itemsets();
+		if (prv_frq_itemsets1.size() == 0 || prv_frq_itemsets2.size() == 0) {
+			return true;
+		}
+		bool distinct = true;
+		if (&prv_frq1 == &prv_frq2) {
+			distinct = false;
+		}
 
-	//把部分要在MIC卡上用到的变量存放在临时变量
-	unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
-	unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
-	unsigned int prv_frq_term_num1 = prv_frq1.get_term_num();
-	unsigned int prv_frq_term_num2 = prv_frq2.get_term_num();
-	unsigned int frq_term_num = frq_itemset.get_term_num();
-	//把输入数据转化成矩阵以便在并行区域随机读取
-	unsigned int* frq_itemset_list1 =
-	new unsigned int[prv_frq_itemsets1.size() * prv_frq1.get_term_num()];
-	unsigned int* frq_itemset_list2 =
-	new unsigned int[prv_frq_itemsets2.size() * prv_frq2.get_term_num()];
+		//把部分要在MIC卡上用到的变量存放在临时变量
+		unsigned int prv_frq_size1 = prv_frq_itemsets1.size();
+		unsigned int prv_frq_size2 = prv_frq_itemsets2.size();
+		unsigned int prv_frq_term_num1 = prv_frq1.get_term_num();
+		unsigned int prv_frq_term_num2 = prv_frq2.get_term_num();
+		unsigned int frq_term_num = frq_itemset.get_term_num();
+		//把输入数据转化成矩阵以便在并行区域随机读取
+		unsigned int* frq_itemset_list1 =
+		new unsigned int[prv_frq_itemsets1.size() * prv_frq1.get_term_num()];
+		unsigned int* frq_itemset_list2 =
+		new unsigned int[prv_frq_itemsets2.size() * prv_frq2.get_term_num()];
 
-	unsigned int i = 0;
-	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter1 =
-			prv_frq_itemsets1.begin(); prv_frq_iter1 != prv_frq_itemsets1.end();
-			prv_frq_iter1++, i++) {
-		memcpy(frq_itemset_list1 + i * prv_frq1.get_term_num(), prv_frq_iter1->first.data(),
-				prv_frq1.get_term_num() * sizeof(unsigned int));
-	}
-	i = 0;
-	for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter2 =
-			prv_frq_itemsets2.begin(); prv_frq_iter2 != prv_frq_itemsets2.end();
-			prv_frq_iter2++, i++) {
-		memcpy(frq_itemset_list2 + i * prv_frq2.get_term_num(), prv_frq_iter2->first.data(),
-				prv_frq2.get_term_num() * sizeof(unsigned int));
-	}
+		unsigned int i = 0;
+		for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter1 =
+				prv_frq_itemsets1.begin(); prv_frq_iter1 != prv_frq_itemsets1.end();
+				prv_frq_iter1++, i++) {
+			memcpy(frq_itemset_list1 + i * prv_frq1.get_term_num(), prv_frq_iter1->first.data(),
+					prv_frq1.get_term_num() * sizeof(unsigned int));
+		}
+		i = 0;
+		for (map<vector<unsigned int>, unsigned int>::const_iterator prv_frq_iter2 =
+				prv_frq_itemsets2.begin(); prv_frq_iter2 != prv_frq_itemsets2.end();
+				prv_frq_iter2++, i++) {
+			memcpy(frq_itemset_list2 + i * prv_frq2.get_term_num(), prv_frq_iter2->first.data(),
+					prv_frq2.get_term_num() * sizeof(unsigned int));
+		}
 
-	/*使用OpenMP多线程并行化*/
-	//设置线程数
-	char* omp_num_threads = getenv("OMP_NUM_THREADS");
-	unsigned int numthreads =
-	omp_num_threads != NULL ?
-	atoi(omp_num_threads) : DEFAULT_OMP_NUM_THREADS;
-	//估算缓冲区大小
-	FRQGENG_RECV_BUF_SIZE = prv_frq_size1 * prv_frq_size2 / numthreads * (1 + frq_itemset.get_term_num());
-	//初始化归并结果缓冲区
-	unsigned int* frq_itemset_buf = new unsigned int[numthreads
-	* FRQGENG_RECV_BUF_SIZE];
-	unsigned int* frq_itemset_num = new unsigned int[numthreads];
-//	memset(frq_itemset_buf, 0,
+		/*使用OpenMP多线程并行化*/
+		//设置线程数
+		unsigned int numthreads = DEFAULT_OMP_NUM_THREADS;
+		//估算缓冲区大小
+		FRQGENG_RECV_BUF_SIZE = max((int)(prv_frq_size1 * prv_frq_size2 / numthreads), 3) * (1 + frq_itemset.get_term_num());
+		//初始化归并结果缓冲区
+		unsigned int* frq_itemset_buf = new unsigned int[numthreads
+		* FRQGENG_RECV_BUF_SIZE];
+		unsigned int* frq_itemset_num = new unsigned int[numthreads];
+//		memset(frq_itemset_buf, 0,
 //			numthreads * FRQGENG_RECV_BUF_SIZE * sizeof(unsigned int));
-//	memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
+//		memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
 
-	/* 潜在频繁项集生成 */
-	//声明临时变量
-	unsigned int minsup_count = this->m_minsup_count;
-	unsigned int buf_size = FRQGENG_RECV_BUF_SIZE;
-	RODynamicHashIndexData* ro_index_data =
-	(RODynamicHashIndexData*) this->m_ro_hi_data;
-	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
-	*l2_index_size, *identifiers_size, *id_index, *id_index_size;
-	unsigned char* l2_index;
-	char* identifiers;
-	ro_index_data->fill_memeber_data(&d, &data, &data_size, &l1_index,
-			&l1_index_size, &l2_index, &l2_index_size);
-	identifiers = this->m_identifiers.first;
-	identifiers_size = &this->m_identifiers.second;
-	id_index = this->m_id_index.first;
-	id_index_size = &this->m_id_index.second;
-//	printf(
+		/* 潜在频繁项集生成 */
+		//声明临时变量
+		unsigned int minsup_count = this->m_minsup_count;
+		unsigned int buf_size = FRQGENG_RECV_BUF_SIZE;
+		RODynamicHashIndexData* ro_index_data =
+		(RODynamicHashIndexData*) this->m_ro_hi_data;
+		unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
+		*l2_index_size, *identifiers_size, *id_index, *id_index_size;
+		unsigned char* l2_index;
+		char* identifiers;
+		ro_index_data->fill_memeber_data(&d, &data, &data_size, &l1_index,
+				&l1_index_size, &l2_index, &l2_index_size);
+		identifiers = this->m_identifiers.first;
+		identifiers_size = &this->m_identifiers.second;
+		id_index = this->m_id_index.first;
+		id_index_size = &this->m_id_index.second;
+//		printf(
 //			"reuse out mic: addrs d:%p, data:%p, data_size:%p, l1_index:%p, l1_index_size:%p, l2_index:%p, l2_index_size:%p, identifiers:%p, identifiers_size:%p, id_index:%p, id_index_size:%p\n",
 //			d, data, data_size, l1_index, l1_index_size, l2_index,
 //			l2_index_size, identifiers, identifiers_size, id_index,
 //			id_index_size);
-#pragma offload target(mic:0)\
+#pragma offload target(mic:this->m_device_id)\
 		/* 业务数据：OUT(频繁项集缓冲区以及缓冲区大小)  IN(两个待连接的项集以及各自的项集数量和项集维度，最小支持度计数) */\
 		out(frq_itemset_buf:length(numthreads * FRQGENG_RECV_BUF_SIZE))\
 		out(frq_itemset_num:length(numthreads))\
@@ -673,103 +831,104 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		in(identifiers_size:REUSE)\
 		in(id_index:REUSE)\
 		in(id_index_size:REUSE)
-	{
-		memset(frq_itemset_buf, 0,
-				numthreads * buf_size * sizeof(unsigned int));
-		memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
+		{
+			memset(frq_itemset_buf, 0,
+					numthreads * buf_size * sizeof(unsigned int));
+			memset(frq_itemset_num, 0, numthreads * sizeof(unsigned int));
 #pragma omp parallel for num_threads(numthreads) shared(frq_itemset_buf, frq_itemset_num)
-		for (unsigned int k = 0; k < prv_frq_size1 * prv_frq_size2; k++) {
-			unsigned int tid = omp_get_thread_num();
-//			printf("thread:%u is running\n", tid);
-			unsigned int i = k / prv_frq_size2;
-			unsigned int j = k % prv_frq_size2;
-			if (!distinct && i >= j) {
-				continue;
+			for (unsigned int k = 0; k < prv_frq_size1 * prv_frq_size2; k++) {
+				unsigned int tid = omp_get_thread_num();
+//				printf("thread:%u is running\n", tid);
+				unsigned int i = k / prv_frq_size2;
+				unsigned int j = k % prv_frq_size2;
+				if (!distinct && i >= j) {
+					continue;
+				}
+
+				/************************** 项目集连接与过滤 **************************/
+				//求并集
+//				printf("start calc union\n");
+				unsigned int* k_itemset = NULL;
+				if (prv_frq_term_num1 == 1 || prv_frq_term_num2 == 1) { //F(k-1)×F(1)
+					k_itemset = union_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
+				} else if (prv_frq_term_num1 == prv_frq_term_num2) { //F(k-1)×F(k-1)
+					k_itemset = union_eq_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
+				}
+//				printf("end calc union\n");
+
+				//构建只读索引类对象
+				RODynamicHashIndex ro_index(d, data, data_size, l1_index,
+						l1_index_size, l2_index, l2_index_size, simple_hash_mic);
+
+				//过滤并保存潜在频繁项集
+				unsigned int support;
+				if (k_itemset != NULL && k_itemset[0] == frq_term_num
+						&& phi_filter_mic(k_itemset, &support, &ro_index,
+								identifiers, *identifiers_size, id_index,
+								*id_index_size, minsup_count)) {
+//					printf("start write result\n");
+					unsigned int* offset = frq_itemset_buf
+					+ tid * buf_size
+					+ frq_itemset_num[tid] * (frq_term_num + 1);
+					memcpy(offset, k_itemset + 1,
+							k_itemset[0] * sizeof(unsigned int));
+					memcpy(offset + frq_term_num, &support,
+							1 * sizeof(unsigned int));
+					frq_itemset_num[tid]++;
+//					printf("end write result\n");
+					delete[] k_itemset;
+				}
 			}
+		}
 
-			/************************** 项目集连接与过滤 **************************/
-			//求并集
-//			printf("start calc union\n");
-			unsigned int* k_itemset = NULL;
-			if (prv_frq_term_num1 == 1 || prv_frq_term_num2 == 1) { //F(k-1)×F(1)
-				k_itemset = union_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
-			} else if (prv_frq_term_num1 == prv_frq_term_num2) { //F(k-1)×F(k-1)
-				k_itemset = union_eq_set_mic(frq_itemset_list1 + i * prv_frq_term_num1, prv_frq_term_num1, frq_itemset_list2 + j * prv_frq_term_num2, prv_frq_term_num2);
-			}
-//			printf("end calc union\n");
-
-			//构建只读索引类对象
-			RODynamicHashIndex ro_index(d, data, data_size, l1_index,
-					l1_index_size, l2_index, l2_index_size, simple_hash_mic);
-
-			//过滤并保存潜在频繁项集
-			unsigned int support;
-			if (k_itemset != NULL && k_itemset[0] == frq_term_num
-					&& phi_filter_mic(k_itemset, &support, &ro_index,
-							identifiers, *identifiers_size, id_index,
-							*id_index_size, minsup_count)) {
-//				printf("start write result\n");
-				unsigned int* offset = frq_itemset_buf
-				+ tid * buf_size
-				+ frq_itemset_num[tid] * (frq_term_num + 1);
-				memcpy(offset, k_itemset + 1,
-						k_itemset[0] * sizeof(unsigned int));
-				memcpy(offset + frq_term_num, &support,
+//		printf("start gather result\n");
+		//合并结果
+//		map<string, bool> itemset_map;
+		for (unsigned int i = 0; i < numthreads; i++) {
+			for (unsigned int j = 0; j < frq_itemset_num[i]; j++) {
+				unsigned int* offset = frq_itemset_buf + i * FRQGENG_RECV_BUF_SIZE
+				+ j * (frq_itemset.get_term_num() + 1);
+				vector<unsigned int> itemset(offset,
+						offset + frq_itemset.get_term_num());
+				unsigned int support = 0;
+				memcpy(&support, offset + frq_itemset.get_term_num(),
 						1 * sizeof(unsigned int));
-				frq_itemset_num[tid]++;
-//				printf("end write result\n");
-				delete[] k_itemset;
+
+//				if (!this->hi_filter(&itemset, &support)) {
+//					printf("wrong itemset:%s\n",
+//							ivtoa((int*) itemset.data(),
+//									itemset.size(), ","));
+//				}
+//				map<string, bool>::iterator iter = itemset_map.find(
+//						string(
+//								ivtoa((int*) itemset.data(),
+//										itemset.size(), ",")));
+//				if (iter != itemset_map.end()) {
+//					printf("duplicate:%s, orig:%s\n",
+//							ivtoa((int*) itemset.data(),
+//									itemset.size(), ","),
+//							iter->first.data());
+//					continue;
+//				} else {
+//					itemset_map.insert(
+//							map<string, bool>::value_type(
+//									string(
+//											ivtoa((int*) itemset.data(),
+//													itemset.size(), ",")), 0));
+//				}
+
+				frq_itemset.push(itemset, support);
+				this->logItemset("Frequent", itemset.size(), itemset, support);
 			}
 		}
+//		printf("end gather result\n");
+		delete[] frq_itemset_list1;
+		delete[] frq_itemset_list2;
+		delete[] frq_itemset_buf;
+		delete[] frq_itemset_num;
+
+		return true;
 	}
-
-//	printf("start gather result\n");
-	//合并结果
-//	map<string, bool> itemset_map;
-	for (unsigned int i = 0; i < numthreads; i++) {
-		for (unsigned int j = 0; j < frq_itemset_num[i]; j++) {
-			unsigned int* offset = frq_itemset_buf + i * FRQGENG_RECV_BUF_SIZE
-			+ j * (frq_itemset.get_term_num() + 1);
-			vector<unsigned int> itemset(offset,
-					offset + frq_itemset.get_term_num());
-			unsigned int support = 0;
-			memcpy(&support, offset + frq_itemset.get_term_num(),
-					1 * sizeof(unsigned int));
-
-//			if (!this->hi_filter(&itemset, &support)) {
-//				printf("wrong itemset:%s\n",
-//						ivtoa((int*) itemset.data(),
-//								itemset.size(), ","));
-//			}
-//			map<string, bool>::iterator iter = itemset_map.find(
-//					string(
-//							ivtoa((int*) itemset.data(),
-//									itemset.size(), ",")));
-//			if (iter != itemset_map.end()) {
-//				printf("duplicate:%s, orig:%s\n",
-//						ivtoa((int*) itemset.data(),
-//								itemset.size(), ","),
-//						iter->first.data());
-//				continue;
-//			} else {
-//				itemset_map.insert(
-//						map<string, bool>::value_type(
-//								string(
-//										ivtoa((int*) itemset.data(),
-//												itemset.size(), ",")), 0));
-//			}
-
-			frq_itemset.push(itemset, support);
-			this->logItemset("Frequent", itemset.size(), itemset, support);
-		}
-	}
-//	printf("end gather result\n");
-	delete[] frq_itemset_list1;
-	delete[] frq_itemset_list2;
-	delete[] frq_itemset_buf;
-	delete[] frq_itemset_num;
-
-	return true;
 }
 
 template<typename ItemType, typename ItemDetail, typename RecordInfoType>
@@ -1517,12 +1676,16 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::gen_ro_index() {
 		delete this->m_ro_hi_data;
 	}
 	RODynamicHashIndexData* ro_hi_data = new RODynamicHashIndexData();
+	this->m_ro_hi_data = ro_hi_data;
 	bool succeed = true;
 	succeed &= ro_hi_data->build(this->m_item_index);
 #ifdef OMP
 	succeed &= this->gen_identifiers(&this->m_identifiers.first,
 			&this->m_identifiers.second, &this->m_id_index.first,
 			&this->m_id_index.second);
+	if (this->m_device_id == _Offload_number_of_devices()) {
+		return succeed;
+	}
 	//把只读索引拷贝到加速卡
 	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
 	*l2_index_size, *identifiers_size, *id_index, *id_index_size;
@@ -1539,7 +1702,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::gen_ro_index() {
 //			d, data, data_size, l1_index, l1_index_size, l2_index,
 //			l2_index_size, identifiers, identifiers_size, id_index,
 //			id_index_size);
-#pragma offload target(mic:0)\
+#pragma offload target(mic:this->m_device_id)\
 		in(d:length(1) ALLOC)\
 		in(data:length(*data_size) ALLOC)\
 		in(data_size:length(1) ALLOC)\
@@ -1559,7 +1722,6 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::gen_ro_index() {
 //				id_index_size);
 	}
 #endif
-	this->m_ro_hi_data = ro_hi_data;
 	return succeed;
 }
 
@@ -1570,6 +1732,21 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::destroy_ro_index()
 	}
 	bool succeed = true;
 #ifdef OMP
+	if (this->m_device_id == _Offload_number_of_devices()) {
+		if (this->m_identifiers.first != NULL) {
+			delete[] this->m_identifiers.first;
+			this->m_identifiers.first = NULL;
+		}
+		if (this->m_id_index.first != NULL) {
+			delete[] this->m_id_index.first;
+			this->m_id_index.first = NULL;
+		}
+		if (this->m_ro_hi_data != NULL) {
+			delete this->m_ro_hi_data;
+			this->m_ro_hi_data = NULL;
+		}
+		return succeed;
+	}
 	//把加速卡的只读索引内存空间回收
 	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,
 	*l2_index_size, *identifiers_size, *id_index, *id_index_size;
@@ -1588,7 +1765,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::destroy_ro_index()
 //			d, data, data_size, l1_index, l1_index_size, l2_index,
 //			l2_index_size, identifiers, identifiers_size, id_index,
 //			id_index_size);
-#pragma offload target(mic:0)\
+#pragma offload target(mic:this->m_device_id)\
 		in(d:FREE)\
 		in(data:FREE)\
 		in(data_size:FREE)\
