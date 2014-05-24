@@ -279,14 +279,28 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	MPI_Comm_rank(local_comm, &local_pid);
 	MPI_Comm_size(local_comm, &local_numprocs);
 	int dev_num = _Offload_number_of_devices();
-	int cpu_num = 0;
-	const char *cmd_get_num_cores = "cat /proc/cpuinfo | grep \"processor\" | wc -l";
-	FILE *fd = popen(cmd_get_num_cores, "r");
-	fscanf(fd, "%d", &cpu_num);
-	pclose(fd);
+
 	if (local_pid >= dev_num) {
 		this->m_device_id = dev_num;
-		this->DEFAULT_OMP_NUM_THREADS = 3 * cpu_num / (local_numprocs - dev_num);
+
+		int pcpu_num = 0;
+		const char *cmd_get_num_pcores = "cat /proc/cpuinfo | grep \"cpu cores\" | uniq | awk -F \": \" \'{print $2}\'";
+		FILE *fd = popen(cmd_get_num_pcores, "r");
+		fscanf(fd, "%d", &pcpu_num);
+		pclose(fd);
+		int lcpu_num = 0;
+		const char *cmd_get_num_lcores = "cat /proc/cpuinfo | grep \"processor\" | wc -l";
+		fd = popen(cmd_get_num_lcores, "r");
+		fscanf(fd, "%d", &lcpu_num);
+		pclose(fd);
+
+		int cpu_numprocs = local_numprocs - dev_num;
+		if (cpu_numprocs != pcpu_num) {
+//			printf("It's recommended to run with %d MPI process!\n", pcpu_num + dev_num);
+			this->DEFAULT_OMP_NUM_THREADS = 3 * lcpu_num / cpu_numprocs;
+		} else {
+			this->DEFAULT_OMP_NUM_THREADS = 2 * lcpu_num / pcpu_num;
+		}
 	} else {
 		this->m_device_id = local_pid % dev_num;
 		this->DEFAULT_OMP_NUM_THREADS = 240;
@@ -306,23 +320,29 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	this->init_opencl();
 	//决定使用哪个OpenCL设备
 #if MPI_VERSION >=3
-	float total_perfs = std::accumulate(this->m_cl_device_perfs.begin(),
-			this->m_cl_device_perfs.end(), 0);
-	vector<float> perfs_presum;
-	float perf_presum = 0;
-	for (unsigned int i = 0; i < this->m_cl_device_perfs.size(); i++) {
-		perfs_presum.push_back(perf_presum);
-		perf_presum = perf_presum + this->m_cl_device_perfs[i] / total_perfs;
-	}
-	perfs_presum.push_back(1);
 	int local_pid, local_numprocs;
 	MPI_Comm local_comm;
 	MPI_Comm_split_type(m_comm, MPI_COMM_TYPE_SHARED, 0, NULL, &local_comm);
 	MPI_Comm_rank(local_comm, &local_pid);
 	MPI_Comm_size(local_comm, &local_numprocs);
-	pair<unsigned int, bool> device_id = b_search<float>(perfs_presum,
-			(local_pid + 1.0f) / local_numprocs);
-	this->m_device_id = device_id.first - 1;
+
+	if (local_pid < this->m_cl_devices.size()) {
+		this->m_device_id = local_pid % this->m_cl_devices.size();
+	} else {
+		float total_perfs = std::accumulate(this->m_cl_device_perfs.begin(),
+				this->m_cl_device_perfs.end(), 0);
+		vector<float> perfs_presum;
+		float perf_presum = 0;
+		for (unsigned int i = 0; i < this->m_cl_device_perfs.size(); i++) {
+			perfs_presum.push_back(perf_presum);
+			perf_presum = perf_presum + this->m_cl_device_perfs[i] / total_perfs;
+		}
+		perfs_presum.push_back(1);
+
+		pair<unsigned int, bool> device_id = b_search<float>(perfs_presum,
+				(local_pid - this->m_cl_devices.size() + 1.0f) / (local_numprocs - this->m_cl_devices.size()));
+		this->m_device_id = device_id.first - 1;
+	}
 #else
 	this->m_device_id = pid % this->m_cl_devices.size();
 #endif
@@ -388,14 +408,16 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		//估算缓冲区大小
 		unsigned int max_phir = numeric_limits<int>::max();
 		unsigned long long int phir =
-				4
-						* (2
-								+ pow(0.5,
-										this->m_frequent_itemsets->at(i).get_term_num())
-										* combine(word_num,
+				4096
+						+ 4
+								* (2
+										+ pow(0.8,
 												this->m_frequent_itemsets->at(i).get_term_num())
-										* (this->m_frequent_itemsets->at(i).get_term_num()
-												+ 1));
+												* combine(word_num,
+														this->m_frequent_itemsets->at(
+																i).get_term_num())
+												* (this->m_frequent_itemsets->at(
+														i).get_term_num() + 1));
 		if (phir > max_phir) {
 			PHIR_BUF_SIZE = max_phir;
 		} else {
@@ -643,7 +665,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		//设置线程数
 		unsigned int numthreads = DEFAULT_OMP_NUM_THREADS;
 		//估算缓冲区大小
-		FRQGENG_RECV_BUF_SIZE = max((int)(prv_frq_size1 * prv_frq_size2 / numthreads), 3) * (1 + frq_itemset.get_term_num());
+		FRQGENG_RECV_BUF_SIZE = max((int)(prv_frq_size1 * prv_frq_size2 / numthreads), 5) * (1 + frq_itemset.get_term_num());
 		//初始化归并结果缓冲区
 		unsigned int* frq_itemset_buf = new unsigned int[numthreads
 		* FRQGENG_RECV_BUF_SIZE];
@@ -774,7 +796,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 		//设置线程数
 		unsigned int numthreads = DEFAULT_OMP_NUM_THREADS;
 		//估算缓冲区大小
-		FRQGENG_RECV_BUF_SIZE = max((int)(prv_frq_size1 * prv_frq_size2 / numthreads), 3) * (1 + frq_itemset.get_term_num());
+		FRQGENG_RECV_BUF_SIZE = max((int)(prv_frq_size1 * prv_frq_size2 / numthreads), 5) * (1 + frq_itemset.get_term_num());
 		//初始化归并结果缓冲区
 		unsigned int* frq_itemset_buf = new unsigned int[numthreads
 		* FRQGENG_RECV_BUF_SIZE];
@@ -1873,11 +1895,15 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::init_opencl() {
 			for (unsigned int k = 0; k < devices[j].count; k++) {
 				cl_uint compute_units;
 				cl_uint clock_freq;
+				cl_ulong gmem_size;
 				OPENCL_GET_NUMERIC_PROPERTY(devices_of_type[k],
 						CL_DEVICE_MAX_COMPUTE_UNITS, compute_units);
 				OPENCL_GET_NUMERIC_PROPERTY(devices_of_type[k],
 						CL_DEVICE_MAX_CLOCK_FREQUENCY, clock_freq);
-				this->m_cl_device_perfs.push_back(compute_units * clock_freq);
+				OPENCL_GET_NUMERIC_PROPERTY(devices_of_type[k],
+						CL_DEVICE_GLOBAL_MEM_SIZE, gmem_size);
+				this->m_cl_device_perfs.push_back(
+						compute_units * clock_freq * gmem_size);
 			}
 			delete[] devices_of_type;
 		}
