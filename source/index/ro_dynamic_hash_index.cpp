@@ -179,10 +179,11 @@ unsigned int* RODynamicHashIndex::get_intersect_records(const char **keys,
 		unsigned int *result_tmp = new unsigned int[record_nums[0]];
 		unsigned int record_num = record_nums[0];
 		memcpy(result + 1, records[0], sizeof(unsigned int) * (record_nums[0]));
-		for (int i = 1; i < key_num; i++) {
+		for (unsigned int i = 1; i < key_num; i++) {
 			intersect_num = 0;
-			for (int m = 1, n = 0; m < (record_num + 1) && n < record_nums[i];
-					) {
+			for (unsigned int m = 1, n = 0;
+					m < (record_num + 1) && n < record_nums[i];) {
+				/* 原始逻辑代码
 				if (records[i][n] > result[m]) {
 					n++;
 					continue;
@@ -195,7 +196,13 @@ unsigned int* RODynamicHashIndex::get_intersect_records(const char **keys,
 					result_tmp[intersect_num++] = result[m];
 					n++;
 					m++;
-				}
+				} */
+				/* 去分支代码 */
+				result_tmp[intersect_num] = result[m];
+				int diff = records[i][n] - result[m];
+				m += ((diff >> 31) & 1) + ((~(diff | -diff) >> 31) & 1);
+				n += ((-diff >> 31) & 1) + ((~(diff | -diff) >> 31) & 1);
+				intersect_num += ((~(diff | -diff) >> 31) & 1);
 			}
 			memcpy(result + 1, result_tmp,
 					sizeof(unsigned int) * intersect_num);
