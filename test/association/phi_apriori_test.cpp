@@ -75,6 +75,7 @@ void test_phi_apriori_doc(int argc, char *argv[],
 	if (pid == root_pid) {
 		printf(succeed ? "PHI-Apriori Succeed!\n" : "PHI-Apriori Faild!\n");
 
+#ifdef __DEBUG__
 		if (print_index) {
 			printf("Index:\n");
 			MPIDHashIndex& index =
@@ -104,6 +105,7 @@ void test_phi_apriori_doc(int argc, char *argv[],
 				}
 			}
 		}
+#endif
 
 		if (print_item_detial) {
 			printf("ItemDetail:\n{ ");

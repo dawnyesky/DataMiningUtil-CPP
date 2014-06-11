@@ -42,9 +42,11 @@ void test_open_hash_index() {
 		delete[] iden_index_str;
 	}
 
+#ifdef __DEBUG__
 	if (print_index) {
 		index.print_index(identifiers);
 	}
+#endif
 
 	if (print_intersect_record_num) {
 		printf("Intersect record id of ");

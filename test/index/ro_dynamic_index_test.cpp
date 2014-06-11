@@ -43,9 +43,11 @@ void test_ro_dynamic_hash_index() {
 		delete[] iden_index_str;
 	}
 
+#ifdef __DEBUG__
 	if (print_index) {
 		index.print_index();
 	}
+#endif
 
 	ro_index_data.build(&index);
 	unsigned int *d, *data, *data_size, *l1_index, *l1_index_size,

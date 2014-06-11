@@ -21,8 +21,10 @@ void test_dynamic_hash_index_addressing() {
 	for (unsigned int i = 0; i < 10; i++) {
 		unsigned int hashcode = rand() % 20;
 		DynamicHashIndex index = DynamicHashIndex(10, 4);
+#ifdef __DEBUG__
 		printf("The address of %u() with global deep %u is: %u\n", hashcode,
 				index.get_global_deep(), index.addressing(hashcode));
+#endif
 	}
 }
 
@@ -50,9 +52,11 @@ void test_dynamic_hash_index() {
 		delete[] iden_index_str;
 	}
 
+#ifdef __DEBUG__
 	if (print_index) {
 		index.print_index();
 	}
+#endif
 
 	if (print_intersect_record_num) {
 		printf("Intersect record id of ");

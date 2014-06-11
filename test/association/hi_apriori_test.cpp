@@ -176,10 +176,12 @@ void test_hi_apriori_doc(unsigned int max_itemset_size = 2,
 	succeed &= hi_apriori.genrules();
 	printf(succeed ? "HI-Apriori Succeed!\n" : "HI-Apriori Faild!\n");
 
+#ifdef __DEBUG__
 	if (print_index) {
 		printf("Index:\n");
 		hi_apriori.m_item_index->print_index(NULL);
 	}
+#endif
 
 	if (print_item_detial) {
 		printf("ItemDetail:\n{ ");

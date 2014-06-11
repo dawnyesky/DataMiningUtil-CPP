@@ -105,6 +105,7 @@ void test_doc_text_extractor() {
 	doc_text.read_data(true);
 
 //	FILE *log_fp = freopen("./log/test_extractor.log", "w", stderr);
+#ifdef __DEBUG__
 	if (print_index) {
 		printf("Index:\n");
 		IndexHead **hash_table = (IndexHead **) item_index.get_hash_table();
@@ -126,6 +127,7 @@ void test_doc_text_extractor() {
 		}
 		printf("\n");
 	}
+#endif
 
 	if (print_record) {
 		printf("Record:\n");

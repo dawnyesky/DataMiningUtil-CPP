@@ -47,25 +47,31 @@ void test_mpi_d_hash_index(int argc, char *argv[], unsigned int record_num = 15,
 		delete[] iden_index_str;
 	}
 
+#ifdef __DEBUG__
 	if (print_index) {
 		printf("Start to print the index before synchronize:\n");
 		index.print_index();
 		printf("End to print the index before synchronize:\n");
 	}
+#endif
 
 	index.synchronize();
 
+#ifdef __DEBUG__
 	if (print_index) {
 		printf("The index after synchronize:\n");
 		index.print_index();
 	}
+#endif
 
 	index.consolidate();
 
+#ifdef __DEBUG__
 	if (print_index) {
 		printf("The index after consolidate:\n");
 		index.print_index();
 	}
+#endif
 
 	if (print_intersect_record_num && pid == 0) {
 		printf("Intersect record id of ");
