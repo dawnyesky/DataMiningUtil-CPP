@@ -232,17 +232,28 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	unsigned int avg_bucket_size = 10 * 0.5;
 	index->SYNG_RECV_BUF_SIZE = 4 * (1 + word_num / avg_bucket_size);
 	index->SYNB_BUF_SIZE = 4 * (1 + 2 * numprocs);
-	unsigned int max_synata = numeric_limits<int>::max() / numprocs;
-	unsigned long long int synata = (unsigned long long int) 4
-			+ index->SYNG_RECV_BUF_SIZE + 4 * 3 * word_num
-			+ 1 * (extractor->m_record_size + 32 * word_num)
-			+ 4 * extractor->m_record_num * word_num;
+	unsigned int max_synata = (numeric_limits<int>::max() - 100) / numprocs;
+	unsigned long long int synata =
+			(unsigned long long int) (index->SYNG_RECV_BUF_SIZE
+					+ 4 * 3 * word_num)
+					+ 1 * (extractor->m_record_size + 10 * word_num)
+					+ 4 * extractor->m_record_num * word_num;
 	if (synata > max_synata) {
 		index->SYNATA_BUF_SIZE = max_synata;
 	} else {
 		index->SYNATA_BUF_SIZE = (unsigned int) synata;
 	}
-	index->CONG_RECV_BUF_SIZE = index->SYNATA_BUF_SIZE;
+	unsigned int max_cong = (numeric_limits<int>::max() - 100) / numprocs;
+	unsigned long long int cong = (unsigned long long int) (4
+			* (2 * word_num / avg_bucket_size + 2) + 4 * 3 * word_num)
+			+ 1 * (extractor->m_record_size + 10 * word_num)
+			+ 4 * extractor->m_record_num * word_num;
+	if (cong > max_cong) {
+		index->CON_PASS = ceil(log(cong / max_cong) / log(2));
+		index->CONG_RECV_BUF_SIZE = max_cong;
+	} else {
+		index->CONG_RECV_BUF_SIZE = (unsigned int) cong;
+	}
 	index->CONB_BUF_SIZE = numprocs * index->CONG_RECV_BUF_SIZE;
 
 	//收集项目详情
@@ -279,8 +290,9 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 	MPI_Comm_rank(local_comm, &local_pid);
 	MPI_Comm_size(local_comm, &local_numprocs);
 	int dev_num = _Offload_number_of_devices();
+	int offload_numprocs = dev_num * ceil(log(pow(3, local_numprocs / dev_num - 1)) / log(10));
 
-	if (local_pid >= dev_num) {
+	if (local_pid >= offload_numprocs) {
 		this->m_device_id = dev_num;
 
 		int pcpu_num = 0;
@@ -294,16 +306,15 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 		fscanf(fd, "%d", &lcpu_num);
 		pclose(fd);
 
-		int cpu_numprocs = local_numprocs - dev_num;
-		if (cpu_numprocs != pcpu_num) {
-//			printf("It's recommended to run with %d MPI process!\n", pcpu_num + dev_num);
+		int cpu_numprocs = local_numprocs - offload_numprocs;
+		if (cpu_numprocs < pcpu_num) {
 			this->DEFAULT_OMP_NUM_THREADS = 3 * lcpu_num / cpu_numprocs;
 		} else {
 			this->DEFAULT_OMP_NUM_THREADS = 2 * lcpu_num / pcpu_num;
 		}
 	} else {
 		this->m_device_id = local_pid % dev_num;
-		this->DEFAULT_OMP_NUM_THREADS = 240;
+		this->DEFAULT_OMP_NUM_THREADS = 240 * dev_num / offload_numprocs;
 	}
 #else
 	this->m_device_id = pid % (_Offload_number_of_devices() + 1);
@@ -406,7 +417,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 //		MPI_Barrier(m_comm);
 
 		//估算缓冲区大小
-		unsigned int max_phir = numeric_limits<int>::max();
+		unsigned int max_phir = numeric_limits<int>::max() - 100;
 		unsigned long long int phir =
 				4096
 						+ 4
@@ -477,6 +488,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 			MPI_Barrier(m_comm);
 
 			delete this->m_itemset_send_buf;
+			free(phir_msg_pkg.first);
 			MPI_Buffer_detach(&buffer, &buffer_size);
 		}
 
@@ -521,6 +533,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 
 					//栅栏同步
 //					MPI_Barrier(m_comm);
+					free(phir_msg_pkg.first);
 				}
 				//栅栏同步
 				MPI_Barrier(m_comm);
@@ -562,6 +575,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 							*this->m_itemset_recv_buf)) {
 						return false;
 					}
+					free(phir_msg_pkg.first);
 				}
 
 				//栅栏同步
@@ -1102,6 +1116,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			}
 		}
 	}
+	delete[] frq2_offset;
 
 	//没有产生计算任务
 	if (data->size() == 0) {
@@ -1546,6 +1561,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_frq_gen(
 			delete k_itemset;
 		}
 	}
+	delete[] frq2_offset;
 
 	return true;
 }
@@ -1601,7 +1617,7 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_genrules() {
 	//估算缓冲区大小
 	MPIDocTextExtractor* extractor = (MPIDocTextExtractor*) this->m_extractor;
 	unsigned int word_num = extractor->m_record_size / extractor->WORD_SIZE;
-	unsigned int max_geng = numeric_limits<int>::max() / numprocs;
+	unsigned int max_geng = (numeric_limits<int>::max() - 100) / numprocs;
 	//用正太分布来逼近二项展开式(1+1)^n=c(n,0)+c(n,1)+...+c(n,n)
 	unsigned int miu = combine(word_num, word_num / 2);
 	unsigned int lou = 3 * pow(2, word_num - 4);
@@ -1623,17 +1639,13 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_genrules() {
 	}
 	unsigned long long int geng = (unsigned long long int) part_sum
 			* (4 * (2 + this->m_max_itemset_size) + 8);
+	unsigned int pass = 1;
 	if (geng > max_geng) {
+		pass = ceil(log(geng / max_geng) / log(2));
 		GENG_RECV_BUF_SIZE = max_geng;
 	} else {
 		GENG_RECV_BUF_SIZE = (unsigned int) geng;
 	}
-
-	//打包Gather消息
-//	printf("process %u start pack g rules\n", pid);
-	pair<void*, int> geng_send_msg_pkg = pack_geng_msg(
-			this->m_assoc_base_rules);
-//	printf("process %u end pack g rules\n", pid);
 
 	//准备Gather消息缓冲区
 	pair<void*, int> geng_recv_msg_pkg;
@@ -1643,50 +1655,64 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_genrules() {
 		geng_recv_msg_pkg.first = malloc(numprocs * GENG_RECV_BUF_SIZE);
 		geng_recv_msg_pkg.second = GENG_RECV_BUF_SIZE;
 	}
+	vector<AssocBaseRule> all_rules;
+	vector<AssocBaseRule>::iterator rule_offset =
+			this->m_assoc_base_rules.begin();
+	unsigned int rule_num = ceil(this->m_assoc_base_rules.size() / pass);
+	for (unsigned int p = 0; p < pass; p++) {
+		rule_offset += rule_num;
+		vector<AssocBaseRule> part_rules = vector<AssocBaseRule>(rule_offset,
+				this->m_assoc_base_rules.end() - rule_offset > rule_num ?
+						rule_offset + rule_num :
+						this->m_assoc_base_rules.end());
+		//打包Gather消息
+//		printf("process %u start pack g rules\n", pid);
+		pair<void*, int> geng_send_msg_pkg = pack_geng_msg(part_rules);
+//		printf("process %u end pack g rules\n", pid);
 
-//	printf("process %u start gather rules\n", pid);
-	MPI_Gather(geng_send_msg_pkg.first, geng_send_msg_pkg.second, MPI_PACKED,
-			geng_recv_msg_pkg.first, GENG_RECV_BUF_SIZE, MPI_PACKED, m_root_pid,
-			m_comm);
-//	printf("process %u end gather rules\n", pid);
+//		printf("process %u start gather rules\n", pid);
+		MPI_Gather(geng_send_msg_pkg.first, geng_send_msg_pkg.second,
+				MPI_PACKED, geng_recv_msg_pkg.first, GENG_RECV_BUF_SIZE,
+				MPI_PACKED, m_root_pid, m_comm);
+//		printf("process %u end gather rules\n", pid);
 
-	//处理汇总数据
-	if (pid == m_root_pid) {
-		//解包Gather消息
-//		printf("process %u start unpack gather rules\n", pid);
-		vector<AssocBaseRule>* geng_recv_msg = unpack_geng_msg(
-				geng_recv_msg_pkg);
-//		printf("process %u end unpack gather rules\n", pid);
-		for (unsigned int i = 0; i < geng_recv_msg->size(); i++) {
-			this->m_assoc_base_rules.push_back(geng_recv_msg->at(i));
+		//处理汇总数据
+		if (pid == m_root_pid) {
+			//解包Gather消息
+//			printf("process %u start unpack gather rules\n", pid);
+			vector<AssocBaseRule>* geng_recv_msg = unpack_geng_msg(
+					geng_recv_msg_pkg);
+//			printf("process %u end unpack gather rules\n", pid);
+			all_rules.insert(all_rules.end(), geng_recv_msg->begin(),
+					geng_recv_msg->end());
+//			for (unsigned int i = 0; i < geng_recv_msg->size(); i++) {
+//				this->m_assoc_base_rules.push_back(geng_recv_msg->at(i));
+//			}
+			delete geng_recv_msg;
 		}
 
-		delete geng_recv_msg;
+		free(geng_send_msg_pkg.first);
+	}
 
+	if (pid == m_root_pid) {
+		free(geng_recv_msg_pkg.first);
 		//把关联规则展开
 //		printf("process %u start unfold gather rules\n", pid);
 		this->m_assoc_rules->clear();
-		for (unsigned int i = 0; i < this->m_assoc_base_rules.size(); i++) {
+		for (unsigned int i = 0; i < all_rules.size(); i++) {
 			AssociationRule<ItemDetail> assoc_rule;
-			for (unsigned int j = 0;
-					j < this->m_assoc_base_rules[i].condition.size(); j++) {
+			for (unsigned int j = 0; j < all_rules[i].condition.size(); j++) {
 				assoc_rule.condition.push_back(
-						this->m_item_details[this->m_assoc_base_rules[i].condition[j]]);
+						this->m_item_details[all_rules[i].condition[j]]);
 			}
-			for (unsigned int j = 0;
-					j < this->m_assoc_base_rules[i].consequent.size(); j++) {
+			for (unsigned int j = 0; j < all_rules[i].consequent.size(); j++) {
 				assoc_rule.consequent.push_back(
-						this->m_item_details[this->m_assoc_base_rules[i].consequent[j]]);
+						this->m_item_details[all_rules[i].consequent[j]]);
 			}
-			assoc_rule.confidence = this->m_assoc_base_rules[i].confidence;
+			assoc_rule.confidence = all_rules[i].confidence;
 			this->m_assoc_rules->push_back(assoc_rule);
 		}
 //		printf("process %u end unfold gather rules\n", pid);
-	}
-
-	free(geng_send_msg_pkg.first);
-	if (pid == m_root_pid) {
-		free(geng_recv_msg_pkg.first);
 	}
 
 	return true;

@@ -111,6 +111,7 @@ public:
 	unsigned int SYNATA_BUF_SIZE;
 	unsigned int CONG_RECV_BUF_SIZE;
 	unsigned int CONB_BUF_SIZE;
+	unsigned int CON_PASS;
 
 private:
 	MPI_Comm m_comm;

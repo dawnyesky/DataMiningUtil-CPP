@@ -26,6 +26,7 @@ MPIDHashIndex::MPIDHashIndex(MPI_Comm comm, unsigned int bucket_size,
 	SYNATA_BUF_SIZE = 4096000;
 	CONG_RECV_BUF_SIZE = 4096000;
 	CONB_BUF_SIZE = 4096000;
+	CON_PASS = 1;
 }
 
 MPIDHashIndex::~MPIDHashIndex() {
@@ -63,7 +64,7 @@ bool MPIDHashIndex::synchronize() {
 			m_comm);
 //	printf("process %u end syn gather\n", pid);
 
-	//声明和准备Broadcast消息数据
+//声明和准备Broadcast消息数据
 	SynBcastMsg synb_msg;
 	synb_msg.global_deep = 0;
 	synb_msg.catalog_offset = NULL;
@@ -321,61 +322,171 @@ bool MPIDHashIndex::consolidate() {
 		cong_recv_msg_pkg.first = malloc(cong_recv_msg_pkg.second);
 	}
 
-	//打包Gather数据
-	pair<void*, int> cong_send_msg_pkg = pack_cong_msg(m_responsible_cats.first,
-			m_responsible_cats.second);
+	unsigned int cat_num = ceil(m_responsible_cats.second / CON_PASS);
+	for (unsigned int p = 0; p < CON_PASS; p++) {
+		unsigned int cat_offset = m_responsible_cats.first + p * cat_num;
+		//打包Gather数据
+		pair<void*, int> cong_send_msg_pkg = pack_cong_msg(cat_offset,
+				std::min(cat_num, m_responsible_cats.second - cat_offset));
+//		printf("process %u start cong, pass %u\n", pid, p);
+		MPI_Gather(cong_send_msg_pkg.first, cong_send_msg_pkg.second,
+				MPI_PACKED, cong_recv_msg_pkg.first, CONG_RECV_BUF_SIZE,
+				MPI_PACKED, m_root_pid, m_comm);
+//		printf("process %u end cong, pass %u\n", pid, p);
 
-//	printf("process %u start cong\n", pid);
-	MPI_Gather(cong_send_msg_pkg.first, cong_send_msg_pkg.second, MPI_PACKED,
-			cong_recv_msg_pkg.first, CONG_RECV_BUF_SIZE, MPI_PACKED, m_root_pid,
-			m_comm);
-//	printf("process %u end cong\n", pid);
+		//声明Gather接收消息
+		vector<pair<Catalog*, unsigned int*> > cong_recv_msg;
 
-	//声明Gather接收消息
-	vector<pair<Catalog*, unsigned int*> > cong_recv_msg;
+		if (pid == m_root_pid) {
+			//解包Gather数据
+			cong_recv_msg = unpack_cong_msg(cong_recv_msg_pkg);
+
+//			for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
+//				for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
+//					unsigned int cid = cong_recv_msg[i].second[0] + j;
+//					printf("cid:%u\n", cid);
+//					printf("Bucket size:%u\n",
+//							cong_recv_msg[i].first[j].bucket->elements.size());
+//					for (vector<IndexHead>::iterator iter =
+//							cong_recv_msg[i].first[j].bucket->elements.begin();
+//							iter != cong_recv_msg[i].first[j].bucket->elements.end();
+//							iter++) {
+//						printf(
+//								"catalog: %u\tkey: %s------Record numbers: %u------Record index: ",
+//								cid, iter->identifier, iter->index_item_num);
+//						IndexItem* p = iter->inverted_index;
+//						while (p != NULL) {
+//							printf("%u, ", p->record_id);
+//							p = p->next;
+//						}
+//						printf("\n");
+//					}
+//				}
+//			}
+
+			//处理Gather数据
+			for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
+				for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
+					unsigned int cid = cong_recv_msg[i].second[0] + j;
+					//如果是自己负责的部分在同步的时候已经填充完毕，不需要再修改
+					if (cid >= m_responsible_cats.first
+							&& cid
+									< m_responsible_cats.first
+											+ m_responsible_cats.second) {
+						if (cong_recv_msg[i].first[j].bucket != NULL) {
+							for (vector<IndexHead>::iterator iter =
+									cong_recv_msg[i].first[j].bucket->elements.begin();
+									iter
+											!= cong_recv_msg[i].first[j].bucket->elements.end();
+									iter++) {
+								if (NULL != iter->identifier) {
+									delete[] iter->identifier;
+								}
+								if (NULL != iter->key_info) {
+									delete[] iter->key_info;
+								}
+								IndexItem *p = iter->inverted_index;
+								IndexItem *q = NULL;
+								while (NULL != p) {
+									q = p->next;
+									delete p;
+									p = q;
+								}
+							}
+							delete cong_recv_msg[i].first[j].bucket;
+						}
+						continue;
+					}
+					m_catalogs[cid].l = cong_recv_msg[i].first[j].l;
+					//先清除原有的数据
+					if (m_catalogs[cid].bucket != NULL) {
+						for (vector<IndexHead>::iterator iter =
+								m_catalogs[cid].bucket->elements.begin();
+								iter != m_catalogs[cid].bucket->elements.end();
+								iter++) {
+							if (NULL != iter->identifier) {
+								delete[] iter->identifier;
+							}
+							if (NULL != iter->key_info) {
+								delete[] iter->key_info;
+							}
+							IndexItem *p = iter->inverted_index;
+							IndexItem *q = NULL;
+							while (NULL != p) {
+								q = p->next;
+								delete p;
+								p = q;
+							}
+						}
+						delete m_catalogs[cid].bucket;
+					}
+					//把新数据加上
+					m_catalogs[cid].bucket = cong_recv_msg[i].first[j].bucket;
+				}
+				//清除接收数据
+				delete[] cong_recv_msg[i].first;
+				delete[] cong_recv_msg[i].second;
+			}
+		}
+		free(cong_send_msg_pkg.first);
+	}
+	//清除数据
+	free(cong_recv_msg_pkg.first);
 
 	//声明Broadcast数据包
 	pair<void*, int> conb_msg_pkg;
 
-	if (pid == m_root_pid) {
-		//解包Gather数据
-		cong_recv_msg = unpack_cong_msg(cong_recv_msg_pkg);
+	cat_num = ceil(pow(2, m_d) / CON_PASS);
+	for (unsigned int p = 0; p < CON_PASS; p++) {
+		if (pid == m_root_pid) {
+			//打包Broadcast数据
+			unsigned int cat_offset = p * cat_num;
+			conb_msg_pkg = pack_conb_msg(cat_offset,
+					std::min(cat_num, (unsigned int) pow(2, m_d) - cat_offset));
+		} else {
+			//打包Broadcast数据
+			conb_msg_pkg = pack_conb_msg(0, 0);
+		}
 
-//		for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
-//			for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
-//				unsigned int cid = cong_recv_msg[i].second[0] + j;
-//				printf("cid:%u\n", cid);
-//				printf("Bucket size:%u\n",
-//						cong_recv_msg[i].first[j].bucket->elements.size());
-//				for (vector<IndexHead>::iterator iter =
-//						cong_recv_msg[i].first[j].bucket->elements.begin();
-//						iter != cong_recv_msg[i].first[j].bucket->elements.end();
-//						iter++) {
-//					printf(
-//							"catalog: %u\tkey: %s------Record numbers: %u------Record index: ",
-//							cid, iter->identifier, iter->index_item_num);
-//					IndexItem* p = iter->inverted_index;
-//					while (p != NULL) {
-//						printf("%u, ", p->record_id);
-//						p = p->next;
-//					}
-//					printf("\n");
-//				}
-//			}
-//		}
+		MPI_Bcast(conb_msg_pkg.first, conb_msg_pkg.second, MPI_PACKED,
+				m_root_pid, m_comm);
 
-		//处理Gather数据
-		for (unsigned int i = 0; i < cong_recv_msg.size(); i++) {
-			for (unsigned int j = 0; j < cong_recv_msg[i].second[1]; j++) {
-				unsigned int cid = cong_recv_msg[i].second[0] + j;
+		//处理Broadcast数据
+		if (pid != m_root_pid) {
+			//解包Broadcast数据
+			pair<Catalog*, unsigned int*> conb_msg = unpack_conb_msg(
+					conb_msg_pkg);
+			for (unsigned int i = 0; i < conb_msg.second[1]; i++) {
+				unsigned int cid = conb_msg.second[0] + i;
 				//如果是自己负责的部分在同步的时候已经填充完毕，不需要再修改
 				if (cid >= m_responsible_cats.first
 						&& cid
 								< m_responsible_cats.first
 										+ m_responsible_cats.second) {
+					if (conb_msg.first[i].bucket != NULL) {
+						for (vector<IndexHead>::iterator iter =
+								conb_msg.first[i].bucket->elements.begin();
+								iter != conb_msg.first[i].bucket->elements.end();
+								iter++) {
+							if (NULL != iter->identifier) {
+								delete[] iter->identifier;
+							}
+							if (NULL != iter->key_info) {
+								delete[] iter->key_info;
+							}
+							IndexItem *p = iter->inverted_index;
+							IndexItem *q = NULL;
+							while (NULL != p) {
+								q = p->next;
+								delete p;
+								p = q;
+							}
+						}
+						delete conb_msg.first[i].bucket;
+					}
 					continue;
 				}
-				m_catalogs[cid].l = cong_recv_msg[i].first[j].l;
+				m_catalogs[cid].l = conb_msg.first[i].l;
 				//先清除原有的数据
 				if (m_catalogs[cid].bucket != NULL) {
 					for (vector<IndexHead>::iterator iter =
@@ -399,78 +510,18 @@ bool MPIDHashIndex::consolidate() {
 					delete m_catalogs[cid].bucket;
 				}
 				//把新数据加上
-				m_catalogs[cid].bucket = cong_recv_msg[i].first[j].bucket;
+				m_catalogs[cid].bucket = conb_msg.first[i].bucket;
 			}
-			//清除接收数据
-			delete[] cong_recv_msg[i].first;
-			delete[] cong_recv_msg[i].second;
+
+			//清除数据
+			delete[] conb_msg.first;
+			delete[] conb_msg.second;
 		}
-
-		//打包Broadcast数据
-		conb_msg_pkg = pack_conb_msg(0, pow(2, m_d));
-	} else {
-		//打包Broadcast数据
-		conb_msg_pkg = pack_conb_msg(0, 0);
-	}
-
-	MPI_Bcast(conb_msg_pkg.first, conb_msg_pkg.second, MPI_PACKED, m_root_pid,
-			m_comm);
-
-	pair<Catalog*, unsigned int*> conb_msg;
-
-	//处理Broadcast数据
-	if (pid != m_root_pid) {
-		//解包Broadcast数据
-		conb_msg = unpack_conb_msg(conb_msg_pkg);
-		for (unsigned int i = 0; i < conb_msg.second[1]; i++) {
-			unsigned int cid = conb_msg.second[0] + i;
-			//如果是自己负责的部分在同步的时候已经填充完毕，不需要再修改
-			if (cid >= m_responsible_cats.first
-					&& cid
-							< m_responsible_cats.first
-									+ m_responsible_cats.second) {
-				continue;
-			}
-			m_catalogs[cid].l = conb_msg.first[i].l;
-			//先清除原有的数据
-			if (m_catalogs[cid].bucket != NULL) {
-				for (vector<IndexHead>::iterator iter =
-						m_catalogs[cid].bucket->elements.begin();
-						iter != m_catalogs[cid].bucket->elements.end();
-						iter++) {
-					if (NULL != iter->identifier) {
-						delete[] iter->identifier;
-					}
-					if (NULL != iter->key_info) {
-						delete[] iter->key_info;
-					}
-					IndexItem *p = iter->inverted_index;
-					IndexItem *q = NULL;
-					while (NULL != p) {
-						q = p->next;
-						delete p;
-						p = q;
-					}
-				}
-				delete m_catalogs[cid].bucket;
-			}
-			//把新数据加上
-			m_catalogs[cid].bucket = conb_msg.first[i].bucket;
-		}
+		free(conb_msg_pkg.first);
 	}
 
 	MPI_Barrier(m_comm);
 	is_consolidated = true;
-
-	//清除数据
-	free(cong_send_msg_pkg.first);
-	free(cong_recv_msg_pkg.first);
-
-	if (pid != m_root_pid) {
-		delete[] conb_msg.first;
-		delete[] conb_msg.second;
-	}
-	free(conb_msg_pkg.first);
 
 	return true;
 }

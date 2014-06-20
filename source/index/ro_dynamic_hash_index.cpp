@@ -209,6 +209,7 @@ unsigned int* RODynamicHashIndex::get_intersect_records(const char **keys,
 			record_num = intersect_num;
 		}
 		result[0] = record_num; //结果第一位放交集元素个数
+		delete[] result_tmp;
 		return result;
 	}
 	return NULL;
