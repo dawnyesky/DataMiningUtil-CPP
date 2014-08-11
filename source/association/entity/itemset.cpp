@@ -185,3 +185,7 @@ pair<vector<unsigned int>, unsigned int>* KItemsets::pop() {
 unsigned int KItemsets::get_term_num() const {
 	return m_term_num;
 }
+
+void KItemsets::set_term_num(unsigned int term_num) {
+	m_term_num = term_num;
+}

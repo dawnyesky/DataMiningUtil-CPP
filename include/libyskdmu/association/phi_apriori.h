@@ -45,6 +45,7 @@
 #include <string.h>
 #include <numeric>
 #include <limits>
+#include "libyskalgrthms/sort/quicksort_tmplt.h"
 #include "libyskalgrthms/util/string.h"
 #include "libyskdmu/index/distributed_hash_index.h"
 #include "libyskdmu/index/mpi_d_hash_index.h"
@@ -108,6 +109,8 @@ private:
 	pair<void*, int> pack_synrib_msg(vector<RecordInfoType>& record_infos);
 	pair<RecordInfoType*, unsigned int> unpack_synrib_msg(
 			pair<void*, int> msg_pkg);
+	pair<void*, int*> pack_lbata_msg(KItemsets*);
+	KItemsets* unpack_lbata_msg(pair<void*, int> msg_pkg);
 	pair<void*, int> pack_phis_msg(KItemsets* itemsets);
 	KItemsets* unpack_phir_msg(pair<void*, int> msg_pkg);
 	pair<void*, int> pack_geng_msg(vector<AssocBaseRule>& assoc_rules);
@@ -139,6 +142,7 @@ private:
 	unsigned int SYNIDB_BUF_SIZE;
 	unsigned int SYNRIG_RECV_BUF_SIZE;
 	unsigned int SYNRIB_BUF_SIZE;
+	unsigned int LBATA_BUF_SIZE;
 	unsigned int PHIS_BUF_SIZE;
 	unsigned int PHIR_BUF_SIZE;
 	unsigned int GENG_RECV_BUF_SIZE;
@@ -171,6 +175,7 @@ ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::ParallelHiApriori(
 	this->SYNIDB_BUF_SIZE = 409600;
 	this->SYNRIG_RECV_BUF_SIZE = 409600;
 	this->SYNRIB_BUF_SIZE = 409600;
+	this->LBATA_BUF_SIZE = 40960;
 	this->PHIS_BUF_SIZE = 40960;
 	this->PHIR_BUF_SIZE = 40960;
 	this->GENG_RECV_BUF_SIZE = 4096000;
@@ -400,7 +405,189 @@ bool ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::phi_apriori() {
 //	MPI_Barrier(m_comm);
 
 	/* F2~n generation */
-	for (unsigned int i = 0; i + 1 < this->m_max_itemset_size; i++) {
+	for (unsigned int i = 0; i < this->m_max_itemset_size - 1; i++) {
+		/************************ Load balance begin ************************/
+//		printf("process %u start %u load balance\n", pid, i + 1);
+		unsigned int itemset_num =
+				this->m_frequent_itemsets->at(i).get_itemsets().size();
+		unsigned int* itemset_nums = NULL;
+		if (pid == m_root_pid) {
+			itemset_nums = new unsigned int[numprocs];
+		}
+//		printf("process %u start %u lb gather\n", pid, i + 1);
+		MPI_Gather(&itemset_num, 1, MPI_UNSIGNED, itemset_nums, 1, MPI_UNSIGNED,
+				m_root_pid, m_comm);
+//		printf("process %u finish %u lb gather\n", pid, i + 1);
+//		MPI_Barrier(m_comm);
+		unsigned int* transmit_matrix = NULL;
+		if (pid == m_root_pid) {
+//			printf("process %u start %u lb strategy\n", pid, i + 1);
+			unsigned int pids[numprocs];
+			for (unsigned int j = 0; j < numprocs; j++) {
+				pids[j] = j;
+			}
+//			printf("itemsets num:");
+//			for (unsigned int j = 0; j < numprocs; j++)
+//				printf("%u\t", itemset_nums[j]);
+//			printf("\n");
+			//把项集数量向量排序
+			quicksort<unsigned int>(itemset_nums, numprocs, false, false, pids);
+//			printf("pids:");
+//			for (unsigned int j = 0; j < numprocs; j++)
+//				printf("%u\t", pids[j]);
+//			printf("\n");
+			transmit_matrix = new unsigned int[numprocs * (numprocs + 1)];
+			memset(transmit_matrix, 0,
+					numprocs * (numprocs + 1) * sizeof(unsigned int));
+			//采用递归对分法(迭代实现)算出项集迁移矩阵
+			for (unsigned int j = 0; j < log(numprocs) / log(2); j++) {
+				for (unsigned int k = 0; k < pow(2, j); k++) {
+					unsigned int group_len = numprocs / pow(2, j);
+					unsigned int end = (k + 1) * group_len - 1;
+					for (unsigned int t = 0; t < group_len / 2; t++) {
+						unsigned int begin = k * group_len + t;
+						unsigned int mean = (itemset_nums[begin]
+								+ itemset_nums[end - t]) / 2;
+						unsigned int transmit_num = 0;
+						if (itemset_nums[begin] >= mean) {
+							transmit_num = itemset_nums[begin] - mean;
+							transmit_matrix[pids[begin] * (numprocs + 1) + pids[end - t]] = transmit_num;
+						} else {
+							transmit_num = itemset_nums[end - t] - mean;
+							transmit_matrix[pids[end - t] * (numprocs + 1) + pids[begin]] = transmit_num;
+						}
+						itemset_nums[begin] = mean;
+						itemset_nums[end - t] = mean;
+					}
+				}
+			}
+			//每个进程最终的项集数量
+			for (int j = 0; j < numprocs; j++) {
+				transmit_matrix[j * (numprocs + 1) + numprocs] =
+						itemset_nums[j];
+			}
+//			for (unsigned int j = 0; j < numprocs; j++) {
+//				for (unsigned int k = 0; k < numprocs + 1; k++) {
+//					printf("%u\t", transmit_matrix[j * (numprocs + 1) + k]);
+//				}
+//				printf("\n");
+//			}
+//			printf("process %u finish %u lb strategy\n", pid, i + 1);
+		}
+//		MPI_Barrier(m_comm);
+
+		//发散数据
+		unsigned int transmit_vector[numprocs + 1];
+		int displs[numprocs];
+		int transmit_len[numprocs];
+		displs[0] = 0;
+		transmit_len[0] = numprocs + 1;
+		for (int j = 1; j < numprocs; j++) {
+			displs[j] = displs[j - 1] + numprocs + 1;
+			transmit_len[j] = numprocs + 1;
+		}
+//		printf("process %u start %u lb scatter\n", pid, i + 1);
+		MPI_Scatterv(transmit_matrix, transmit_len, displs, MPI_UNSIGNED,
+				transmit_vector, numprocs + 1, MPI_UNSIGNED, m_root_pid,
+				m_comm);
+//		printf("process %u finish %u lb scatter\n", pid, i + 1);
+//		MPI_Barrier(m_comm);
+
+		//转移项集
+//		printf("process %u start %u lb alltoall preparation\n", pid, i + 1);
+		//准备Alltoall发送的数据
+		KItemsets* transmit_itemsets = new KItemsets[numprocs];
+		for (int j = 0; j < numprocs; j++) {
+			transmit_itemsets[j].set_term_num(i + 1);
+			for (unsigned int k = 0; k < min<unsigned int>(transmit_vector[j], this->m_frequent_itemsets->at(i).get_itemsets().size()); k++) {
+//				printf("demand:%u, reality:%u\n", transmit_vector[j], this->m_frequent_itemsets->at(i).get_itemsets().size());
+				pair<vector<unsigned int>, unsigned int>* itemset =
+						this->m_frequent_itemsets->at(i).pop();
+				transmit_itemsets[j].push(itemset->first, itemset->second);
+				delete itemset;
+			}
+//			printf("process %u transmit itemsets:\n", j);
+//			transmit_itemsets[j].print();
+		}
+
+		//打包Alltoall消息
+		int send_buf_offset[numprocs];
+		int send_buf_size[numprocs];
+		pair<void*, int*> lbata_send_msg_pkg = pack_lbata_msg(
+				transmit_itemsets);
+		send_buf_offset[0] = 0;
+		send_buf_size[0] = lbata_send_msg_pkg.second[0];
+		for (int j = 1; j < numprocs; j++) {
+			send_buf_offset[j] = send_buf_offset[j - 1] + send_buf_size[j - 1];
+			send_buf_size[j] = lbata_send_msg_pkg.second[j];
+		}
+
+		//估算接收缓冲区大小
+		unsigned long long int lbata = max<unsigned long long int>(
+				(unsigned long long int) transmit_vector[numprocs] * (i + 1 + 1)
+						* sizeof(unsigned int), LBATA_BUF_SIZE);
+		unsigned int max_lbata = (numeric_limits<int>::max() - 100) / numprocs;
+		if (lbata > max_lbata) {
+			LBATA_BUF_SIZE = max_lbata;
+		} else {
+			LBATA_BUF_SIZE = (unsigned int) lbata;
+		}
+
+		//准备Alltoall接收的数据缓冲区
+		int recv_buf_offset[numprocs];
+		int recv_buf_size[numprocs];
+		for (int j = 0; j < numprocs; j++) {
+			recv_buf_offset[j] = j * LBATA_BUF_SIZE;
+			recv_buf_size[j] = LBATA_BUF_SIZE;
+		}
+		pair<void*, int> lbata_recv_msg_pkg;
+		lbata_recv_msg_pkg.first = malloc(numprocs * LBATA_BUF_SIZE);
+		lbata_recv_msg_pkg.second = numprocs * LBATA_BUF_SIZE;
+//		printf("process %u finish %u lb alltoall preparation\n", pid, i + 1);
+//		MPI_Barrier(m_comm);
+
+		//交换数据
+//		printf("process %u start %u lb alltoall\n", pid, i + 1);
+		MPI_Alltoallv(lbata_send_msg_pkg.first, send_buf_size, send_buf_offset,
+				MPI_PACKED, lbata_recv_msg_pkg.first, recv_buf_size,
+				recv_buf_offset, MPI_PACKED, m_comm);
+//		printf("process %u finish %u lb alltoall\n", pid, i + 1);
+//		MPI_Barrier(m_comm);
+
+		//解包Alltoall消息
+//		printf("process %u start %u lb unpack alltoall\n", pid, i + 1);
+		KItemsets* received_itemsets = unpack_lbata_msg(lbata_recv_msg_pkg);
+//		printf("process %u end %u lb unpack alltoall\n", pid, i + 1);
+//		MPI_Barrier(m_comm);
+//		printf("process %u received itemsets:\n", pid);
+//		received_itemsets->print();
+
+		//处理交换数据
+		unsigned int received_num = received_itemsets->get_itemsets().size();
+//		printf("process %u in %u lb received %u itemsets\n", pid, i + 1, received_num);
+		for (unsigned int j = 0; j < received_num; j++) {
+			pair<vector<unsigned int>, unsigned int>* itemset =
+					received_itemsets->pop();
+			this->m_frequent_itemsets->at(i).push(itemset->first,
+					itemset->second);
+			delete itemset;
+		}
+
+		if (pid == m_root_pid) {
+			delete[] transmit_matrix;
+			delete[] itemset_nums;
+		}
+		delete[] transmit_itemsets;
+		delete received_itemsets;
+
+		delete[] lbata_send_msg_pkg.second;
+		free(lbata_send_msg_pkg.first);
+		free(lbata_recv_msg_pkg.first);
+		//栅栏同步
+		MPI_Barrier(m_comm);
+//		printf("process %u finish %u load balance\n", pid, i + 1);
+		/************************ Load balance end ************************/
+
 		frq_itemsets = new KItemsets(i + 2,
 				1.5 * combine(this->m_item_details.size(), i + 2));
 
@@ -2356,6 +2543,97 @@ pair<RecordInfoType*, unsigned int> ParallelHiApriori<ItemType, ItemDetail,
 	result.first = new RecordInfoType[result.second];
 	RecordInfoType::mpi_unpack(msg_pkg.first, msg_pkg.second, &position,
 			result.first, result.second, m_comm);
+	return result;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+pair<void*, int*> ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::pack_lbata_msg(
+		KItemsets* itemsets) {
+	int numprocs;
+	MPI_Comm_size(m_comm, &numprocs);
+	pair<void*, int*> result;
+
+	//计算缓冲区大小
+	int total_size = 0;
+	result.second = new int[numprocs];
+	for (int i = 0; i < numprocs; i++) {
+		int uint_size;
+		MPI_Pack_size(
+				2
+						+ itemsets[i].get_itemsets().size()
+								* (itemsets->get_term_num() + 1), MPI_UNSIGNED,
+				m_comm, &uint_size);
+		assert(uint_size <= LBATA_BUF_SIZE);
+		result.second[i] = uint_size;
+		total_size += uint_size;
+	}
+
+	//分配缓冲区空间
+	result.first = malloc(total_size);
+
+	//开始打包
+	int position = 0;
+	for (int i = 0; i < numprocs; i++) {
+		const map<vector<unsigned int>, unsigned int>& itemset =
+				itemsets[i].get_itemsets();
+		unsigned int term_num = itemsets->get_term_num();
+		unsigned int itemset_num = itemset.size();
+
+		MPI_Pack(&term_num, 1, MPI_UNSIGNED, result.first, total_size,
+				&position, m_comm);
+		MPI_Pack(&itemset_num, 1, MPI_UNSIGNED, result.first, total_size,
+				&position, m_comm);
+
+		map<vector<unsigned int>, unsigned int>::const_iterator itemset_iter =
+				itemset.begin();
+		for (unsigned int j = 0; j < itemset_num; j++, itemset_iter++) {
+			MPI_Pack((void*) itemset_iter->first.data(), term_num, MPI_UNSIGNED,
+					result.first, total_size, &position, m_comm);
+			MPI_Pack((void*) &itemset_iter->second, 1, MPI_UNSIGNED,
+					result.first, total_size, &position, m_comm);
+		}
+	}
+
+	return result;
+}
+
+template<typename ItemType, typename ItemDetail, typename RecordInfoType>
+KItemsets* ParallelHiApriori<ItemType, ItemDetail, RecordInfoType>::unpack_lbata_msg(
+		pair<void*, int> msg_pkg) {
+	int numprocs, position = 0;
+	unsigned int total_size = 0;
+	MPI_Comm_size(m_comm, &numprocs);
+	KItemsets* result = new KItemsets;
+
+	//计算缓冲区总大小
+	total_size = msg_pkg.second;
+
+	//开始解包
+	unsigned int term_num;
+	MPI_Unpack(msg_pkg.first, total_size, &position, &term_num, 1, MPI_UNSIGNED,
+			m_comm);
+	result->set_term_num(term_num);
+	for (int i = 0; i < numprocs; i++) {
+		position = i * LBATA_BUF_SIZE;
+		unsigned int itemset_num;
+		MPI_Unpack(msg_pkg.first, total_size, &position, &term_num, 1,
+				MPI_UNSIGNED, m_comm);
+		MPI_Unpack(msg_pkg.first, total_size, &position, &itemset_num, 1,
+				MPI_UNSIGNED, m_comm);
+
+		for (unsigned int j = 0; j < itemset_num; j++) {
+			unsigned int itemset[term_num];
+			unsigned int support;
+			MPI_Unpack(msg_pkg.first, total_size, &position, itemset, term_num,
+					MPI_UNSIGNED, m_comm);
+			MPI_Unpack(msg_pkg.first, total_size, &position, &support, 1,
+					MPI_UNSIGNED, m_comm);
+			vector<unsigned int> itemset_v = vector<unsigned int>(itemset,
+					itemset + term_num);
+			result->push(itemset_v, support);
+		}
+	}
+
 	return result;
 }
 

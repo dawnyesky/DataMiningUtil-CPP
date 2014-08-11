@@ -59,6 +59,7 @@ public:
 	const map<vector<unsigned int>, unsigned int>& get_itemsets() const;
 	pair<vector<unsigned int>, unsigned int>* pop();
 	unsigned int get_term_num() const;
+	void set_term_num(unsigned int term_num);
 
 private:
 	unsigned int m_term_num;
